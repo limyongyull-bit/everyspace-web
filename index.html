@@ -591,11 +591,14 @@ function makeScanMaterial(name, lm, d) {
   return m;
 }
 
-function makeMaterial(name, lm, mod) {
+// per-room material swaps: [material to use instead, its gloss there]
+// the gas forecourt is dry light-grey concrete, not a black mirror of the canopy lights
+const MOD_SWAP = { gas: { asphalt: ['concrete', 0.08] } };
+function makeMaterial(name, lm, mod, gloss = GLOSS[name]) {
   const d = MAT_DEF[name] || { color: 0xff00ff };
   if (ASSET.scan && ASSET.scan[name]) {
     const m = makeScanMaterial(name, lm, d);
-    if (GLOSS[name] || GRIME.has(name) || STAIN.has(name)) makeReflective(m, GLOSS[name] || 0, GRIME.has(name), STAIN.has(name));
+    if (gloss || GRIME.has(name) || STAIN.has(name)) makeReflective(m, gloss || 0, GRIME.has(name), STAIN.has(name));
     tint(m, mod, d);
     decal(m, name);
     m.name = name;
@@ -608,7 +611,7 @@ function makeMaterial(name, lm, mod) {
     // baked value = irradiance / LM_SCALE; three's basic shader divides lightmaps by PI
     m.lightMapIntensity = ASSET.meta.LM_SCALE * Math.PI * (1 + (d.glow || 0));
   } else if (d.boost) m.color.multiplyScalar(d.boost);
-  if (GLOSS[name] || GRIME.has(name) || STAIN.has(name)) makeReflective(m, GLOSS[name] || 0, GRIME.has(name), STAIN.has(name));
+  if (gloss || GRIME.has(name) || STAIN.has(name)) makeReflective(m, gloss || 0, GRIME.has(name), STAIN.has(name));
   tint(m, mod, d);
   decal(m, name);
   if (name === 'ceil') m.color.multiplyScalar(0.86);   // ceilings read darker than floors in every real photo
@@ -623,7 +626,8 @@ async function loadModule(n) {
   gltf.scene.traverse(o => {
     if (!o.isMesh) return;
     const name = (o.material.name || '').replace(/\.\d+$/, '');
-    o.material = mats[name] ||= makeMaterial(name, lm, n);
+    const sw = MOD_SWAP[n]?.[name];
+    o.material = mats[name] ||= sw ? makeMaterial(sw[0], lm, n, sw[1]) : makeMaterial(name, lm, n);
     if (name === 'sky' && (n === 'concourse' || n === 'lobby')) o.visible = false;   // real panorama shows through instead
     if (o.material.isMeshStandardMaterial && !o.geometry.attributes.normal) o.geometry.computeVertexNormals();
     if (GLOSS[name]) o.layers.set(1);   // reflective surfaces: main camera only (never sample their own reflection)
