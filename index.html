@@ -1213,6 +1213,7 @@ function buildRoom(zone, kind) {
   if (!m.crawl) scatterLitter(zone, zone.x0 + 0.6, zone.x1 - 0.6, zone.z0 - 0.8, zone.exitZ + 0.8, Math.min(9, 2 + Math.round((m.x1 - m.x0) * m.len / 120)));
   // Killi: how big they can be in here, and when the first one comes
   zone.kr = Math.min(KR, (m.h - 0.12) / 2);
+  if (m.x1 - m.x0 < 4) zone.kr = Math.min(zone.kr, (m.x1 - m.x0 - 1.4) / 2);   // corridor: leave room to flatten against a wall
   zone.killiT = 2.5 + zone.rng() * 3.5;
 }
 function createZone(i, z0) {
@@ -1282,6 +1283,10 @@ class Killi {
       const ang = this.phase / this.r;                       // head rotation: a heavy bump twice a turn
       SFX.moveVoice(this.voice, p.x, this.r, p.z, clamp(1 / (1 - vr / 90), 0.75, 1.3), Math.pow(Math.abs(Math.sin(ang)), 12));
     }
+    if (this.left <= 0 && this.wall && SFX.ctx) {   // it slams into a closed wall: a heavy thud you feel
+      const v = clamp(1 - Math.hypot(camera.position.x - p.x, camera.position.z - p.z) / 30, 0, 1);
+      if (v > 0) { SFX.tone(46, 0, 0.7, 0.4 * v, 'square'); game.shake = Math.max(game.shake, 0.8 * v); }
+    }
     return this.left > 0;
   }
   // height of the centre so the lowest point of the (non-round) head rests on the floor in its current orientation
@@ -1293,21 +1298,31 @@ class Killi {
   }
   dispose() { scene.remove(this.obj); SFX.stopVoice(this.voice); this.voice = null; }
 }
-// Killis only come down passages: through the room's doors (along the walking line) and along its cross aisles.
-// A room can list its own lanes in meta ({a:'x'|'z', c: room-local coordinate}); otherwise: both doors, the front
-// and back cross aisles, a middle aisle in long rooms, and patient-room doors all along a corridor.
+// Killis only come down passages: through the room's doors (along the walking line) and along cross aisles that
+// really open onto a side wall. A room can list its own lanes in meta ({a:'x'|'z', c: room-local coordinate});
+// otherwise: both doors (a corridor's own length counts), and a cross aisle only where a side wall has a gap
+// wide enough for the head (the walls are solid in every room so far: no Killi rolls out of drywall).
+function wallOpen(zone, side, z, r) {
+  const wx = side < 0 ? zone.x0 : zone.x1;
+  return !zone.cols.some(c => (side < 0 ? c.x0 <= wx + 0.6 : c.x1 >= wx - 0.6) && c.z1 > z - r && c.z0 < z + r);
+}
 function killiLanes(zone) {
   if (zone.lanes) return zone.lanes;
   const m = zone.meta, L = [];
   if (m.lanes) for (const l of m.lanes) L.push({ a: l.a, c: l.a === 'x' ? zone.z0 + l.c : zone.ox + l.c });
   else {
-    const kr = zone.kr, w = m.x1 - m.x0;
-    if (m.axes.includes('z') && w > 2 * kr + 1) { L.push({ a: 'z', c: zone.ox + m.entry }); if (Math.abs(m.exit - m.entry) > kr * 2) L.push({ a: 'z', c: zone.ox + m.exit }); }
-    if (m.axes.includes('x')) {
-      if (w < 4) for (let z = 3; z < m.len - 2; z += 5 + zone.rng() * 3) L.push({ a: 'x', c: zone.z0 - z });   // corridor: side doors
-      else {
-        L.push({ a: 'x', c: zone.z0 - Math.min(kr + 0.9, m.len * 0.3) }, { a: 'x', c: zone.exitZ + Math.min(kr + 0.9, m.len * 0.3) });
-        if (m.len > 20) L.push({ a: 'x', c: zone.z0 - m.len / 2 });
+    const kr = zone.kr, w = m.x1 - m.x0, corridor = w < 4;
+    if ((m.axes.includes('z') && w > 2 * kr + 1) || corridor) {
+      // through the entry door from the front (+z side), through the exit door from the back; both ways if they line up
+      if (Math.abs(m.exit - m.entry) > kr * 2) L.push({ a: 'z', c: zone.ox + m.entry, from: [1] }, { a: 'z', c: zone.ox + m.exit, from: [-1] });
+      else L.push({ a: 'z', c: zone.ox + (m.entry + m.exit) / 2, from: [-1, 1] });
+    }
+    if (m.axes.includes('x') && !corridor) {
+      const zs = [zone.z0 - Math.min(kr + 0.9, m.len * 0.3), zone.exitZ + Math.min(kr + 0.9, m.len * 0.3)];
+      if (m.len > 20) zs.push(zone.z0 - m.len / 2);
+      for (const c of zs) {
+        const from = [-1, 1].filter(sd => wallOpen(zone, sd, c, kr + 0.1));   // sides it can come in from
+        if (from.length) L.push({ a: 'x', c, from });
       }
     }
   }
@@ -1322,18 +1337,20 @@ function spawnKilli(zone, p) {
   let pick = r() * wts.reduce((a, b) => a + b, 0), lane = lanes[0];
   for (let k = 0; k < lanes.length; k++) { pick -= wts[k]; if (pick <= 0) { lane = lanes[k]; break; } }
   const axis = lane.a;
-  const dir = r() < 0.5 ? 1 : -1;                           // +1: travels toward +x / +z
+  // +1: travels toward +x / +z; a cross aisle open on one side only is entered from that side
+  const dir = lane.from && lane.from.length === 1 ? -lane.from[0] : r() < 0.5 ? 1 : -1;
   const speed = Math.min(6.5 + depth * 0.35, 11) * (0.9 + r() * 0.25);
   const n = 1 + (r() < Math.min(0.12 + depth * 0.04, 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);
   const kr = zone.kr;
   let s0, span;
   if (axis === 'x') { s0 = dir > 0 ? zone.x0 - OUTSIDE : zone.x1 + OUTSIDE; span = zone.x1 - zone.x0 + OUTSIDE * 2; }
   else { s0 = dir > 0 ? zone.exitZ - OUTSIDE : zone.z0 + OUTSIDE; span = zone.len + OUTSIDE * 2; }
+  if (lane.from && !lane.from.includes(-dir)) span -= OUTSIDE + kr;   // no opening in the far wall: it stops against it
   let back = 0;
   for (let k = 0; k < n; k++) {
     const jitter = (r() - 0.5) * 0.3, along = s0 - dir * back;
     const [x, z, dx, dz] = axis === 'x' ? [along, lane.c + jitter, dir, 0] : [lane.c + jitter, along, 0, dir];
-    zone.killis.push(new Killi(zone, x, z, dx, dz, speed, kr, span + back));
+    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.wall = !!(lane.from && !lane.from.includes(-dir)); zone.killis.push(k);
     back += kr * 2 + 0.8 + r() * 2.5;
   }
   // the horn: loudness says roughly how far, nothing says where (the rolling itself is what you can place)
