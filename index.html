@@ -1468,7 +1468,7 @@ class HandsMound {
   update(dt, p, active) {
     this.t += dt;
     const o = this.obj.position, dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz);
-    if (active && d > 1.2) { const sp = 0.85 * dt; o.x += dx / d * sp; o.z += dz / d * sp; }
+    if (active && d > 1.2) stepAvoiding(o, dx / d, dz / d, 0.85 * dt, 0.6, this);   // crawls round counters, not through
     // writhing: every hand sways and claws on its own rhythm
     for (const h of this.parts) {
       const w = Math.sin(this.t * 1.7 + h.ph), w2 = Math.sin(this.t * 2.9 + h.ph * 1.3);
@@ -1595,6 +1595,27 @@ function collideCircle(p, r, axis, zoneIdx) {
   }
   return hit;
 }
+// walk p one step toward (ux, uz) without passing through shelves, counters or walls (Niki, the mound): when a collider
+// blocks the straight line to the player, head for the corner of it that gives the shortest way round, and slide along
+// anything still in the way. st keeps the current waypoint (wp) and the direction actually walked (head).
+function stepAvoiding(p, ux, uz, step, r, st) {
+  const zn = zoneAt(p.z), zi = zn ? zones.indexOf(zn) : game.zoneIdx, x0 = p.x, z0 = p.z, P = game.p;
+  // a shelf / counter between it and the player: head for the corner of it that gives the shortest way round
+  const blocker = segmentBlocker(x0, z0, P.x, P.z, r - 0.02, zi);
+  if (!blocker) st.wp = null;
+  else if (!st.wp || Math.hypot(st.wp.x - x0, st.wp.z - z0) < 0.15 || segmentBlocker(x0, z0, st.wp.x, st.wp.z, r - 0.02, zi)) {
+    const g = r + 0.12; let best = Infinity; st.wp = null;
+    for (const [x, z] of [[blocker.x0 - g, blocker.z0 - g], [blocker.x1 + g, blocker.z0 - g], [blocker.x0 - g, blocker.z1 + g], [blocker.x1 + g, blocker.z1 + g]]) {
+      const d0 = Math.hypot(x - x0, z - z0); if (d0 < 0.15 || segmentBlocker(x0, z0, x, z, r - 0.02, zi)) continue;
+      const cost = d0 + Math.hypot(P.x - x, P.z - z); if (cost < best) { best = cost; st.wp = { x, z }; }
+    }
+  }
+  if (st.wp) { const wx = st.wp.x - x0, wz = st.wp.z - z0, wl = Math.hypot(wx, wz) || 1; ux = wx / wl; uz = wz / wl; }
+  // walk, sliding along anything still in the way
+  p.x = x0 + ux * step; collideCircle(p, r, 'x', zi); p.z = z0 + uz * step; collideCircle(p, r, 'z', zi);
+  const mx = p.x - x0, mz = p.z - z0, ml = Math.hypot(mx, mz);
+  if (ml > step * 0.2) (st.head ||= new THREE.Vector3()).set(mx / ml, 0, mz / ml);
+}
 // first collider (grown by r) crossed by the floor segment a -> b, or null: line of sight / clear walking line
 function segmentBlocker(ax, az, bx, bz, r, zoneIdx) {
   const dx = bx - ax, dz = bz - az;
@@ -1626,24 +1647,7 @@ const NIKI = {
   },
   // step toward (ux, uz) without passing through shelves, counters or walls: slide along what blocks her, and when the
   // straight line is blocked walk around the obstacle (keep to one side until the way to the player is clear again)
-  walk(ux, uz, step, r) {
-    const zn = zoneAt(this.pos.z), zi = zn ? zones.indexOf(zn) : game.zoneIdx, p = this.pos, x0 = p.x, z0 = p.z, P = game.p;
-    // a shelf / counter between her and the player: head for the corner of it that gives the shortest way round
-    const blocker = segmentBlocker(x0, z0, P.x, P.z, r - 0.02, zi);
-    if (!blocker) this.wp = null;
-    else if (!this.wp || Math.hypot(this.wp.x - x0, this.wp.z - z0) < 0.15 || segmentBlocker(x0, z0, this.wp.x, this.wp.z, r - 0.02, zi)) {
-      const g = r + 0.12; let best = Infinity; this.wp = null;
-      for (const [x, z] of [[blocker.x0 - g, blocker.z0 - g], [blocker.x1 + g, blocker.z0 - g], [blocker.x0 - g, blocker.z1 + g], [blocker.x1 + g, blocker.z1 + g]]) {
-        const d0 = Math.hypot(x - x0, z - z0); if (d0 < 0.15 || segmentBlocker(x0, z0, x, z, r - 0.02, zi)) continue;
-        const cost = d0 + Math.hypot(P.x - x, P.z - z); if (cost < best) { best = cost; this.wp = { x, z }; }
-      }
-    }
-    if (this.wp) { const wx = this.wp.x - x0, wz = this.wp.z - z0, wl = Math.hypot(wx, wz) || 1; ux = wx / wl; uz = wz / wl; }
-    // walk, sliding along anything still in the way
-    p.x = x0 + ux * step; collideCircle(p, r, 'x', zi); p.z = z0 + uz * step; collideCircle(p, r, 'z', zi);
-    const mx = p.x - x0, mz = p.z - z0, ml = Math.hypot(mx, mz);
-    if (ml > step * 0.2) (this.head ||= new THREE.Vector3()).set(mx / ml, 0, mz / ml);
-  },
+  walk(ux, uz, step, r) { stepAvoiding(this.pos, ux, uz, step, r, this); },
   reset() { this.mode = 'none'; this.cool = 25; this.giveT = 12; this.sprintT = 0; if (this.obj) { this.obj.visible = false; this.mad.visible = false; } },
   spawn(zone) {
     this.build(); if (!this.obj) return;
