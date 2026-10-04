@@ -253,6 +253,8 @@ renderer.toneMapping = THREE.NoToneMapping;
 renderer.setPixelRatio(1);
 
 const scene = new THREE.Scene();
+// haze for rooms whose bake carries none: a warehouse under high-bay lamps fades to dim warm grey, not to daylight
+const ROOM_FOG = { club: [0x3a3631, 14, 80] };
 const fogLinear = new THREE.Color(CFG.fogColor);           // ColorManagement converts hex -> linear
 scene.background = fogLinear.clone();
 scene.fog = new THREE.Fog(fogLinear.clone(), CFG.fogNear, CFG.fogFar);
@@ -1943,7 +1945,7 @@ const game = {
   enterZone(zone) {
     if (!zone) return;
     // every room has its own haze (an airport isn't hazy at 40 m, a parking deck swallows light) and exposure
-    const m = zone.meta || {}, f = m.fog || [CFG.fogColor, CFG.fogNear, CFG.fogFar];
+    const m = zone.meta || {}, f = m.fog || ROOM_FOG[m.kind] || [CFG.fogColor, CFG.fogNear, CFG.fogFar];
     game.expTarget = m.exposure ?? 1;
     game.darkTarget = m.dark ?? 0;
     game.fogTarget.set(f[0]);
