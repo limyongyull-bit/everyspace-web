@@ -1075,7 +1075,7 @@ const DYN = {
   }),
   ledBack: new THREE.MeshBasicMaterial({ color: 0x0d0d0d }),
   // 이어리 are solid black; glossy so the fluorescent room reflects off the face. Fog never washes them out.
-  killi: new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 0.42, metalness: 0, envMap: envTex, envMapIntensity: 0.75, fog: false }),
+  killi: new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 0.42, metalness: 0, envMap: envTex, envMapIntensity: 0.75 }),
 };
 const GEO = { plane: new THREE.PlaneGeometry(1, 1), box: new THREE.BoxGeometry(1, 1, 1) };
 function addPlane(group, mat, w, h, x, y, z, rx = 0, ry = 0) {
@@ -1516,12 +1516,18 @@ function lightAt(x, z) {
   }
   return dk;
 }
+// how much of the (static, store-bright) environment light a creature at x,z should pick up: the room's own light,
+// power cuts, the Hands' darkness and the emergency pools; a dark thing in the dark stays a silhouette
+function creatureLight(x, z) {
+  const zn = zoneAt(z);
+  return Math.max(0.03, lightAt(x, z) * (1 - 1.6 * (zn?.meta?.dark || 0)));
+}
 
 /* ============================================================
    이어리: THE HANDS — a mound of black hands that crawls toward you, putting out every light it passes.
    Stand in the dark near it and hands rise out of the floor.
    ============================================================ */
-const HANDS_MAT = new THREE.MeshStandardMaterial({ color: 0x040404, roughness: 0.78, metalness: 0, envMap: envTex, envMapIntensity: 0.45, fog: false });
+const HANDS_MAT = new THREE.MeshStandardMaterial({ color: 0x040404, roughness: 0.78, metalness: 0, envMap: envTex, envMapIntensity: 0.45 });
 class HandsMound {
   constructor(zone, x, z) {
     this.zone = zone; this.obj = new THREE.Group(); this.obj.position.set(x, 0, z);
@@ -1792,6 +1798,11 @@ const NIKI = {
     swing(P.spine, isMad ? 0.18 + Math.sin(game.t * 9) * 0.03 : 0.0);
     if (P.head) { P.head.quaternion.copy(P.head.userData.rest); if (!isMad) P.head.rotateY(Math.sin(game.t * 0.7) * 0.12); }
     root.position.y = tired ? -0.42 : speed > 0.1 ? Math.abs(Math.cos(this.phase)) * (isMad ? 0.07 : 0.025) : 0;
+    const lt = creatureLight(this.pos.x, this.pos.z);   // she dims with the room like everything else (her texture glows a little)
+    if (lt !== this.lt || root !== this.ltRoot) {   // Mad Niki's red cracks keep their own glow
+      this.lt = lt; this.ltRoot = root;
+      root.traverse(o => { if (o.isMesh) { const m = o.material; m.envMapIntensity = m.userData.env0 * lt; if (!isMad) m.emissiveIntensity = m.userData.glow0 * lt; } });
+    }
     SFX.setNiki(this.mode === 'close' || this.mode === 'walk' ? clamp(1 - d / 14, 0, 1) : 0, isMad ? clamp(1 - d / 30, 0, 1) : 0, this.pos.x, this.pos.z);
     return d;
   },
@@ -1808,6 +1819,7 @@ function prepNikiMaterials(scene_, glow = 0.22) {
       envMap: envTex, envMapIntensity: 0.9, emissive: 0xffffff, emissiveMap: src.map || null, emissiveIntensity: src.map ? glow : 0 });
     if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
     if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+    m.userData.env0 = m.envMapIntensity; m.userData.glow0 = m.emissiveIntensity;
     o.material = m;
   });
 }
@@ -2027,6 +2039,10 @@ const game = {
       DARK.uBlack.value.set(hp.level, hz.z0 + 0.2, hz.exitZ - 0.2, 0);
       for (let k = 0; k < 3; k++) { const q = hp.pools?.[k]; if (q) DARK.uSafe.value[k].set(q.x, q.z, q.r, q.w); else DARK.uSafe.value[k].set(0, 0, 0, 0); }
     } else if (DARK.uBlack.value.x) { DARK.uBlack.value.set(0, 0, 0, 0); SFX.powerOn(); }
+    // creatures dim with the light where they are (their materials reflect a fixed bright environment)
+    const hm = hz?.hands?.obj.position;
+    HANDS_MAT.envMapIntensity = 0.45 * (hm ? creatureLight(hm.x, hm.z) : creatureLight(this.p.x, this.p.z));
+    DYN.killi.envMapIntensity = 0.75 * creatureLight(this.p.x, this.p.z);
     // the mound's slither is a mono rumble; Killis carry their own positioned voices
     SFX.setRumble(rumble * 1.1);
     // phone auto-exposure: stepping into a dark room slowly raises gain (and noise)
