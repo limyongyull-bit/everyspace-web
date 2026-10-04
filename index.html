@@ -597,7 +597,7 @@ function makeMaterial(name, lm, mod) {
     tint(m, mod, d);
     decal(m, name);
     m.name = name;
-    return addDarkness(m);
+    return addDarkness(m, MAINS_LIT.has(name));
   }
   const m = new THREE.MeshBasicMaterial({ color: d.color ?? 0xffffff, fog: d.fog !== false });
   if (d.tex) m.map = ASSET.tex[d.tex];
@@ -611,7 +611,7 @@ function makeMaterial(name, lm, mod) {
   decal(m, name);
   if (name === 'ceil') m.color.multiplyScalar(0.86);   // ceilings read darker than floors in every real photo
   m.name = name;
-  return addDarkness(m);
+  return addDarkness(m, MAINS_LIT.has(name));
 }
 
 async function loadModule(n) {
@@ -1464,7 +1464,9 @@ const DARK_N = 12;
 const DARK = { uDark: { value: Array.from({ length: DARK_N }, () => new THREE.Vector4()) }, uGlow: { value: new THREE.Vector4() },
   // x: how dark the room is (1 = power cut), y/z: the room's z range, w: unused
   uBlack: { value: new THREE.Vector4() }, uSafe: { value: Array.from({ length: 3 }, () => new THREE.Vector4()) } };
-function addDarkness(m) {
+// mains-powered self-lit fixtures: dark in a power cut whatever the emergency lamps do (the EXIT sign has a battery)
+const MAINS_LIT = new Set(['light', 'lightstrip', 'downlight', 'highbay', 'lamp', 'fridgelight', 'ad', 'fids', 'grate', 'lightbox']);
+function addDarkness(m, mains = false) {
   const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey?.bind(m);
   m.onBeforeCompile = (sh, r) => {
     if (prev) prev(sh, r);
@@ -1482,14 +1484,15 @@ function addDarkness(m) {
       if (uBlack.x > 0.0 && vDkPos.z < uBlack.y && vDkPos.z > uBlack.z) {
         float sf = 0.0;
         for (int i = 0; i < 3; i++) { vec4 q = uSafe[i]; if (q.w > 0.0) sf = max(sf, q.w * (1.0 - smoothstep(q.z * 0.35, q.z, length(vDkPos.xz - q.xy)))); }
-        sf *= 1.0 - 0.9 * smoothstep(1.5, 2.6, vDkPos.y);   // a battery lamp lights the floor below it, not the ceiling tubes
-        dk *= 1.0 - 0.985 * uBlack.x * (1.0 - sf);
+        sf *= 1.0 - smoothstep(1.6, 2.7, vDkPos.y);   // a battery lamp lights the floor below it; nothing at ceiling height
+        ${mains ? 'sf = 0.0;   // the fixture itself has no power' : ''}
+        dk *= 1.0 - ${mains ? '0.997' : '0.985'} * uBlack.x * (1.0 - sf);
       }
       float gl = uGlow.w * (1.0 - smoothstep(0.0, uGlow.z, length(vDkPos - vec3(uGlow.x, 1.0, uGlow.y))));
       gl_FragColor.rgb = gl_FragColor.rgb * mix(dk, 1.0, gl * 0.85) + vec3(0.06, 0.32, 0.14) * gl * 0.22;
       #include <dithering_fragment>`);
   };
-  m.customProgramCacheKey = () => (prevKey ? prevKey() : '') + '|dk';
+  m.customProgramCacheKey = () => (prevKey ? prevKey() : '') + (mains ? '|dkm' : '|dk');
   return m;
 }
 // how lit is a point (same formula as the shader, CPU side)
