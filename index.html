@@ -788,6 +788,24 @@ const SFX = {
     if (heavy) { this._noise(t, 0.12, 'lowpass', 260, 0.8, 0.9, p); this.tone(48, 0, 0.25, 0.25, 'sine', p); }
     else this._noise(t, 0.06, 'bandpass', 900 + Math.random() * 300, 1.2, 0.35, p);
   },
+  // The Hands mound crawling: a looped wet scrape with irregular knuckle taps, HRTF-panned (stopVoice ends it)
+  moundVoice() {
+    if (!this.ctx) return null;
+    const ctx = this.ctx, t = ctx.currentTime, pan = this.panner(2, 1.1);
+    const out = ctx.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(1, t + 1.5); out.connect(pan);
+    const low = ctx.createBufferSource(); low.buffer = this.noiseBuf; low.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = 'bandpass'; lp.frequency.value = 420; lp.Q.value = 1.4;
+    const sg = ctx.createGain(); sg.gain.value = 0.5; low.connect(lp); lp.connect(sg); sg.connect(out);
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.9; lg.gain.value = 0.35; lfo.connect(lg); lg.connect(sg.gain); lfo.start(t);
+    const mid = ctx.createBufferSource(); mid.buffer = this.white; mid.loop = true;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1700; bp.Q.value = 3;
+    const clack = ctx.createGain(); clack.gain.value = 0; mid.connect(bp); bp.connect(clack); clack.connect(out);
+    for (let k = 0, tt = t + 0.5; k < 400; k++, tt += 0.12 + Math.random() * 0.5) {   // ~2 min of knuckle taps, then it just scrapes
+      clack.gain.setValueAtTime(0.25 + Math.random() * 0.2, tt); clack.gain.exponentialRampToValueAtTime(0.001, tt + 0.04);
+    }
+    low.start(t, Math.random() * 1.5); mid.start(t, Math.random() * 1.5);
+    return { pan, out, low, mid };
+  },
   // one rolling Killi = its own 3D voice: low rumble + a rhythmic clack (one per turn of the head), HRTF-panned,
   // louder as it nears and pitched up while it approaches / down once it has passed (Doppler, like a train going by)
   killiVoice() {
@@ -1309,7 +1327,8 @@ class Killi {
       }
       step = Math.min(step, Math.max(0, this.left));
     }
-    p.x += this.dx * step; p.z += this.dz * step; this.left -= step; this.came = (this.came || 0) + (this.wall ? step : 0);
+    p.x += this.dx * step; p.z += this.dz * step; this.left -= step;
+    if (this.hideAt !== undefined && (this.dz < 0 ? p.z <= this.hideAt : p.z >= this.hideAt)) { this.obj.visible = true; this.hideAt = undefined; } this.came = (this.came || 0) + (this.wall ? step : 0);
     this.q.setFromAxisAngle(this.axis, step / this.r);
     this.roller.quaternion.premultiply(this.q);
     this.phase += step;
@@ -1389,18 +1408,20 @@ function spawnKilli(zone, p) {
   else { s0 = dir > 0 ? zone.exitZ - OUTSIDE : zone.z0 + OUTSIDE; span = zone.len + OUTSIDE * 2; }
   const farClosed = !!(lane.from && !lane.from.includes(dir));      // no opening in the far wall: it stops against it
   if (farClosed) { span -= OUTSIDE + kr; n = Math.min(n, 2 - inLane(lane)); }
-  // the run-up behind a door crosses the neighbouring room: start past anything standing on that line
+  // the run-up behind a door crosses the neighbouring room: the full run-up stays (you hear it coming from far off),
+  // but the body stays hidden until it is past the last thing standing on that line, so it never rolls through it
+  let hideAt;
   if (axis === 'z') {
     const ze = dir < 0 ? zone.z0 + 0.3 : zone.exitZ - 0.3;
     let s1 = ze;
     while (Math.abs(s1 - ze) < OUTSIDE && !segmentBlocker(lane.c, ze, lane.c, s1 - dir * 0.5, kr * 0.9, zone.i)) s1 -= dir * 0.5;
-    span -= Math.abs(s0 - s1); s0 = s1;
+    if (Math.abs(s1 - ze) < OUTSIDE) hideAt = s1;
   }
   let back = 0;
   for (let k = 0; k < n; k++) {
     const jitter = (r() - 0.5) * 0.3, along = s0 - dir * back;
     const [x, z, dx, dz] = axis === 'x' ? [along, lane.c + jitter, dir, 0] : [lane.c + jitter, along, 0, dir];
-    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.wall = farClosed; k.lane = lane; zone.killis.push(k);
+    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.wall = farClosed; k.lane = lane; if (hideAt !== undefined) { k.hideAt = hideAt; k.obj.visible = false; } zone.killis.push(k);
     back += kr * 2 + 0.8 + r() * 2.5;
   }
   // the horn: loudness says roughly how far, nothing says where (the rolling itself is what you can place)
@@ -1523,6 +1544,9 @@ class HandsMound {
     this.t += dt;
     const o = this.obj.position, dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz);
     if (active && d > 1.2) stepAvoiding(o, dx / d, dz / d, 0.85 * dt, 0.6, this);   // crawls round counters, not through
+    // its crawl is always audible from where it is: wet scraping + knuckles tapping the tiles
+    if (!this.voice && active) this.voice = SFX.moundVoice();
+    if (this.voice) SFX.at(this.voice.pan, o.x, 0.3, o.z);
     // writhing: every hand sways and claws on its own rhythm
     for (const h of this.parts) {
       const w = Math.sin(this.t * 1.7 + h.ph), w2 = Math.sin(this.t * 2.9 + h.ph * 1.3);
@@ -1556,7 +1580,7 @@ class HandsMound {
     }
     this.rise.instanceMatrix.needsUpdate = true;
   }
-  dispose() { scene.remove(this.obj); scene.remove(this.rise); }
+  dispose() { scene.remove(this.obj); scene.remove(this.rise); SFX.stopVoice(this.voice); this.voice = null; }
 }
 // an emergency light: a small battery fixture on the ceiling, still burning after the power is cut
 const EMERG = new THREE.MeshBasicMaterial({ color: 0xfff4dc });
