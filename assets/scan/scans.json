@@ -1,0 +1,51 @@
+{
+ "floor": {
+  "source": "composed",
+  "id": "600mm porcelain grid (plaster_grey_04 micro-detail)",
+  "tile": 2.4,
+  "rough": true,
+  "res": "1k"
+ },
+ "wall": {
+  "source": "polyhaven",
+  "id": "beige_wall_001",
+  "tile": 3.0,
+  "rough": true,
+  "res": "1k"
+ },
+ "vinyl": {
+  "source": "polyhaven",
+  "id": "plaster_grey_04",
+  "tile": 1.5,
+  "rough": true,
+  "res": "1k"
+ },
+ "concrete": {
+  "source": "polyhaven",
+  "id": "concrete_floor_worn_001",
+  "tile": 3.0,
+  "rough": true,
+  "res": "1k"
+ },
+ "carpet": {
+  "source": "polyhaven",
+  "id": "dirty_carpet",
+  "tile": 0.5999999046325684,
+  "rough": true,
+  "res": "1k"
+ },
+ "door": {
+  "source": "polyhaven",
+  "id": "oak_veneer_01",
+  "tile": 1.8300000429153442,
+  "rough": true,
+  "res": "1k"
+ },
+ "deck": {
+  "source": "polyhaven",
+  "id": "corrugated_iron_02",
+  "tile": 2.700000047683716,
+  "rough": true,
+  "res": "1k"
+ }
+}
