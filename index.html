@@ -692,7 +692,7 @@ const SFX = {
     const ctx = this.ctx = new AC();
     this.master = ctx.createGain(); this.master.gain.value = 0.8; this.master.connect(ctx.destination);
     // fluorescent hum
-    const hum = ctx.createGain(); hum.gain.value = 0.018; hum.connect(this.master);
+    const hum = this.hum = ctx.createGain(); hum.gain.value = 0.018; hum.connect(this.master);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.connect(hum);
     [120, 240, 361].forEach((f, i) => { const o = ctx.createOscillator(); o.type = i ? 'sine' : 'sawtooth'; o.frequency.value = f; o.connect(lp); o.start(); });
     const len = ctx.sampleRate * 2;
@@ -766,6 +766,65 @@ const SFX = {
       s.start(t, Math.random()); s.stop(t + 0.25);
     }
   },
+  // one rolling Killi = its own 3D voice: low rumble + a rhythmic clack (one per turn of the head), HRTF-panned,
+  // louder as it nears and pitched up while it approaches / down once it has passed (Doppler, like a train going by)
+  killiVoice() {
+    if (!this.ctx) return null;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const pan = ctx.createPanner(); pan.panningModel = 'HRTF'; pan.distanceModel = 'inverse'; pan.refDistance = 2.5; pan.rolloffFactor = 1.1; pan.maxDistance = 200;
+    const out = ctx.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(1, t + 0.8);
+    out.connect(pan); pan.connect(this.master);
+    const send = ctx.createGain(); send.gain.value = 0.35; out.connect(send); send.connect(this.verb);
+    const low = ctx.createBufferSource(); low.buffer = this.noiseBuf; low.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260;
+    const lg = ctx.createGain(); lg.gain.value = 1.6; low.connect(lp); lp.connect(lg); lg.connect(out);
+    const mid = ctx.createBufferSource(); mid.buffer = this.white; mid.loop = true;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 650; bp.Q.value = 0.9;
+    const clack = ctx.createGain(); clack.gain.value = 0.05; mid.connect(bp); bp.connect(clack); clack.connect(out);
+    low.start(t, Math.random() * 1.5); mid.start(t, Math.random() * 1.5);
+    return { pan, out, low, mid, clack, bp };
+  },
+  moveVoice(v, x, y, z, rate, clack) {
+    if (!v) return;
+    const t = this.ctx.currentTime, P = v.pan;
+    if (P.positionX) { P.positionX.setTargetAtTime(x, t, 0.02); P.positionY.setTargetAtTime(y, t, 0.02); P.positionZ.setTargetAtTime(z, t, 0.02); }
+    else P.setPosition(x, y, z);
+    v.low.playbackRate.setTargetAtTime(rate, t, 0.05); v.mid.playbackRate.setTargetAtTime(rate, t, 0.05);
+    v.bp.frequency.setTargetAtTime(650 * rate, t, 0.05);
+    v.clack.gain.setTargetAtTime(0.05 + clack * 0.55, t, 0.01);
+  },
+  stopVoice(v) {
+    if (!v) return;
+    const t = this.ctx.currentTime;
+    v.out.gain.setTargetAtTime(0, t, 0.15); v.low.stop(t + 0.8); v.mid.stop(t + 0.8);
+  },
+  listen(cam) {
+    if (!this.ctx) return;
+    const L = this.ctx.listener, p = cam.position, f = this._f ||= new THREE.Vector3(), t = this.ctx.currentTime;
+    cam.getWorldDirection(f);
+    if (L.positionX) {
+      L.positionX.setTargetAtTime(p.x, t, 0.02); L.positionY.setTargetAtTime(p.y, t, 0.02); L.positionZ.setTargetAtTime(p.z, t, 0.02);
+      L.forwardX.setTargetAtTime(f.x, t, 0.02); L.forwardY.setTargetAtTime(f.y, t, 0.02); L.forwardZ.setTargetAtTime(f.z, t, 0.02);
+      L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0;
+    } else { L.setPosition(p.x, p.y, p.z); L.setOrientation(f.x, f.y, f.z, 0, 1, 0); }
+  },
+  // a ballast struggling: click + buzz, every time the room's tubes stutter
+  flickTick(on) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this._noise(t, 0.025, 'highpass', 4000, 0.7, on ? 0.12 : 0.06);
+    if (on) this.tone(120, 0, 0.09, 0.05, 'sawtooth');
+    this.hum.gain.setTargetAtTime(on ? 0.03 : 0.004, t, 0.01);
+  },
+  // the whole room's power dies: breaker clunk, the hum stops, and the silence after it
+  blackout() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this._noise(t, 0.22, 'lowpass', 300, 0.7, 0.8);
+    this.tone(58, 0, 0.9, 0.22, 'triangle');
+    this.hum.gain.setTargetAtTime(0, t, 0.05);
+  },
+  powerOn() { if (this.ctx) this.hum.gain.setTargetAtTime(0.018, this.ctx.currentTime, 0.3); },
   setFridge(v) { if (this.ctx) this.fridge.gain.setTargetAtTime(clamp(v, 0, 0.04), this.ctx.currentTime, 0.2); },
   setRumble(v) {
     if (!this.ctx) return;
@@ -1202,6 +1261,7 @@ class Killi {
     this.q = new THREE.Quaternion();
     this.axis = new THREE.Vector3(dz, 0, -dx);          // rolling: spin axis = up x direction
     this.phase = Math.random() * 6;
+    this.voice = SFX.killiVoice();
   }
   update(dt) {
     const p = this.obj.position, step = this.speed * dt;
@@ -1210,35 +1270,61 @@ class Killi {
     this.roller.quaternion.premultiply(this.q);
     this.phase += step;
     this.roller.position.y = this.r + Math.abs(Math.sin(this.phase * 1.3)) * 0.05;
+    if (this.voice) {
+      // Doppler: closing speed toward the listener (exaggerated so a pass-by is unmistakable)
+      const lx = camera.position.x - p.x, lz = camera.position.z - p.z, ld = Math.hypot(lx, lz) || 1;
+      const vr = (this.dx * lx + this.dz * lz) / ld * this.speed;
+      const ang = this.phase / this.r;                       // head rotation: a heavy bump twice a turn
+      SFX.moveVoice(this.voice, p.x, this.r, p.z, clamp(1 / (1 - vr / 90), 0.75, 1.3), Math.pow(Math.abs(Math.sin(ang)), 12));
+    }
     return this.left > 0;
   }
-  dispose() { scene.remove(this.obj); }
+  dispose() { scene.remove(this.obj); SFX.stopVoice(this.voice); this.voice = null; }
+}
+// Killis only come down passages: through the room's doors (along the walking line) and along its cross aisles.
+// A room can list its own lanes in meta ({a:'x'|'z', c: room-local coordinate}); otherwise: both doors, the front
+// and back cross aisles, a middle aisle in long rooms, and patient-room doors all along a corridor.
+function killiLanes(zone) {
+  if (zone.lanes) return zone.lanes;
+  const m = zone.meta, L = [];
+  if (m.lanes) for (const l of m.lanes) L.push({ a: l.a, c: l.a === 'x' ? zone.z0 + l.c : zone.ox + l.c });
+  else {
+    const kr = zone.kr, w = m.x1 - m.x0;
+    if (m.axes.includes('z') && w > 2 * kr + 1) { L.push({ a: 'z', c: zone.ox + m.entry }); if (Math.abs(m.exit - m.entry) > kr * 2) L.push({ a: 'z', c: zone.ox + m.exit }); }
+    if (m.axes.includes('x')) {
+      if (w < 4) for (let z = 3; z < m.len - 2; z += 5 + zone.rng() * 3) L.push({ a: 'x', c: zone.z0 - z });   // corridor: side doors
+      else {
+        L.push({ a: 'x', c: zone.z0 - Math.min(kr + 0.9, m.len * 0.3) }, { a: 'x', c: zone.exitZ + Math.min(kr + 0.9, m.len * 0.3) });
+        if (m.len > 20) L.push({ a: 'x', c: zone.z0 - m.len / 2 });
+      }
+    }
+  }
+  return (zone.lanes = L);
 }
 const OUTSIDE = 22;   // how far beyond the room a Killi starts (heard long before it is seen)
 function spawnKilli(zone, p) {
-  const m = zone.meta, r = zone.rng, depth = zone.i;
-  const axis = m.axes[(r() * m.axes.length) | 0];
+  const r = zone.rng, depth = zone.i, lanes = killiLanes(zone);
+  if (!lanes.length) return;
+  // mostly the passage you are in or next to; sometimes one further off, so you see it go by
+  const wts = lanes.map(l => Math.exp(-Math.abs((l.a === 'x' ? p.z : p.x) - l.c) / 3) + 0.08);
+  let pick = r() * wts.reduce((a, b) => a + b, 0), lane = lanes[0];
+  for (let k = 0; k < lanes.length; k++) { pick -= wts[k]; if (pick <= 0) { lane = lanes[k]; break; } }
+  const axis = lane.a;
   const dir = r() < 0.5 ? 1 : -1;                           // +1: travels toward +x / +z
   const speed = Math.min(6.5 + depth * 0.35, 11) * (0.9 + r() * 0.25);
   const n = 1 + (r() < Math.min(0.12 + depth * 0.04, 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);
   const kr = zone.kr;
-  let lineC, s0, span;
-  if (axis === 'x') {                                        // across the room's width, through the side walls
-    lineC = clamp(p.z + (r() - 0.5) * 1.0, zone.exitZ + kr * 0.6, zone.z0 - kr * 0.6);
-    s0 = dir > 0 ? zone.x0 - OUTSIDE : zone.x1 + OUTSIDE; span = zone.x1 - zone.x0 + OUTSIDE * 2;
-  } else {                                                   // down the room's length, through the end walls
-    lineC = clamp(p.x + (r() - 0.5) * 1.0, zone.x0 + kr * 0.6, zone.x1 - kr * 0.6);
-    s0 = dir > 0 ? zone.exitZ - OUTSIDE : zone.z0 + OUTSIDE; span = zone.len + OUTSIDE * 2;
-  }
-  const dirSign = dir;
+  let s0, span;
+  if (axis === 'x') { s0 = dir > 0 ? zone.x0 - OUTSIDE : zone.x1 + OUTSIDE; span = zone.x1 - zone.x0 + OUTSIDE * 2; }
+  else { s0 = dir > 0 ? zone.exitZ - OUTSIDE : zone.z0 + OUTSIDE; span = zone.len + OUTSIDE * 2; }
   let back = 0;
   for (let k = 0; k < n; k++) {
-    const jitter = (r() - 0.5) * 0.5, along = s0 - dirSign * back;
-    const [x, z, dx, dz] = axis === 'x' ? [along, lineC + jitter, dirSign, 0] : [lineC + jitter, along, 0, dirSign];
+    const jitter = (r() - 0.5) * 0.3, along = s0 - dir * back;
+    const [x, z, dx, dz] = axis === 'x' ? [along, lane.c + jitter, dir, 0] : [lane.c + jitter, along, 0, dir];
     zone.killis.push(new Killi(zone, x, z, dx, dz, speed, kr, span + back));
     back += kr * 2 + 0.8 + r() * 2.5;
   }
-  // the horn: loudness says roughly how far, nothing says where
+  // the horn: loudness says roughly how far, nothing says where (the rolling itself is what you can place)
   const d0 = axis === 'x' ? Math.abs(s0 - p.x) : Math.abs(s0 - p.z);
   SFX.horn(clamp(1 - (d0 - 15) / 40, 0.25, 1), n > 1);
 }
@@ -1262,7 +1348,7 @@ const Hazards = {
         if (d < k.r + CFG.radius - 0.05 && p.y < k.r * 2) return { kill: 'killi' };
         best = Math.max(best, clamp(1 - d / 30, 0, 1) ** 2);
       }
-      return { rumble: best };
+      return { shake: best };
     },
   },
 };
@@ -1271,7 +1357,9 @@ const Hazards = {
    DARKNESS: lights The Hands has put out (world-space spots on every room material) + the glow stick
    ============================================================ */
 const DARK_N = 12;
-const DARK = { uDark: { value: Array.from({ length: DARK_N }, () => new THREE.Vector4()) }, uGlow: { value: new THREE.Vector4() } };
+const DARK = { uDark: { value: Array.from({ length: DARK_N }, () => new THREE.Vector4()) }, uGlow: { value: new THREE.Vector4() },
+  // x: how dark the room is (1 = power cut), y/z: the room's z range, w: unused
+  uBlack: { value: new THREE.Vector4() }, uSafe: { value: Array.from({ length: 3 }, () => new THREE.Vector4()) } };
 function addDarkness(m) {
   const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey?.bind(m);
   m.onBeforeCompile = (sh, r) => {
@@ -1280,12 +1368,18 @@ function addDarkness(m) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vDkPos;')
       .replace('#include <fog_vertex>', '#include <fog_vertex>\nvDkPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      varying vec3 vDkPos; uniform vec4 uDark[${DARK_N}]; uniform vec4 uGlow;`)
+      varying vec3 vDkPos; uniform vec4 uDark[${DARK_N}]; uniform vec4 uGlow; uniform vec4 uBlack; uniform vec4 uSafe[3];`)
       .replace('#include <dithering_fragment>', `
       float dk = 1.0;
       for (int i = 0; i < ${DARK_N}; i++) {
         vec4 s = uDark[i];
         if (s.w > 0.0) dk *= 1.0 - 0.94 * s.w * (1.0 - smoothstep(s.z * 0.45, s.z, length(vDkPos.xz - s.xy)));
+      }
+      if (uBlack.x > 0.0 && vDkPos.z < uBlack.y && vDkPos.z > uBlack.z) {
+        float sf = 0.0;
+        for (int i = 0; i < 3; i++) { vec4 q = uSafe[i]; if (q.w > 0.0) sf = max(sf, q.w * (1.0 - smoothstep(q.z * 0.35, q.z, length(vDkPos.xz - q.xy)))); }
+        sf *= 1.0 - 0.9 * smoothstep(1.5, 2.6, vDkPos.y);   // a battery lamp lights the floor below it, not the ceiling tubes
+        dk *= 1.0 - 0.985 * uBlack.x * (1.0 - sf);
       }
       float gl = uGlow.w * (1.0 - smoothstep(0.0, uGlow.z, length(vDkPos - vec3(uGlow.x, 1.0, uGlow.y))));
       gl_FragColor.rgb = gl_FragColor.rgb * mix(dk, 1.0, gl * 0.85) + vec3(0.06, 0.32, 0.14) * gl * 0.22;
@@ -1301,6 +1395,15 @@ function lightAt(x, z) {
     const d = Math.hypot(x - s.x, z - s.y);
     const t = clamp((d - s.z * 0.45) / (s.z * 0.55), 0, 1), sm = t * t * (3 - 2 * t);
     dk *= 1 - 0.94 * s.w * (1 - sm);
+  }
+  const B = DARK.uBlack.value;
+  if (B.x > 0 && z < B.y && z > B.z) {
+    let sf = 0;
+    for (const q of DARK.uSafe.value) if (q.w > 0) {
+      const t = clamp((Math.hypot(x - q.x, z - q.y) - q.z * 0.35) / (q.z * 0.65), 0, 1);
+      sf = Math.max(sf, q.w * (1 - t * t * (3 - 2 * t)));
+    }
+    dk *= 1 - 0.985 * B.x * (1 - sf);
   }
   return dk;
 }
@@ -1354,7 +1457,7 @@ class HandsMound {
         this.douseT = 1.7;
         const spots = this.zone.dark ||= [];
         const near = spots.find(s => Math.hypot(s.x - o.x, s.z - o.z) < 2.0);
-        if (!near && spots.length < 8) { spots.push({ x: o.x, z: o.z, r: 0, target: 5.2, w: 0 }); SFX.douse(clamp(1 - d / 25, 0.15, 1)); }
+        if (!near && spots.length < 8 && !this.zone.handsPlan?.black) { spots.push({ x: o.x, z: o.z, r: 0, target: 5.2, w: 0 }); SFX.douse(clamp(1 - d / 25, 0.15, 1)); }
       }
     }
     for (const s of this.zone.dark || []) { s.r += (s.target - s.r) * Math.min(1, dt * 2.2); s.w = Math.min(1, s.w + dt * 1.5); }
@@ -1372,31 +1475,73 @@ class HandsMound {
   }
   dispose() { scene.remove(this.obj); scene.remove(this.rise); }
 }
+// an emergency light: a small battery fixture on the ceiling, still burning after the power is cut
+const EMERG = new THREE.MeshBasicMaterial({ color: 0xfff4dc });
+const EMERG_BOX = new THREE.MeshBasicMaterial({ color: 0x9a9a92 });
+function hazardPools(zone) {
+  const m = zone.meta, pools = [], r = zone.rng;
+  // one over the exit (the way out is always lit), one or two more somewhere in the room
+  pools.push({ x: zone.exitX, z: zone.exitZ + 1.3, r: 2.6 });
+  const n = (m.x1 - m.x0) * m.len > 150 ? 2 : 1;
+  for (let k = 0; k < n; k++) pools.push({ x: zone.x0 + 1 + (zone.x1 - zone.x0 - 2) * r(), z: zone.z0 - m.len * (0.25 + 0.4 * r()), r: 2.3 });
+  for (const q of pools) {
+    q.w = 0;
+    const y = Math.min(m.h, 3.4) - 0.06;
+    q.box = new THREE.Mesh(GEO.box, EMERG_BOX); q.box.scale.set(0.34, 0.08, 0.14); q.box.position.set(q.x, y, q.z);
+    q.lamp = new THREE.Mesh(GEO.box, EMERG); q.lamp.scale.set(0.26, 0.03, 0.08); q.lamp.position.set(q.x, y - 0.05, q.z);
+    q.lamp.visible = false; zone.g.add(q.box, q.lamp);
+  }
+  return pools;
+}
 Hazards.hands = {
   update(dt, zone, active) {
     if (!zone.meta || !ASSET.hands) return;
     if (zone.handsPlan === undefined) {
       // deeper rooms with ceiling lights may hold a mound; it starts at the far side of the room
       const ok = zone.i >= 2 && !zone.meta.crawl && (window.__forceHands ?? zone.rng() < Math.min(0.25 + zone.i * 0.03, 0.5));
-      zone.handsPlan = ok ? { delay: 4 + zone.rng() * 6 } : null;
+      zone.handsPlan = ok ? { delay: 4 + zone.rng() * 6, flick: 0, level: 0 } : null;
     }
     const plan = zone.handsPlan;
-    if (plan && !zone.hands && active && zone.i === game.zoneIdx) {
+    const here = active && zone.i === game.zoneIdx;
+    if (plan && !zone.hands && here) {
       plan.delay -= dt;
-      if (plan.delay <= 0) {
-        const x = zone.x0 + (zone.x1 - zone.x0) * (0.2 + zone.rng() * 0.6);
-        zone.hands = new HandsMound(zone, x, zone.exitZ + Math.min(4, zone.len * 0.25));
-        if (!game.metHands) { game.metHands = true; toast('THE HANDS', 'Stay in the light.', true); }
+      if (plan.delay <= 0 && !plan.flick) { plan.flick = 2.8; plan.tick = 0; plan.on = true; }
+      if (plan.flick > 0) {
+        // the warning: every tube in the room stutters, harder and harder, with the ballasts buzzing
+        plan.flick -= dt; plan.tick -= dt;
+        if (plan.tick <= 0) {
+          plan.on = !plan.on; SFX.flickTick(plan.on);
+          const hard = 1 - plan.flick / 2.8;
+          plan.tick = plan.on ? 0.05 + Math.random() * (0.5 - hard * 0.4) : 0.04 + Math.random() * (0.08 + hard * 0.12);
+        }
+        plan.level = plan.on ? 0 : 0.55 + 0.4 * (1 - plan.flick / 2.8);
+        if (plan.flick <= 0) {
+          // power cut: the mound is at the far end; the only light left is the emergency lamps
+          plan.level = 1; plan.black = true; SFX.blackout(); game.shake = Math.max(game.shake, 0.4);
+          plan.pools = hazardPools(zone);
+          const x = zone.x0 + (zone.x1 - zone.x0) * (0.2 + zone.rng() * 0.6);
+          zone.hands = new HandsMound(zone, x, zone.exitZ + Math.min(4, zone.len * 0.25));
+          toast('THE HANDS', game.metHands ? 'Get to the light.' : 'The power is out. Get to the light.', true);
+          game.metHands = true;
+        }
       }
     }
-    if (zone.hands) zone.hands.update(dt, game.p, active && zone.i === game.zoneIdx);
+    if (plan?.pools) for (const q of plan.pools) {
+      // the lamps come on a beat after the cut; the mound smothers any lamp it crawls under
+      const h = zone.hands, smother = h && Math.hypot(h.obj.position.x - q.x, h.obj.position.z - q.z) < 1.6;
+      if (smother && q.w > 0.5 && !q.dead) { q.dead = true; SFX.douse(0.6); }
+      q.w = q.dead ? Math.max(0, q.w - dt * 2) : Math.min(1, q.w + dt * 1.2);
+      q.lamp.visible = q.w > 0.3;
+    }
+    if (zone.hands) zone.hands.update(dt, game.p, here);
   },
   check(zone, p) {
     const h = zone.hands; if (!h) return {};
     const d = Math.hypot(h.obj.position.x - p.x, h.obj.position.z - p.z);
     const lit = lightAt(p.x, p.z) > 0.45 || GLOW.t > 0;
     const dt = game.dtNow || 1 / 60;
-    if (d < 8 && !lit) h.danger += dt * (d < 1.6 ? 3 : 1); else h.danger = Math.max(0, h.danger - dt * 1.5);
+    const black = zone.handsPlan?.black;
+    if (!lit && (d < 8 || black)) h.danger += dt * (d < 1.6 ? 3 : d < 8 ? 1 : 0.4); else h.danger = Math.max(0, h.danger - dt * 1.5);
     if (h.danger > 0.05) h.showRise(p, Math.min(1, h.danger / 1.8)); else h.rise.count = 0;
     if (h.danger >= 1.8) return { kill: 'hands' };
     return { rumble: clamp(1 - d / 14, 0, 1) * 0.25 };
@@ -1618,6 +1763,7 @@ const game = {
     this.eyeNow = CFG.eye; this.darkTarget = 0;
     NIKI.reset(); GLOW.reset();
     for (const v of DARK.uDark.value) v.set(0, 0, 0, 0);
+    DARK.uBlack.value.set(0, 0, 0, 0); SFX.powerOn();
     vhsMat.uniforms.uDark.value = 0;
     streamZones();
   },
@@ -1692,7 +1838,7 @@ const game = {
       d.right.position.x = d.dw / 2 + d.open * d.dw * 0.95;
     }
 
-    let rumble = 0;
+    let rumble = 0, shakeK = 0;
     for (const z of zones) {
       if (!z || z.disposed) continue;
       const active = z.i === this.zoneIdx || z.i === this.zoneIdx + 1;
@@ -1700,7 +1846,7 @@ const game = {
         h.update(dt, z, active);
         const res = h.check(z, this.p);
         if (res.kill) return this.die(res.kill);
-        rumble = Math.max(rumble, res.rumble || 0);
+        rumble = Math.max(rumble, res.rumble || 0); shakeK = Math.max(shakeK, res.shake || 0);
       }
     }
     const nd = NIKI.update(dt);
@@ -1710,11 +1856,17 @@ const game = {
     let di = 0;
     for (const z of zones) if (z && !z.disposed && z.dark) for (const s of z.dark) if (di < DARK_N) DARK.uDark.value[di++].set(s.x, s.z, s.r, s.w);
     for (; di < DARK_N; di++) DARK.uDark.value[di].set(0, 0, 0, 0);
-    // the rolling rumble is mono on purpose: it tells you something is close, never from where
+    // the current room's power state (flicker / cut) and its emergency lamps
+    const hz = zones[this.zoneIdx], hp = hz?.handsPlan;
+    if (hp && hp.level > 0) {
+      DARK.uBlack.value.set(hp.level, hz.z0 + 0.2, hz.exitZ - 0.2, 0);
+      for (let k = 0; k < 3; k++) { const q = hp.pools?.[k]; if (q) DARK.uSafe.value[k].set(q.x, q.z, q.r, q.w); else DARK.uSafe.value[k].set(0, 0, 0, 0); }
+    } else if (DARK.uBlack.value.x) { DARK.uBlack.value.set(0, 0, 0, 0); SFX.powerOn(); }
+    // the mound's slither is a mono rumble; Killis carry their own positioned voices
     SFX.setRumble(rumble * 1.1);
     // phone auto-exposure: stepping into a dark room slowly raises gain (and noise)
     this.iso += ((this.darkTarget || 0) - this.iso) * Math.min(1, dt * 0.9);
-    this.shake = Math.max(this.shake - dt * 0.6, rumble * 0.5);
+    this.shake = Math.max(this.shake - dt * 0.6, rumble * 0.5, shakeK * 0.5);
 
     // camera: footstep bob + handheld camcorder sway + rumble shake
     const moving = Math.hypot(mv.x, mv.y) > 0.1 && this.onGround;
@@ -1834,6 +1986,7 @@ function frame(now) {
 
   const u = vhsMat.uniforms;
   u.uTime.value = (now * 0.001) % 1000;
+  if (game.running) SFX.listen(camera);
   u.uVhs.value = OPT.vhs ? 1 : 0;
   u.uGlitch.value = Math.max(0, u.uGlitch.value - dt * 1.5);
   // fluorescent mains flicker + the odd ballast dip
@@ -1890,7 +2043,7 @@ loadAssets((f, label) => {
     ? 'Open this through a web server (e.g. <code>npx http-server</code> or GitHub Pages) — browsers block file:// assets.'
     : 'Failed to load assets: ' + escapeHTML(err.message || String(err));
 });
-if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound };
+if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX };
 </script>
 </body>
 </html>
