@@ -1564,6 +1564,38 @@ Hazards.hands = {
    이어리: NIKI — walks toward you and wants to stay close. Run from her and she becomes MAD NIKI.
    Keep sprinting for 10 seconds straight and she tires out. Sometimes she gives you a glow stick.
    ============================================================ */
+// push a circle (radius r, on the floor) out of the room colliders along one axis; returns the last collider hit (or null)
+function collideCircle(p, r, axis, zoneIdx) {
+  let hit = null;
+  for (let zi = Math.max(0, zoneIdx - 1); zi <= zoneIdx + 1; zi++) {
+    const zn = zones[zi]; if (!zn || zn.disposed) continue;
+    for (const c of zn.cols) {
+      if (p.x + r <= c.x0 || p.x - r >= c.x1 || p.z + r <= c.z0 || p.z - r >= c.z1) continue;
+      if (axis === 'x') p.x = (p.x < (c.x0 + c.x1) / 2) ? c.x0 - r : c.x1 + r;
+      else p.z = (p.z < (c.z0 + c.z1) / 2) ? c.z0 - r : c.z1 + r;
+      hit = c;
+    }
+  }
+  return hit;
+}
+// first collider (grown by r) crossed by the floor segment a -> b, or null: line of sight / clear walking line
+function segmentBlocker(ax, az, bx, bz, r, zoneIdx) {
+  const dx = bx - ax, dz = bz - az;
+  let best = null, bt = 1;
+  for (let zi = Math.max(0, zoneIdx - 1); zi <= zoneIdx + 1; zi++) {
+    const zn = zones[zi]; if (!zn || zn.disposed) continue;
+    for (const c of zn.cols) {
+      let t0 = 0, t1 = bt;
+      for (const [o, d, lo, hi] of [[ax, dx, c.x0 - r, c.x1 + r], [az, dz, c.z0 - r, c.z1 + r]]) {
+        if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) { t0 = 2; break; } continue; }
+        let u0 = (lo - o) / d, u1 = (hi - o) / d; if (u0 > u1) [u0, u1] = [u1, u0];
+        t0 = Math.max(t0, u0); t1 = Math.min(t1, u1); if (t0 > t1) break;
+      }
+      if (t0 <= t1 && t0 < bt) { bt = t0; best = c; }
+    }
+  }
+  return best;
+}
 const NIKI = {
   mode: 'none', pos: new THREE.Vector3(), cool: 25, giveT: 12, sprintT: 0, phase: 0, tiredT: 0, morph: 0,
   obj: null, mad: null, parts: {}, madParts: {},
@@ -1575,10 +1607,31 @@ const NIKI = {
       root.visible = false; scene.add(root);
     }
   },
+  // step toward (ux, uz) without passing through shelves, counters or walls: slide along what blocks her, and when the
+  // straight line is blocked walk around the obstacle (keep to one side until the way to the player is clear again)
+  walk(ux, uz, step, r) {
+    const zn = zoneAt(this.pos.z), zi = zn ? zones.indexOf(zn) : game.zoneIdx, p = this.pos, x0 = p.x, z0 = p.z, P = game.p;
+    // a shelf / counter between her and the player: head for the corner of it that gives the shortest way round
+    const blocker = segmentBlocker(x0, z0, P.x, P.z, r - 0.02, zi);
+    if (!blocker) this.wp = null;
+    else if (!this.wp || Math.hypot(this.wp.x - x0, this.wp.z - z0) < 0.15 || segmentBlocker(x0, z0, this.wp.x, this.wp.z, r - 0.02, zi)) {
+      const g = r + 0.12; let best = Infinity; this.wp = null;
+      for (const [x, z] of [[blocker.x0 - g, blocker.z0 - g], [blocker.x1 + g, blocker.z0 - g], [blocker.x0 - g, blocker.z1 + g], [blocker.x1 + g, blocker.z1 + g]]) {
+        const d0 = Math.hypot(x - x0, z - z0); if (d0 < 0.15 || segmentBlocker(x0, z0, x, z, r - 0.02, zi)) continue;
+        const cost = d0 + Math.hypot(P.x - x, P.z - z); if (cost < best) { best = cost; this.wp = { x, z }; }
+      }
+    }
+    if (this.wp) { const wx = this.wp.x - x0, wz = this.wp.z - z0, wl = Math.hypot(wx, wz) || 1; ux = wx / wl; uz = wz / wl; }
+    // walk, sliding along anything still in the way
+    p.x = x0 + ux * step; collideCircle(p, r, 'x', zi); p.z = z0 + uz * step; collideCircle(p, r, 'z', zi);
+    const mx = p.x - x0, mz = p.z - z0, ml = Math.hypot(mx, mz);
+    if (ml > step * 0.2) (this.head ||= new THREE.Vector3()).set(mx / ml, 0, mz / ml);
+  },
   reset() { this.mode = 'none'; this.cool = 25; this.giveT = 12; this.sprintT = 0; if (this.obj) { this.obj.visible = false; this.mad.visible = false; } },
   spawn(zone) {
     this.build(); if (!this.obj) return;
-    this.mode = 'walk'; this.pos.set(zone.exitX, 0, zone.exitZ + 2.5); this.morph = 0; this.sprintT = 0;
+    this.mode = 'walk'; this.pos.set(zone.exitX, 0, zone.exitZ + 2.5); this.morph = 0; this.sprintT = 0; this.wp = null; this.yaw = undefined;
+    collideCircle(this.pos, 0.32, 'x', zone.i); collideCircle(this.pos, 0.32, 'z', zone.i);
     this.obj.visible = true; this.mad.visible = false;
     if (!game.metNiki) { game.metNiki = true; toast('NIKI', 'Stay close to her.', false); }
   },
@@ -1612,12 +1665,16 @@ const NIKI = {
       this.tiredT += dt; this.morph = Math.max(0, this.morph - dt * 1.2);
       if (this.tiredT > 14) { this.mode = 'gone'; this.cool = 70; this.obj.visible = this.mad.visible = false; return; }
     }
-    if (speed > 0 && d > 0.9) { this.pos.x += dx / d * speed * dt; this.pos.z += dz / d * speed * dt; }
+    if (speed > 0 && d > 0.9) this.walk(dx / d, dz / d, speed * dt, this.mode === 'mad' ? 0.45 : 0.32);
     // pose: walk cycle on the separate limbs; MAD NIKI is 1.5x taller and lopes
     const isMad = this.mode === 'mad' && this.morph > 0.5;
     this.obj.visible = !isMad; this.mad.visible = isMad;
     const root = isMad ? this.mad : this.obj, P = isMad ? this.madParts : this.parts;
-    root.position.copy(this.pos); root.rotation.y = Math.atan2(dx, dz);
+    root.position.copy(this.pos);
+    // face where she is walking (or the player when standing), turning smoothly instead of snapping
+    const face = speed > 0.1 && this.head ? Math.atan2(this.head.x, this.head.z) : Math.atan2(dx, dz);
+    this.yaw = (this.yaw ?? face) + Math.atan2(Math.sin(face - (this.yaw ?? face)), Math.cos(face - (this.yaw ?? face))) * Math.min(1, dt * 6);
+    root.rotation.y = this.yaw;
     this.phase += dt * (speed > 0.1 ? (isMad ? 7 : 7.5) * Math.min(1.4, speed / 1.6 + 0.3) : 0);
     const sw = speed > 0.1 ? Math.sin(this.phase) * (isMad ? 0.6 : 0.38) : 0;
     const knee = speed > 0.1 ? Math.max(0, -Math.cos(this.phase)) * (isMad ? 0.7 : 0.45) : 0, knee2 = speed > 0.1 ? Math.max(0, Math.cos(this.phase)) * (isMad ? 0.7 : 0.45) : 0;
@@ -1793,17 +1850,7 @@ const game = {
     $('zoneName').textContent = zone.name;
     if (!zone.visited) { zone.visited = true; toast(zone.name, zone.hint); }
   },
-  collide(axis) {
-    const r = CFG.radius, p = this.p;
-    for (let zi = Math.max(0, this.zoneIdx - 1); zi <= this.zoneIdx + 1; zi++) {
-      const zn = zones[zi]; if (!zn || zn.disposed) continue;
-      for (const c of zn.cols) {
-        if (p.x + r <= c.x0 || p.x - r >= c.x1 || p.z + r <= c.z0 || p.z - r >= c.z1) continue;
-        if (axis === 'x') p.x = (p.x < (c.x0 + c.x1) / 2) ? c.x0 - r : c.x1 + r;
-        else p.z = (p.z < (c.z0 + c.z1) / 2) ? c.z0 - r : c.z1 + r;
-      }
-    }
-  },
+  collide(axis) { return collideCircle(this.p, CFG.radius, axis, this.zoneIdx); },
   update(dt) {
     this.t += dt; this.dtNow = dt;
     if (this.dead) { this.updateDeath(dt); return; }
