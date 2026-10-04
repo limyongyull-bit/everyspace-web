@@ -1212,8 +1212,9 @@ function buildRoom(zone, kind) {
   if (m.window) addWindowGlass(zone, zone.ox + m.window[0], zone.z0 + m.window[1], m.window[2], m.window[3], -Math.PI / 2);
   if (!m.crawl) scatterLitter(zone, zone.x0 + 0.6, zone.x1 - 0.6, zone.z0 - 0.8, zone.exitZ + 0.8, Math.min(9, 2 + Math.round((m.x1 - m.x0) * m.len / 120)));
   // Killi: how big they can be in here, and when the first one comes
-  zone.kr = Math.min(KR, (m.h - 0.12) / 2);
-  if (m.x1 - m.x0 < 4) zone.kr = Math.min(zone.kr, (m.x1 - m.x0 - 1.4) / 2);   // corridor: leave room to flatten against a wall
+  // it comes in through doorways (1.9 x 2.4 m in every room), so the head has to fit one; in a corridor that also
+  // leaves room to flatten against a wall
+  zone.kr = Math.min(KR, (m.h - 0.12) / 2, KILLI_DOOR_R);
   zone.killiT = 2.5 + zone.rng() * 3.5;
 }
 function createZone(i, z0) {
@@ -1249,7 +1250,7 @@ function streamZones() {
    It comes from far outside the room, through the walls, and you can't see which way it will come:
    all you get is a horn somewhere in the distance. Look around, then get out of its line.
    ============================================================ */
-const KR = 1.45;
+const KR = 1.45, KILLI_DOOR_R = 0.9;   // largest head; largest that fits the 1.9 m doorways
 class Killi {
   constructor(zone, x, z, dx, dz, speed, r, travel) {
     this.zone = zone; this.dx = dx; this.dz = dz; this.speed = speed; this.r = r; this.left = travel;
@@ -1270,8 +1271,24 @@ class Killi {
     this.voice = SFX.killiVoice();
   }
   update(dt) {
-    const p = this.obj.position, step = this.speed * dt;
-    p.x += this.dx * step; p.z += this.dz * step; this.left -= step;
+    // at rest against a closed wall: it stays there, a dead weight in the room, until you have left the room
+    if (this.rest) {
+      // after a while it rolls slowly back out of the door it came through (the one nearest that door goes first)
+      if ((this.restT -= dt) > 0 || this.zone.killis.some(o => o !== this && o.rest && o.lane === this.lane &&
+          (o.obj.position.x - this.obj.position.x) * this.dx + (o.obj.position.z - this.obj.position.z) * this.dz < 0)) return game.zoneIdx <= this.zone.i;
+      this.rest = false; this.wall = false; this.dx = -this.dx; this.dz = -this.dz; this.speed = 2.4;
+      this.axis.set(this.dz, 0, -this.dx); this.left = this.came + 4; this.voice = SFX.killiVoice();
+    }
+    const p = this.obj.position;
+    let step = this.speed * dt;
+    if (this.wall) {   // a head already resting in this lane: this one stops against it instead
+      for (const o of this.zone.killis) if (o !== this && o.rest) {
+        const gap = (o.obj.position.x - p.x) * this.dx + (o.obj.position.z - p.z) * this.dz - this.r - o.r - 0.05;
+        if (gap >= -0.5 && Math.abs((o.obj.position.x - p.x) * this.dz - (o.obj.position.z - p.z) * this.dx) < this.r + o.r) this.left = Math.min(this.left, Math.max(0, gap));
+      }
+      step = Math.min(step, Math.max(0, this.left));
+    }
+    p.x += this.dx * step; p.z += this.dz * step; this.left -= step; this.came = (this.came || 0) + (this.wall ? step : 0);
     this.q.setFromAxisAngle(this.axis, step / this.r);
     this.roller.quaternion.premultiply(this.q);
     this.phase += step;
@@ -1287,6 +1304,7 @@ class Killi {
       const v = clamp(1 - Math.hypot(camera.position.x - p.x, camera.position.z - p.z) / 30, 0, 1);
       if (v > 0) { SFX.tone(46, 0, 0.7, 0.4 * v, 'square'); game.shake = Math.max(game.shake, 0.8 * v); }
     }
+    if (this.left <= 0 && this.wall) { this.rest = true; this.restT = 10 + Math.random() * 6; SFX.stopVoice(this.voice); this.voice = null; return true; }
     return this.left > 0;
   }
   // height of the centre so the lowest point of the (non-round) head rests on the floor in its current orientation
@@ -1330,7 +1348,10 @@ function killiLanes(zone) {
 }
 const OUTSIDE = 22;   // how far beyond the room a Killi starts (heard long before it is seen)
 function spawnKilli(zone, p) {
-  const r = zone.rng, depth = zone.i, lanes = killiLanes(zone);
+  const r = zone.rng, depth = zone.i;
+  // a lane with two heads already resting in it is full (a third pile would start to block the doors)
+  const inLane = l => zone.killis.filter(k => k.wall && k.lane === l).length;
+  const lanes = killiLanes(zone).filter(l => inLane(l) < 2);
   if (!lanes.length) return;
   // mostly the passage you are in or next to; sometimes one further off, so you see it go by
   const wts = lanes.map(l => Math.exp(-Math.abs((l.a === 'x' ? p.z : p.x) - l.c) / 3) + 0.08);
@@ -1340,17 +1361,25 @@ function spawnKilli(zone, p) {
   // +1: travels toward +x / +z; a cross aisle open on one side only is entered from that side
   const dir = lane.from && lane.from.length === 1 ? -lane.from[0] : r() < 0.5 ? 1 : -1;
   const speed = Math.min(6.5 + depth * 0.35, 11) * (0.9 + r() * 0.25);
-  const n = 1 + (r() < Math.min(0.12 + depth * 0.04, 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);
+  let n = 1 + (r() < Math.min(0.12 + depth * 0.04, 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);
   const kr = zone.kr;
   let s0, span;
   if (axis === 'x') { s0 = dir > 0 ? zone.x0 - OUTSIDE : zone.x1 + OUTSIDE; span = zone.x1 - zone.x0 + OUTSIDE * 2; }
   else { s0 = dir > 0 ? zone.exitZ - OUTSIDE : zone.z0 + OUTSIDE; span = zone.len + OUTSIDE * 2; }
-  if (lane.from && !lane.from.includes(-dir)) span -= OUTSIDE + kr;   // no opening in the far wall: it stops against it
+  const farClosed = !!(lane.from && !lane.from.includes(dir));      // no opening in the far wall: it stops against it
+  if (farClosed) { span -= OUTSIDE + kr; n = Math.min(n, 2 - inLane(lane)); }
+  // the run-up behind a door crosses the neighbouring room: start past anything standing on that line
+  if (axis === 'z') {
+    const ze = dir < 0 ? zone.z0 + 0.3 : zone.exitZ - 0.3;
+    let s1 = ze;
+    while (Math.abs(s1 - ze) < OUTSIDE && !segmentBlocker(lane.c, ze, lane.c, s1 - dir * 0.5, kr * 0.9, zone.i)) s1 -= dir * 0.5;
+    span -= Math.abs(s0 - s1); s0 = s1;
+  }
   let back = 0;
   for (let k = 0; k < n; k++) {
     const jitter = (r() - 0.5) * 0.3, along = s0 - dir * back;
     const [x, z, dx, dz] = axis === 'x' ? [along, lane.c + jitter, dir, 0] : [lane.c + jitter, along, 0, dir];
-    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.wall = !!(lane.from && !lane.from.includes(-dir)); zone.killis.push(k);
+    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.wall = farClosed; k.lane = lane; zone.killis.push(k);
     back += kr * 2 + 0.8 + r() * 2.5;
   }
   // the horn: loudness says roughly how far, nothing says where (the rolling itself is what you can place)
@@ -1374,6 +1403,10 @@ const Hazards = {
       let best = 0;
       for (const k of zone.killis) {
         const d = Math.hypot(k.obj.position.x - p.x, k.obj.position.z - p.z);
+        if (k.rest) {   // resting head: solid, not deadly; push the player out of it
+          if (d < k.r + CFG.radius) { const s = (k.r + CFG.radius) / (d || 1); p.x = k.obj.position.x + (p.x - k.obj.position.x) * s; p.z = k.obj.position.z + (p.z - k.obj.position.z) * s; }
+          continue;
+        }
         if (d < k.r + CFG.radius - 0.05 && p.y < k.r * 2) return { kill: 'killi' };
         best = Math.max(best, clamp(1 - d / 30, 0, 1) ** 2);
       }
