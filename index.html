@@ -208,8 +208,49 @@ const CFG = {
   ceil: 3.2, lookSens: 0.0052, mouseSens: 0.0024,
   fogNear: 6, fogFar: 46, fogColor: 0xe9e3d3,
   fisheye: 0.32, exposure: 1.15, maxRenderH: 540,
+  deathHold: 2.4,   // seconds the dropped phone keeps recording before the death screen
 };
 const DEBUG = new URLSearchParams(location.search).has('debug');
+// cracked lens after the phone hits the floor: fracture lines from one impact point, drawn once per death
+const CRACK = {
+  el: null,
+  show(cause) {
+    if (!this.el) {
+      this.el = document.createElement('canvas');
+      Object.assign(this.el.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none' });
+      document.body.insertBefore(this.el, document.getElementById('dead'));   // under the death card, over the view + HUD
+    }
+    const W = this.el.width = innerWidth, H = this.el.height = innerHeight, g = this.el.getContext('2d');
+    g.clearRect(0, 0, W, H);
+    const ox = W * (0.25 + Math.random() * 0.5), oy = H * (0.2 + Math.random() * 0.6), R = Math.hypot(W, H);
+    g.lineCap = 'round';
+    const line = (pts, w, a) => {   // a bright edge with a dark shadow: how a crack catches light on a phone lens
+      g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y));
+      g.strokeStyle = `rgba(0,0,0,${a * 0.55})`; g.lineWidth = w + 1.5; g.stroke();
+      g.strokeStyle = `rgba(235,240,245,${a})`; g.lineWidth = w; g.stroke();
+    };
+    const n = 9 + (Math.random() * 6 | 0), rays = [];
+    for (let i = 0; i < n; i++) {
+      let a = (i / n) * 6.283 + Math.random() * 0.5, x = ox, y = oy; const pts = [[x, y]];
+      const len = R * (0.25 + Math.random() * 0.6);
+      for (let d = 0; d < len; d += 18 + Math.random() * 40) { a += (Math.random() - 0.5) * 0.35; x += Math.cos(a) * 30; y += Math.sin(a) * 30; pts.push([x, y]); }
+      rays.push(pts); line(pts, 0.9 + Math.random() * 0.6, 0.35 + Math.random() * 0.35);
+    }
+    for (let ring = 1; ring <= 2; ring++) {   // concentric breaks joining the rays near the impact
+      const rr = ring * (26 + Math.random() * 30);
+      for (let i = 0; i < rays.length; i++) {
+        if (Math.random() < 0.55) continue;
+        const A = rays[i][Math.min(ring * 2, rays[i].length - 1)], B = rays[(i + 1) % rays.length][Math.min(ring * 2, rays[(i + 1) % rays.length].length - 1)];
+        line([A, [(A[0] + B[0]) / 2 + (Math.random() - 0.5) * rr * 0.3, (A[1] + B[1]) / 2 + (Math.random() - 0.5) * rr * 0.3], B], 0.8, 0.35);
+      }
+    }
+    const gr = g.createRadialGradient(ox, oy, 0, ox, oy, 60);   // crushed glass at the impact
+    gr.addColorStop(0, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(ox - 60, oy - 60, 120, 120);
+    this.el.style.display = 'block';
+  },
+  hide() { if (this.el) this.el.style.display = 'none'; },
+};
 
 // Creature roster. `live` = implemented. New hazards register in `Hazards`.
 const DEX = [
@@ -1492,7 +1533,7 @@ const Hazards = {
           if (d < k.r + CFG.radius) { const s = (k.r + CFG.radius) / (d || 1); p.x = k.obj.position.x + (p.x - k.obj.position.x) * s; p.z = k.obj.position.z + (p.z - k.obj.position.z) * s; }
           continue;
         }
-        if (d < k.r + CFG.radius - 0.05 && p.y < k.r * 2) return { kill: 'killi' };
+        if (d < k.r + CFG.radius - 0.05 && p.y < k.r * 2) return { kill: 'killi', by: k };
         if (d < k.r + 1.5 && !k.near) { k.near = true; zone.killiT = Math.max(zone.killiT, 20 + zone.rng() * 10); }   // a near miss buys a quiet stretch
         best = Math.max(best, clamp(1 - d / 30, 0, 1) ** 2);
       }
@@ -1996,6 +2037,7 @@ const game = {
     this.seed = (Math.random() * 1e9) | 0;
     this.p.set(0, 0, 0); this.vy = 0; this.yaw = 0; this.pitch = 0; this.t = 0;
     this.zoneIdx = 0; this.maxDist = 0; this.cleared = 0; this.shake = 0; this.deathT = 0; this.dead = false; this.iso = 0;
+    CRACK.hide();
     this.eyeNow = CFG.eye; this.darkTarget = 0;
     NIKI.reset(); GLOW.reset();
     for (const v of DARK.uDark.value) v.set(0, 0, 0, 0);
@@ -2071,7 +2113,7 @@ const game = {
       for (const h of Object.values(Hazards)) {
         h.update(dt, z, active);
         const res = h.check(z, this.p);
-        if (res.kill) return this.die(res.kill);
+        if (res.kill) return this.die(res.kill, res.by || (res.kill === 'hands' ? z.hands : null));
         rumble = Math.max(rumble, res.rumble || 0); shakeK = Math.max(shakeK, res.shake || 0);
       }
     }
@@ -2138,19 +2180,58 @@ const game = {
     $('rankTxt').textContent = '#' + LB.rankOf(this.maxDist);
     updateClock(this.t);
   },
-  die(cause) {
+  // death: the phone is knocked out of your hand, hits the floor (bounce, cracked lens) and keeps recording for a moment
+  // with the thing that got you in frame. Nothing here plays before the hit, so Killi's approach stays unannounced.
+  die(cause, by = null) {
     this.dead = true; this.cause = cause; this.deathT = 0;
     SFX.crush(); SFX.setRumble(0);
     vhsMat.uniforms.uGlitch.value = 3;
     if (document.pointerLockElement) document.exitPointerLock();
+    const c = camera.position, src = cause === 'niki' ? NIKI.pos : by?.obj?.position || by?.pos || null;
+    let fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    if (cause === 'killi' && by) { fx = by.dx; fz = by.dz; }          // knocked along the head's roll
+    else if (src) { const dx = c.x - src.x, dz = c.z - src.z, l = Math.hypot(dx, dz) || 1; fx = dx / l; fz = dz / l; }   // flung away from it
+    const fling = cause === 'killi' ? 2.4 : cause === 'hands' ? 0.6 : 1.6;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    this.drop = { vx: fx * fling, vz: fz * fling, vy: cause === 'killi' ? 2.4 : 0.8, src, by, bounced: 0,
+      roll: side * (1.35 + Math.random() * 0.25),                       // lands on its edge
+      pitch: cause === 'niki' ? 0.55 : cause === 'hands' ? -0.8 : 0.08,   // looking up at her / tipped toward the floor / along it
+      spin: side * (cause === 'killi' ? 9 : 4) };
   },
   updateDeath(dt) {
     this.deathT += dt;
-    camera.position.y = Math.max(0.15, camera.position.y - dt * 9);
-    camera.rotation.z += dt * 2;
-    vhsMat.uniforms.uDark.value = clamp(this.deathT * 2.5 - 0.4, 0, 1);
+    const D = this.drop, c = camera.position, floor = 0.13;   // the lens rests a phone's width off the floor (near plane 0.1 m)
+    if (D) {
+      if (c.y > floor || D.vy > 0) {
+        D.vy -= CFG.gravity * dt; c.y += D.vy * dt;
+        c.x += D.vx * dt; if (collideCircle(c, 0.12, 'x', this.zoneIdx)) { D.vx *= -0.3; D.spin *= 0.5; }   // glances off shelves and walls
+        c.z += D.vz * dt; if (collideCircle(c, 0.12, 'z', this.zoneIdx)) { D.vz *= -0.3; D.spin *= 0.5; }
+        camera.rotation.z += D.spin * dt; camera.rotation.x += (D.pitch - camera.rotation.x) * Math.min(1, dt * 3);
+        if (c.y <= floor) {   // hits the floor: bounce, crack, glitch
+          c.y = floor; D.bounced++;
+          if (!D.cracked) { D.cracked = true; CRACK.show(this.cause); SFX.crush(); }
+          vhsMat.uniforms.uGlitch.value = 2.2; game.shake = 0.6;
+          D.vy = D.bounced < 2 ? -D.vy * 0.28 : 0; D.vx *= 0.35; D.vz *= 0.35; D.spin *= 0.25;
+        }
+      } else {   // at rest on the floor: settle onto its edge, the lens hunting for focus on what got you
+        D.vx *= Math.max(0, 1 - dt * 8); D.vz *= Math.max(0, 1 - dt * 8);
+        c.x += D.vx * dt; collideCircle(c, 0.12, 'x', this.zoneIdx); c.z += D.vz * dt; collideCircle(c, 0.12, 'z', this.zoneIdx);
+        camera.rotation.z += (D.roll - camera.rotation.z) * Math.min(1, dt * 6);
+        camera.rotation.x += (D.pitch - camera.rotation.x) * Math.min(1, dt * 4);
+        const t = D.by?.obj?.position || D.src;
+        if (t && this.cause !== 'hands') {
+          const want = Math.atan2(-(t.x - c.x), -(t.z - c.z));
+          let dy = want - camera.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+          camera.rotation.y += dy * Math.min(1, dt * 2.5);
+        }
+      }
+    }
+    // the screen goes: Hands smother the lens fast, otherwise it records a while and the tape cuts
+    const hold = CFG.deathHold, cut = this.cause === 'hands' ? 1.2 : hold - 0.5;
+    vhsMat.uniforms.uDark.value = clamp((this.deathT - cut) / 0.5, 0, 1);
+    if (this.cause === 'niki' && this.deathT > 0.6) vhsMat.uniforms.uGlitch.value = Math.max(vhsMat.uniforms.uGlitch.value, 0.6);
     for (const z of zones) if (z && !z.disposed) Hazards.killi.update(dt, z, false);
-    if (this.deathT > 1.1 && this.running) {
+    if (this.deathT > CFG.deathHold && this.running) {
       this.running = false;
       document.body.classList.remove('playing');
       $('hud').classList.remove('on');
