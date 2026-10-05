@@ -765,7 +765,7 @@ const SFX = {
   step(surface, loud = 1) {
     if (!this.ctx) return;
     const P = { tile: [2600, 0.045, 0.32], terrazzo: [3200, 0.05, 0.36], vinyl: [1500, 0.06, 0.24], carpet: [520, 0.07, 0.12],
-                concrete: [1200, 0.07, 0.3], metal: [900, 0.09, 0.42] }[surface] || [2000, 0.05, 0.3];
+                concrete: [1200, 0.07, 0.3], metal: [900, 0.09, 0.42], tactile: [800, 0.06, 0.3], gravel: [700, 0.11, 0.4] }[surface] || [2000, 0.05, 0.3];
     const ctx = this.ctx, t = ctx.currentTime, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = this.white; f.type = 'bandpass'; f.frequency.value = P[0] * (0.9 + Math.random() * 0.2); f.Q.value = 1.4;
     s.connect(f); f.connect(g); g.connect(this.master); g.connect(this.verb);
@@ -1110,6 +1110,12 @@ function addPlane(group, mat, w, h, x, y, z, rx = 0, ry = 0) {
    ZONES: assembled from baked modules
    ============================================================ */
 let zones = [];
+// baked floor material -> footstep sound (anything else underfoot falls back to the room's meta.surface)
+const FLOOR_SURF = { floor: 'tile', whitetile: 'tile', redtile: 'tile', subtile: 'tile', terrazzo: 'terrazzo', vinyl: 'vinyl',
+  carpet: 'carpet', concrete: 'concrete', asphalt: 'concrete', paint: 'concrete', deck: 'concrete', track: 'gravel', tactile: 'tactile',
+  metal: 'metal', grate: 'metal', duct: 'metal' };
+const FLOOR_RAY = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0), 0, 1.2);
+FLOOR_RAY.layers.enableAll();   // glossy floors live on layer 1 (main camera only)
 function placeModule(zone, name, z, x = 0) {
   const meta = ASSET.meta.modules[name];
   const obj = ASSET.proto[name].clone();
@@ -2114,7 +2120,14 @@ const game = {
     if (!zn || !zn.meta) return { surface: 'tile', space: 'store' };
     return { surface: zn.meta.surface, space: zn.meta.space };
   },
-  surface() { return this.where().surface; },
+  // the floor actually underfoot: carpet mats, the kiosk's tiles off the forecourt concrete, the tactile strip, rails
+  surface() {
+    const zn = zones[this.zoneIdx], fall = this.where().surface;
+    if (!zn || !zn.g) return fall;
+    const rc = FLOOR_RAY; rc.ray.origin.set(this.p.x, 1.0, this.p.z);
+    for (const h of rc.intersectObject(zn.g, true)) { const f = FLOOR_SURF[h.object.material?.name]; if (f) return f; }
+    return fall;
+  },
   space() { return this.where().space; },
   updateHUD() {
     $('distTxt').textContent = String(Math.floor(this.maxDist)).padStart(4, '0');
