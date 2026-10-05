@@ -593,8 +593,23 @@ function makeScanMaterial(name, lm, d) {
 
 // per-room material swaps: [material to use instead, its gloss there]
 // the gas forecourt is dry light-grey concrete, not a black mirror of the canopy lights
-const MOD_SWAP = { gas: { asphalt: ['concrete', 0.08] } };
+// ward 7's door vision panels: wired safety glass reflecting the corridor, a dim room glowing behind (not a black slot)
+const MOD_SWAP = { gas: { asphalt: ['concrete', 0.08] }, ward: { dark: ['wiredglass', 0] } };
+function wiredGlass(lm) {
+  const m = new THREE.MeshStandardMaterial({ color: 0x1c252b, roughness: 0.06, metalness: 0, envMap: envTex, envMapIntensity: 1.3,
+    emissive: 0x6d7a80, emissiveIntensity: 0.32,
+    emissiveMap: canvasTex(64, 64, (g, w) => {   // the room behind, brighter low down where its window light falls, crossed by the wire mesh
+      const gr = g.createLinearGradient(0, 0, 0, w); gr.addColorStop(0, '#5a5f60'); gr.addColorStop(1, '#c9cbc4');
+      g.fillStyle = gr; g.fillRect(0, 0, w, w);
+      g.strokeStyle = 'rgba(20,22,24,0.85)'; g.lineWidth = 1.2;
+      for (let k = -w; k < w * 2; k += 8) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k + w, w); g.moveTo(k + w, 0); g.lineTo(k, w); g.stroke(); }
+    }) });
+  m.emissiveMap.wrapS = m.emissiveMap.wrapT = THREE.RepeatWrapping; m.emissiveMap.repeat.set(2.5, 2.5);
+  m.name = 'wiredglass';
+  return addDarkness(m, false);
+}
 function makeMaterial(name, lm, mod, gloss = GLOSS[name]) {
+  if (name === 'wiredglass') return wiredGlass(lm);
   const d = MAT_DEF[name] || { color: 0xff00ff };
   if (ASSET.scan && ASSET.scan[name]) {
     const m = makeScanMaterial(name, lm, d);
