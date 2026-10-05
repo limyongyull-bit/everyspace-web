@@ -1958,9 +1958,9 @@
    ],
    "lm": "gas_lm.jpg",
    "glb": "gas.glb",
-   "faces": 6409,
-   "medianIrradiance": 0.06,
-   "bytes": 586435
+   "faces": 6444,
+   "medianIrradiance": 0.062,
+   "bytes": 547663
   },
   "ward": {
    "type": "room",
