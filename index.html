@@ -1064,19 +1064,22 @@ function ledMat(text) {
   }
   return ledCache.get(text);
 }
+// soft round contact shadow: the falloff is computed from the quad's UVs (a sampled gradient canvas drew nothing here)
+function blobShadow(m) {
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vBlob;').replace('#include <uv_vertex>', '#include <uv_vertex>\nvBlob = uv;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vBlob;')
+      .replace('#include <map_fragment>', 'float rr = length(vBlob - 0.5) * 2.0; diffuseColor.a *= mix(0.9, 0.6, smoothstep(0.0, 0.5, rr)) * (1.0 - smoothstep(0.5, 1.0, rr));');
+  };
+  m.customProgramCacheKey = () => 'blob';
+  return m;
+}
 const DYN = {
   glass: new THREE.MeshBasicMaterial({ color: 0xdcecf0, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }),
   // curtain-wall glass: faint, but it reflects the lit interior like real glazing
   windowGlass: new THREE.MeshStandardMaterial({ color: 0x0a0c0e, roughness: 0.04, metalness: 0, envMap: envTex, envMapIntensity: 0.9,
     transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
-  shadow: new THREE.MeshBasicMaterial({
-    transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
-    map: canvasTex(128, 128, (g, w) => {
-      const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-      gr.addColorStop(0, 'rgba(0,0,0,0.75)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = gr; g.fillRect(0, 0, w, w);
-    }),
-  }),
+  shadow: blobShadow(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })),
   ledBack: new THREE.MeshBasicMaterial({ color: 0x0d0d0d }),
   // 이어리 are solid black; glossy so the fluorescent room reflects off the face. Fog never washes them out.
   killi: new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 0.42, metalness: 0, envMap: envTex, envMapIntensity: 0.75 }),
@@ -1748,6 +1751,9 @@ const NIKI = {
       root.traverse(o => { if (o.isBone) { store[o.name] = o; o.userData.rest = o.quaternion.clone(); } if (o.isMesh) o.frustumCulled = false; });
       root.visible = false; scene.add(root);
     }
+    // a soft contact shadow under her feet (she otherwise reads as pasted in, floating on her walk bob)
+    this.shadow = new THREE.Mesh(GEO.plane, blobShadow(DYN.shadow.clone())); this.shadow.rotation.x = -Math.PI / 2; this.shadow.position.y = 0.012;
+    this.shadow.visible = false; scene.add(this.shadow);
   },
   // step toward (ux, uz) without passing through shelves, counters or walls: slide along what blocks her, and when the
   // straight line is blocked walk around the obstacle (keep to one side until the way to the player is clear again)
@@ -1764,6 +1770,7 @@ const NIKI = {
     if (!ASSET.niki) return;
     const p = game.p;
     if (this.mode === 'none' || this.mode === 'gone') {
+      if (this.shadow) this.shadow.visible = false;
       this.cool -= dt;
       const z = zones[game.zoneIdx];
       if (z && z.nikiRoll === undefined) z.nikiRoll = z.rng() < 0.35;
@@ -1818,6 +1825,9 @@ const NIKI = {
       this.lt = lt; this.ltRoot = root;
       root.traverse(o => { if (o.isMesh) { const m = o.material; m.envMapIntensity = m.userData.env0 * lt; if (!isMad) m.emissiveIntensity = m.userData.glow0 * lt; } });
     }
+    const sh = this.shadow, ss = (isMad ? 1.9 : 1.1) * (tired ? 1.25 : 1);
+    sh.visible = true; sh.position.x = this.pos.x; sh.position.z = this.pos.z; sh.scale.set(ss, ss, 1);
+    sh.material.opacity = Math.min(1, 0.35 + lt);   // the darker the room, the less a contact shadow shows
     SFX.setNiki(this.mode === 'close' || this.mode === 'walk' ? clamp(1 - d / 14, 0, 1) : 0, isMad ? clamp(1 - d / 30, 0, 1) : 0, this.pos.x, this.pos.z);
     return d;
   },
