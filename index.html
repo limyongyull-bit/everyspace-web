@@ -1300,7 +1300,7 @@ class Killi {
   constructor(zone, x, z, dx, dz, speed, r, travel) {
     this.zone = zone; this.dx = dx; this.dz = dz; this.speed = speed; this.r = r; this.left = travel;
     this.obj = new THREE.Group();
-    this.roller = new THREE.Mesh(ASSET.killi, DYN.killi);
+    this.roller = new THREE.Mesh(ASSET.killi, DYN.killi.clone());   // own material: lit by the light where this head is
     this.roller.scale.setScalar(r / ASSET.killi.boundingSphere.radius * 1.06);
     this.roller.quaternion.setFromEuler(new THREE.Euler(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28));
     this.down = new THREE.Vector3(); this.qi = new THREE.Quaternion();
@@ -1316,6 +1316,7 @@ class Killi {
     this.voice = SFX.killiVoice();
   }
   update(dt) {
+    this.roller.material.envMapIntensity = 0.75 * creatureLight(this.obj.position.x, this.obj.position.z);
     // at rest against a closed wall: it stays there, a dead weight in the room, until you have left the room
     if (this.rest) {
       // after a while it rolls slowly back out of the door it came through (the one nearest that door goes first)
@@ -1360,7 +1361,7 @@ class Killi {
     for (let i = 0; i < H.length; i += 3) { const s = H[i] * d.x + H[i + 1] * d.y + H[i + 2] * d.z; if (s > m) m = s; }
     return m * this.roller.scale.x;
   }
-  dispose() { scene.remove(this.obj); SFX.stopVoice(this.voice); this.voice = null; }
+  dispose() { scene.remove(this.obj); this.roller.material.dispose(); SFX.stopVoice(this.voice); this.voice = null; }
 }
 // Killis only come down passages: through the room's doors (along the walking line) and along cross aisles that
 // really open onto a side wall. A room can list its own lanes in meta ({a:'x'|'z', c: room-local coordinate});
@@ -2046,7 +2047,6 @@ const game = {
     // creatures dim with the light where they are (their materials reflect a fixed bright environment)
     const hm = hz?.hands?.obj.position;
     HANDS_MAT.envMapIntensity = 0.45 * (hm ? creatureLight(hm.x, hm.z) : creatureLight(this.p.x, this.p.z));
-    DYN.killi.envMapIntensity = 0.75 * creatureLight(this.p.x, this.p.z);
     // the mound's slither is a mono rumble; Killis carry their own positioned voices
     SFX.setRumble(rumble * 1.1);
     // phone auto-exposure: stepping into a dark room slowly raises gain (and noise)
