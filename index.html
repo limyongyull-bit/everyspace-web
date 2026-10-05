@@ -272,6 +272,8 @@ const HDR = renderer.extensions.has('EXT_color_buffer_float') || renderer.extens
 const hdrType = HDR ? THREE.HalfFloatType : THREE.UnsignedByteType;
 const rtScene = new THREE.WebGLRenderTarget(4, 4, { type: hdrType, depthBuffer: true, samples: renderer.capabilities.isWebGL2 ? 4 : 0 });
 const rtLens = new THREE.WebGLRenderTarget(4, 4, { type: hdrType, depthBuffer: false });
+// mip chain so the highlight haze can read a pre-blurred frame (sharp offset taps drew stepped ghost copies of every lamp)
+rtLens.texture.generateMipmaps = true; rtLens.texture.minFilter = THREE.LinearMipmapLinearFilter;
 // floor reflection pass (see makeReflective)
 const rtRefl = new THREE.WebGLRenderTarget(4, 4, { type: hdrType, depthBuffer: true });
 const reflCam = new THREE.PerspectiveCamera();
@@ -335,11 +337,12 @@ const vhsMat = new THREE.ShaderMaterial({
                + texture2D(tLens, uv + vec2(0., px.y)).rgb + texture2D(tLens, uv - vec2(0., px.y)).rgb) * .25;
       hdr = max(hdr + (hdr - bl) * .35 * (1. - uISO * .75), 0.);   // phones smear detail when denoising at high ISO
       vec3 haze = vec3(0.);
-      for (int i = 0; i < 8; i++) {
-        float a = float(i) * .7854;
-        haze += max(texture2D(tLens, uv + vec2(cos(a), sin(a)) * vec2(.03, .05)).rgb * uExposure - .9, 0.);
+      for (int i = 0; i < 8; i++) {   // soft glow around blown highlights: a ring of taps on a heavily blurred mip
+        float a = float(i) * .7854 + .39;
+        haze += max(texture2D(tLens, uv + vec2(cos(a), sin(a)) * vec2(.018, .03), 4.5).rgb * uExposure - .7, 0.);
       }
-      hdr += haze * .01;
+      haze += 2. * max(texture2D(tLens, uv, 5.5).rgb * uExposure - .7, 0.);
+      hdr += haze * .012;
       vec3 col = pow(aces(hdr * uExposure), vec3(1. / 2.2));
       col = mix(col, col * col * (3. - 2. * col), .22);                  // photo S-curve: deeper shadows, denser mids
       float awb = sin(uTime * 0.13) * 0.5 + sin(uTime * 0.071 + 1.7) * 0.5;
