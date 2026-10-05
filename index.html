@@ -736,7 +736,7 @@ async function loadAssets(onProgress) {
     }
   } catch (e) { console.warn('scans unavailable', e); ASSET.scan = null; }
   // only the entrance (and one small room) is needed to start; everything else streams in while you walk
-  const first = modNames.includes('cinema') ? ['lobby', 'cinema'] : ['lobby', ...modNames.filter(n => n !== 'lobby' && n !== 'duct').sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0)).slice(0, 1)];
+  const first = modNames.includes('cinema') ? ['lobby', ...['cinema', 'nordbo'].filter(n => modNames.includes(n))] : ['lobby', ...modNames.filter(n => n !== 'lobby' && n !== 'duct').sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0)).slice(0, 1)];
   await Promise.all(first.map(n => loadModule(n).then(() => { tick(n); tick(n); })));
   ASSET.pending = modNames.filter(n => !first.includes(n)).sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0));
   // room signs are drawn into canvases when a room is built: make sure their faces are loaded first
@@ -1306,7 +1306,8 @@ const ROOM_WEIGHT = { mart: 1, club: 1, subway: 1, burger: 1, parking: 1, gas: 0
 function pickRoom(i, k = 0, from = null) {
   if (DEBUG && window.__forceRooms?.length) return window.__forceRooms.shift();   // screenshot scripts pin the order
   const avail = (ASSET.meta.rooms || []).filter(n => ASSET.proto[n]);
-  if (i === 1 && avail.includes('cinema')) return 'cinema';   // the new 3D spaces come first while they are being built
+  const fresh = ['cinema', 'nordbo'].filter(n => avail.includes(n));   // the new 3D spaces come first while they are being built
+  if (i === 1 && fresh.length && !(DEBUG && window.__forceRooms)) return fresh[(mulberry32(game.seed * 13)() * fresh.length) | 0];
   const recent = [from ?? zones[i - 1]?.kind, from ? zones[i - 1]?.kind : zones[i - 2]?.kind];
   const r = mulberry32(game.seed * 31 + i * 7717 + k * 131)();
   const pool = avail.filter(n => !recent.includes(n) && !(n === 'duct' && i < 2));
