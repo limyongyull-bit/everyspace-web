@@ -261,7 +261,7 @@ const DEX = [
   { id: 'niki', name: 'NIKI', live: true, desc: "Stay close to her. Don't run unless you can keep running." },
   { id: 'whistle', name: 'WHISTLE', live: false, desc: 'Avoid the beep.' },
 ];
-const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki' };
+const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki', fall: 'Fell' };
 
 /* ============================================================
    UTIL
@@ -535,6 +535,9 @@ const MAT_DEF = {
   asphalt: { tex: 'asphalt.jpg' }, paint: { color: 0xe4e2da }, night: { color: 0x050506 },
   car1: { color: 0x7a1414, glow: 0.2 }, car2: { color: 0x182c55, glow: 0.2 }, car3: { color: 0x8a8c8c, glow: 0.2 }, car4: { color: 0x2c3826, glow: 0.2 },
   grate: { color: 0xffe2b0, lm: false, boost: 2.2 }, lightbox: { color: 0xfff6e6, lm: false, boost: 2.0 },
+  // cinema: velvet seats, deep plum walls, the screen (lit by the projector), aisle step lights
+  birch: { color: 0xcdb08a }, fabric: { color: 0x6b6f75 }, cream: { color: 0xece4d0 }, nordgreen: { color: 0x14482f },
+  velvet: { color: 0x6a1018 }, cinewall: { color: 0x3a2a30 }, screen: { color: 0xe8ecf2, lm: false, boost: 1.25 }, steplight: { color: 0xffc070, lm: false, boost: 2.5 },
 };
 // interior light colour: stores/hospitals run warm-white fluorescents, the concourse is lit by overcast daylight
 const MODULE_TINT = { concourse: [0.97, 0.99, 1.03], parking: [0.94, 1.0, 0.9], subway: [0.98, 0.99, 1.0], gas: [0.96, 0.99, 1.04] };
@@ -733,7 +736,7 @@ async function loadAssets(onProgress) {
     }
   } catch (e) { console.warn('scans unavailable', e); ASSET.scan = null; }
   // only the entrance (and one small room) is needed to start; everything else streams in while you walk
-  const first = ['lobby', ...modNames.filter(n => n !== 'lobby' && n !== 'duct').sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0)).slice(0, 1)];
+  const first = modNames.includes('cinema') ? ['lobby', 'cinema'] : ['lobby', ...modNames.filter(n => n !== 'lobby' && n !== 'duct').sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0)).slice(0, 1)];
   await Promise.all(first.map(n => loadModule(n).then(() => { tick(n); tick(n); })));
   ASSET.pending = modNames.filter(n => !first.includes(n)).sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0));
   // room signs are drawn into canvases when a room is built: make sure their faces are loaded first
@@ -796,7 +799,7 @@ const SFX = {
   setSpace(kind) {
     if (!this.ctx || this.space === kind) return;
     this.space = kind;
-    const T = { store: 0.5, hospital: 0.9, platform: 1.9, warehouse: 2.3, concourse: 3.2, burger: 0.45, parking: 1.7, gas: 0.35, vent: 0.22 }[kind] || 0.6;
+    const T = { store: 0.5, hospital: 0.9, platform: 1.9, warehouse: 2.3, concourse: 3.2, burger: 0.45, parking: 1.7, gas: 0.35, vent: 0.22, cinema: 1.1 }[kind] || 0.6;
     const sr = this.ctx.sampleRate, len = Math.floor(sr * T), b = this.ctx.createBuffer(2, len, sr);
     for (let c = 0; c < 2; c++) {
       const d = b.getChannelData(c);
@@ -1140,6 +1143,8 @@ const DYN = {
     transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
   shadow: blobShadow(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })),
   ledBack: new THREE.MeshBasicMaterial({ color: 0x0d0d0d }),
+  // fire doors between the spaces: painted steel, dull
+  exitDoor: addDarkness(new THREE.MeshStandardMaterial({ color: 0x2c2f30, roughness: 0.7, metalness: 0.25, envMap: envTex, envMapIntensity: 0.35 })),
   // 이어리 are solid black; glossy so the fluorescent room reflects off the face. Fog never washes them out.
   killi: new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 0.42, metalness: 0, envMap: envTex, envMapIntensity: 0.75 }),
 };
@@ -1160,14 +1165,47 @@ const FLOOR_SURF = { floor: 'tile', whitetile: 'tile', redtile: 'tile', subtile:
   metal: 'metal', grate: 'metal', duct: 'metal' };
 const FLOOR_RAY = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0), 0, 1.2);
 FLOOR_RAY.layers.enableAll();   // glossy floors live on layer 1 (main camera only)
+// Rooms are 3D now: a zone sits at its own elevation (zone.oy, the zone group is lifted by it), colliders have a height
+// range ([x0,x1,z0,z1] = floor to ceiling, [x0,x1,z0,z1,y0,y1] = a slab, rail, booth...), and the walkable surfaces are
+// listed per module: `floors` [x0,x1,z0,z1,y] (default: the whole room at 0), `ramps` [x0,x1,z0,z1,yLo,yHi,axis]
+// (stairs: height rises from the low to the high end along x or z; yLo is at x0/z0 if yLo<yHi... see rampY) and
+// `ladders` [x0,x1,z0,z1,y0,y1] (climb volumes).
 function placeModule(zone, name, z, x = 0) {
-  const meta = ASSET.meta.modules[name];
+  const meta = ASSET.meta.modules[name], oy = zone.oy || 0, h = meta.h || CFG.ceil;
   const obj = ASSET.proto[name].clone();
   obj.position.set(x, 0, z);
   zone.g.add(obj);
-  for (const [x0, x1, z0, z1] of meta.colliders) zone.cols.push({ x0: x0 + x, x1: x1 + x, z0: z0 + z, z1: z1 + z });
+  for (const c of meta.colliders) zone.cols.push({ x0: c[0] + x, x1: c[1] + x, z0: c[2] + z, z1: c[3] + z,
+    y0: oy + (c.length > 4 ? c[4] : -0.5), y1: oy + (c.length > 4 ? c[5] : h + 0.5) });
+  zone.surf = [];
+  const floors = meta.floors || [[meta.x0 - 0.35, meta.x1 + 0.35, -meta.len, 0, 0]];
+  for (const f of floors) zone.surf.push({ x0: f[0] + x, x1: f[1] + x, z0: f[2] + z, z1: f[3] + z, ya: oy + f[4], yb: oy + f[4] });
+  for (const f of meta.ramps || []) zone.surf.push({ x0: f[0] + x, x1: f[1] + x, z0: f[2] + z, z1: f[3] + z, ya: oy + f[4], yb: oy + f[5], axis: f[6] });
+  zone.ladders = (meta.ladders || []).map(l => ({ x0: l[0] + x, x1: l[1] + x, z0: l[2] + z, z1: l[3] + z, y0: oy + l[4], y1: oy + l[5] }));
   return meta;
 }
+// height of a walkable surface at (x, z): ramps rise from ya at the low edge (x0 / z1, the side nearer the room entry
+// for 'z') to yb at the other edge
+function surfY(s, x, z) {
+  if (!s.axis) return s.ya;
+  const t = s.axis === 'x' ? (x - s.x0) / (s.x1 - s.x0) : (s.z1 - z) / (s.z1 - s.z0);
+  return s.ya + (s.yb - s.ya) * clamp(t, 0, 1);
+}
+// the highest floor under (x, z) that something standing at height y can stand on (a step up of up to 0.45 m is fine)
+function groundAt(x, z, y, zi = game.zoneIdx) {
+  let best = -Infinity;
+  for (let i = Math.max(0, zi - 1); i <= zi + 1; i++) {
+    const zn = zones[i]; if (!zn || zn.disposed || !zn.surf) continue;
+    for (const s of zn.surf) {
+      if (x < s.x0 - 0.05 || x > s.x1 + 0.05 || z < s.z0 - 0.05 || z > s.z1 + 0.05) continue;
+      const h = surfY(s, x, z);
+      if (h <= y + 0.45 && h > best) best = h;
+    }
+  }
+  return best;
+}
+// does a collider block a body whose feet are at y (height hh)? low kerbs and steps under 0.42 m are walked over
+function colBlocks(c, y, hh = 1.7) { return c.y1 > y + 0.42 && c.y0 < y + hh; }
 function addDoor(zone, doorZ, nextIndex) {
   const dw = 1.6;
   const left = new THREE.Mesh(GEO.box, DYN.glass), right = new THREE.Mesh(GEO.box, DYN.glass);
@@ -1265,11 +1303,12 @@ function buildLobby(zone) {
 // Rooms differ wildly in width, depth and height; each is shifted sideways so its entry lines up with the
 // previous exit, so the route zig-zags through a tangle of unrelated buildings.
 const ROOM_WEIGHT = { mart: 1, club: 1, subway: 1, burger: 1, parking: 1, gas: 0.8, ward: 1, concourse: 0.6, duct: 0.55 };
-function pickRoom(i) {
+function pickRoom(i, k = 0, from = null) {
   if (DEBUG && window.__forceRooms?.length) return window.__forceRooms.shift();   // screenshot scripts pin the order
   const avail = (ASSET.meta.rooms || []).filter(n => ASSET.proto[n]);
-  const recent = [zones[i - 1]?.kind, zones[i - 2]?.kind];
-  const r = mulberry32(game.seed * 31 + i * 7717)();
+  if (i === 1 && avail.includes('cinema')) return 'cinema';   // the new 3D spaces come first while they are being built
+  const recent = [from ?? zones[i - 1]?.kind, from ? zones[i - 1]?.kind : zones[i - 2]?.kind];
+  const r = mulberry32(game.seed * 31 + i * 7717 + k * 131)();
   const pool = avail.filter(n => !recent.includes(n) && !(n === 'duct' && i < 2));
   const total = pool.reduce((s, n) => s + (ROOM_WEIGHT[n] ?? 1), 0);
   let acc = 0;
@@ -1303,9 +1342,15 @@ function signMat(s) {
 function buildRoom(zone, kind) {
   const m = ASSET.meta.modules[kind], prev = zones[zone.i - 1];
   zone.kind = kind; zone.meta = m;
-  zone.ox = (prev ? prev.exitX : 0) - m.entry;
+  const pe = prev?.exits?.[zone.via];
+  zone.ox = (pe ? pe.x : prev ? prev.exitX : 0) - m.entry;
   placeModule(zone, kind, zone.z0, zone.ox);
   zone.len = m.len; zone.exitZ = zone.z0 - m.len; zone.exitX = zone.ox + m.exit;
+  // exits: doors in the far wall, at any height; each one leads somewhere else (picked now, so its sign can say where)
+  const ex = m.exits || [{ x: m.exit, y: 0 }];
+  zone.exits = ex.map((e, k) => ({ x: zone.ox + e.x, y: zone.oy + e.y, z: zone.exitZ, w: e.w || 1.9, label: e.label || null,
+    next: pickRoom(zone.i + 1, k, kind) }));
+  zone.exitX = zone.exits[0].x;
   zone.x0 = zone.ox + m.x0; zone.x1 = zone.ox + m.x1; zone.h = m.h;
   zone.name = m.name; zone.type = m.kind === 'duct' ? 'duct' : 'room';
   zone.hint = m.crawl ? 'Crawl.' : (zone.i < 3 ? 'Listen for the horn.' : '');
@@ -1313,13 +1358,24 @@ function buildRoom(zone, kind) {
     const p = addPlane(zone.g, signMat(s), s.w, s.h, zone.ox + s.p[0], s.p[1], zone.z0 + s.p[2], 0, s.ry);
     p.renderOrder = 1;
   }
-  // number over the exit (dark backing + LED), facing into this room
-  if (!m.crawl && m.h >= 2.6) {
-    const y = Math.min(2.78, m.h - 0.24), z = zone.exitZ + 0.33;
+  // number over each exit (dark backing + LED), facing into this room; with several exits each also says where it goes,
+  // and has a pair of doors that stay shut until you walk up to it (the room behind is only built then)
+  zone.exitDoors = [];
+  const ex0 = m.exits || [{ x: m.exit, y: 0 }];
+  if (!m.crawl && m.h >= 2.6) zone.exits.forEach((e, k) => {
+    const ly = ex0[k].y, y = ly + Math.min(2.78, (ex0[k].h || m.h) - 0.24), z = zone.exitZ + 0.33;
     const back = new THREE.Mesh(GEO.box, DYN.ledBack);
-    back.scale.set(1.0, 0.36, 0.04); back.position.set(zone.exitX, y, z - 0.02); zone.g.add(back);
-    addPlane(zone.g, ledMat(pad4(zone.i + 1)), 0.92, 0.3, zone.exitX, y, z + 0.001);
-  }
+    back.scale.set(1.0, 0.36, 0.04); back.position.set(e.x, y, z - 0.02); zone.g.add(back);
+    addPlane(zone.g, ledMat(pad4(zone.i + 1)), 0.92, 0.3, e.x, y, z + 0.001);
+    if (zone.exits.length > 1) {
+      const nm = e.label || ASSET.meta.modules[e.next]?.name || 'EXIT';
+      const sg = addPlane(zone.g, signMat({ t: nm, bg: '#141414', fg: '#e8e4d8', face: 'BarlowCondensed-700', w: 1.9, h: 0.3, glow: 0.8 }), 1.9, 0.3, e.x, y + 0.36, z + 0.002);
+      sg.renderOrder = 1;
+      const leaves = [-1, 1].map(sd => { const d = new THREE.Mesh(GEO.box, DYN.exitDoor); d.scale.set(e.w / 2, 2.3, 0.06);
+        d.position.set(e.x + sd * e.w / 4, ly + 1.15, zone.exitZ + 0.16); zone.g.add(d); return d; });
+      zone.exitDoors.push({ k, e, leaves, open: 0 });
+    }
+  });
   if (m.panorama) addPanorama(zone, zone.ox + m.panorama[0], zone.z0 + m.panorama[1], Math.PI * 1.1);
   for (const [gx0, gx1, gy0, gy1, gz] of m.glass || []) addPlane(zone.g, DYN.windowGlass, gx1 - gx0, gy1 - gy0, zone.ox + (gx0 + gx1) / 2, (gy0 + gy1) / 2, zone.z0 + gz);
   if (m.window) addWindowGlass(zone, zone.ox + m.window[0], zone.z0 + m.window[1], m.window[2], m.window[3], -Math.PI / 2);
@@ -1336,12 +1392,17 @@ function buildRoom(zone, kind) {
   zone.killiLeft = zone.mood === 'calm' ? 0 : zone.mood === 'uneasy' ? 1 + (zone.rng() < 0.5 ? 1 : 0) : Infinity;
   if (zone.mood === 'calm' && zone.rng() < 0.6) zone.fakeHornT = 10 + zone.rng() * 25;
 }
-function createZone(i, z0) {
+function createZone(i, z0, opts = {}) {
   const zone = {
-    i, z0, g: new THREE.Group(), cols: [], killis: [], ox: 0, exitX: 0,
+    i, z0, g: new THREE.Group(), cols: [], killis: [], ox: 0, exitX: 0, oy: opts.oy || 0, via: opts.via ?? 0,
     rng: mulberry32(game.seed * 7919 + i * 104729), type: i === 0 ? 'lobby' : 'room', cleared: false,
   };
-  if (i === 0) buildLobby(zone); else buildRoom(zone, pickRoom(i));
+  zone.g.position.y = zone.oy;
+  if (i === 0) buildLobby(zone); else buildRoom(zone, opts.kind || pickRoom(i));
+  if (!zone.surf) {   // the lobby (built by hand): flat floor everywhere
+    zone.surf = [{ x0: -60, x1: 60, z0: zone.exitZ ?? -40, z1: z0 + 1, ya: zone.oy, yb: zone.oy }]; zone.ladders = [];
+    for (const c of zone.cols) if (c.y0 === undefined) { c.y0 = zone.oy - 0.5; c.y1 = zone.oy + 9; }
+  }
   scene.add(zone.g);
   return zone;
 }
@@ -1358,8 +1419,25 @@ function zoneAt(z) {
 }
 function streamZones() {
   const cur = game.zoneIdx;
-  for (let i = 0; i <= cur + 1; i++) {
-    if (!zones[i] && (i === 0 || zones[i - 1]) && (i === 0 || (ASSET.meta.rooms || []).some(n => ASSET.proto[n]))) zones[i] = createZone(i, i === 0 ? 4 : zones[i - 1].exitZ);
+  const anyRoom = (ASSET.meta.rooms || []).some(n => ASSET.proto[n]);
+  if (!zones[0]) zones[0] = createZone(0, 4);
+  for (let i = 1; i <= cur + 1; i++) {
+    const prev = zones[i - 1]; if (!prev || !anyRoom) break;
+    // which exit of the previous room: a room with one exit builds its next room at once; with several, the next room
+    // is built behind the door you walk up to (and rebuilt if you change your mind)
+    let via = 0;
+    if (prev.exits && prev.exits.length > 1) {
+      via = -1;
+      if (zones[i]) via = zones[i].via;
+      if (i === cur + 1) {
+        let bd = 5;
+        prev.exits.forEach((e, k) => { const d = Math.hypot(game.p.x - e.x, game.p.z - e.z) + Math.abs(game.p.y - e.y) * 2; if (d < bd) { bd = d; via = k; } });
+        if (via < 0 && zones[i]) via = zones[i].via;
+      }
+      if (via < 0) break;
+    }
+    if (zones[i] && zones[i].via !== via && i === cur + 1) { disposeZone(zones[i]); zones[i] = null; }
+    if (!zones[i]) { const e = prev.exits?.[via]; zones[i] = createZone(i, prev.exitZ, { oy: e ? e.y : prev.oy, via, kind: e?.next }); }
   }
   for (let i = 0; i < cur - 1; i++) if (zones[i] && !zones[i].disposed) { disposeZone(zones[i]); zones[i].disposed = true; }
 }
@@ -1382,7 +1460,7 @@ class Killi {
     const sh = new THREE.Mesh(GEO.plane, DYN.shadow);
     sh.scale.set(r * 2.6, r * 2.6, 1); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.01;
     this.obj.add(this.roller, sh);
-    this.obj.position.set(x, 0, z);
+    this.obj.position.set(x, zone.oy || 0, z);
     scene.add(this.obj);
     this.q = new THREE.Quaternion();
     this.axis = new THREE.Vector3(dz, 0, -dx);          // rolling: spin axis = up x direction
@@ -1448,7 +1526,7 @@ function wallOpen(zone, side, z, r) {
 function killiLanes(zone) {
   if (zone.lanes) return zone.lanes;
   const m = zone.meta, L = [];
-  if (m.lanes) for (const l of m.lanes) L.push({ a: l.a, c: l.a === 'x' ? zone.z0 + l.c : zone.ox + l.c });
+  if (m.lanes) for (const l of m.lanes) L.push({ a: l.a, c: l.a === 'x' ? zone.z0 + l.c : zone.ox + l.c, from: l.from || [-1, 1] });
   else {
     const kr = zone.kr, w = m.x1 - m.x0, corridor = w < 4;
     if ((m.axes.includes('z') && w > 2 * kr + 1) || corridor) {
@@ -1533,7 +1611,7 @@ const Hazards = {
           if (d < k.r + CFG.radius) { const s = (k.r + CFG.radius) / (d || 1); p.x = k.obj.position.x + (p.x - k.obj.position.x) * s; p.z = k.obj.position.z + (p.z - k.obj.position.z) * s; }
           continue;
         }
-        if (d < k.r + CFG.radius - 0.05 && p.y < k.r * 2) return { kill: 'killi', by: k };
+        if (d < k.r + CFG.radius - 0.05 && p.y - k.obj.position.y < k.r * 2 && p.y > k.obj.position.y - 0.6) return { kill: 'killi', by: k };
         if (d < k.r + 1.5 && !k.near) { k.near = true; zone.killiT = Math.max(zone.killiT, 20 + zone.rng() * 10); }   // a near miss buys a quiet stretch
         best = Math.max(best, clamp(1 - d / 30, 0, 1) ** 2);
       }
@@ -1613,7 +1691,7 @@ function creatureLight(x, z) {
 const HANDS_MAT = new THREE.MeshStandardMaterial({ color: 0x040404, roughness: 0.78, metalness: 0, envMap: envTex, envMapIntensity: 0.45 });
 class HandsMound {
   constructor(zone, x, z) {
-    this.zone = zone; this.obj = new THREE.Group(); this.obj.position.set(x, 0, z);
+    this.zone = zone; this.obj = new THREE.Group(); this.obj.position.set(x, zone.oy || 0, z);
     this.t = Math.random() * 10; this.douseT = 0.6; this.danger = 0;
     const r = mulberry32((x * 1000) | 0);
     // the mound itself (modelled from the character sheet), slowly heaving
@@ -1738,7 +1816,7 @@ Hazards.hands = {
   },
   check(zone, p) {
     const h = zone.hands; if (!h) return {};
-    const d = Math.hypot(h.obj.position.x - p.x, h.obj.position.z - p.z);
+    const d = Math.hypot(h.obj.position.x - p.x, h.obj.position.z - p.z) + Math.max(0, Math.abs(p.y - h.obj.position.y) - 1) * 3;   // up a ladder, out of its reach
     const lit = lightAt(p.x, p.z) > 0.45 || GLOW.t > 0;
     const dt = game.dtNow || 1 / 60;
     const black = zone.handsPlan?.black;
@@ -1754,11 +1832,12 @@ Hazards.hands = {
    Keep sprinting for 10 seconds straight and she tires out. Sometimes she gives you a glow stick.
    ============================================================ */
 // push a circle (radius r, on the floor) out of the room colliders along one axis; returns the last collider hit (or null)
-function collideCircle(p, r, axis, zoneIdx) {
+function collideCircle(p, r, axis, zoneIdx, hh = 1.7) {
   let hit = null;
   for (let zi = Math.max(0, zoneIdx - 1); zi <= zoneIdx + 1; zi++) {
     const zn = zones[zi]; if (!zn || zn.disposed) continue;
     for (const c of zn.cols) {
+      if (!colBlocks(c, p.y, hh)) continue;
       if (p.x + r <= c.x0 || p.x - r >= c.x1 || p.z + r <= c.z0 || p.z - r >= c.z1) continue;
       if (axis === 'x') p.x = (p.x < (c.x0 + c.x1) / 2) ? c.x0 - r : c.x1 + r;
       else p.z = (p.z < (c.z0 + c.z1) / 2) ? c.z0 - r : c.z1 + r;
@@ -1773,12 +1852,12 @@ function collideCircle(p, r, axis, zoneIdx) {
 function stepAvoiding(p, ux, uz, step, r, st) {
   const zn = zoneAt(p.z), zi = zn ? zones.indexOf(zn) : game.zoneIdx, x0 = p.x, z0 = p.z, P = game.p;
   // a shelf / counter between it and the player: head for the corner of it that gives the shortest way round
-  const blocker = segmentBlocker(x0, z0, P.x, P.z, r - 0.02, zi);
+  const blocker = segmentBlocker(x0, z0, P.x, P.z, r - 0.02, zi, p.y);
   if (!blocker) st.wp = null;
-  else if (!st.wp || Math.hypot(st.wp.x - x0, st.wp.z - z0) < 0.15 || segmentBlocker(x0, z0, st.wp.x, st.wp.z, r - 0.02, zi)) {
+  else if (!st.wp || Math.hypot(st.wp.x - x0, st.wp.z - z0) < 0.15 || segmentBlocker(x0, z0, st.wp.x, st.wp.z, r - 0.02, zi, p.y)) {
     const g = r + 0.12; let best = Infinity; st.wp = null;
     for (const [x, z] of [[blocker.x0 - g, blocker.z0 - g], [blocker.x1 + g, blocker.z0 - g], [blocker.x0 - g, blocker.z1 + g], [blocker.x1 + g, blocker.z1 + g]]) {
-      const d0 = Math.hypot(x - x0, z - z0); if (d0 < 0.15 || segmentBlocker(x0, z0, x, z, r - 0.02, zi)) continue;
+      const d0 = Math.hypot(x - x0, z - z0); if (d0 < 0.15 || segmentBlocker(x0, z0, x, z, r - 0.02, zi, p.y)) continue;
       const cost = d0 + Math.hypot(P.x - x, P.z - z); if (cost < best) { best = cost; st.wp = { x, z }; }
     }
   }
@@ -1789,12 +1868,13 @@ function stepAvoiding(p, ux, uz, step, r, st) {
   if (ml > step * 0.2) (st.head ||= new THREE.Vector3()).set(mx / ml, 0, mz / ml);
 }
 // first collider (grown by r) crossed by the floor segment a -> b, or null: line of sight / clear walking line
-function segmentBlocker(ax, az, bx, bz, r, zoneIdx) {
+function segmentBlocker(ax, az, bx, bz, r, zoneIdx, y = null) {
   const dx = bx - ax, dz = bz - az;
   let best = null, bt = 1;
   for (let zi = Math.max(0, zoneIdx - 1); zi <= zoneIdx + 1; zi++) {
     const zn = zones[zi]; if (!zn || zn.disposed) continue;
     for (const c of zn.cols) {
+      if (y !== null && !colBlocks(c, y)) continue;
       let t0 = 0, t1 = bt;
       for (const [o, d, lo, hi] of [[ax, dx, c.x0 - r, c.x1 + r], [az, dz, c.z0 - r, c.z1 + r]]) {
         if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) { t0 = 2; break; } continue; }
@@ -1822,11 +1902,15 @@ const NIKI = {
   },
   // step toward (ux, uz) without passing through shelves, counters or walls: slide along what blocks her, and when the
   // straight line is blocked walk around the obstacle (keep to one side until the way to the player is clear again)
-  walk(ux, uz, step, r) { stepAvoiding(this.pos, ux, uz, step, r, this); },
+  walk(ux, uz, step, r) {
+    stepAvoiding(this.pos, ux, uz, step, r, this);
+    const g = groundAt(this.pos.x, this.pos.z, this.pos.y + 0.1);
+    if (isFinite(g)) this.pos.y = g;   // up and down stairs with you (she does not drop off ledges: she has no reason to)
+  },
   reset() { this.mode = 'none'; this.cool = 25; this.giveT = 12; this.sprintT = 0; if (this.obj) { this.obj.visible = false; this.mad.visible = false; } },
   spawn(zone) {
     this.build(); if (!this.obj) return;
-    this.mode = 'walk'; this.pos.set(zone.exitX, 0, zone.exitZ + 2.5); this.morph = 0; this.sprintT = 0; this.wp = null; this.yaw = undefined;
+    this.mode = 'walk'; this.pos.set(zone.exitX, zone.oy || 0, zone.exitZ + 2.5); this.morph = 0; this.sprintT = 0; this.wp = null; this.yaw = undefined;
     collideCircle(this.pos, 0.32, 'x', zone.i); collideCircle(this.pos, 0.32, 'z', zone.i);
     this.obj.visible = true; this.mad.visible = false;
     if (!game.metNiki) { game.metNiki = true; toast('NIKI', 'Stay close to her.', false); }
@@ -1884,14 +1968,14 @@ const NIKI = {
     swing(P.foreL, isMad ? 0.3 : 0.15); swing(P.foreR, isMad ? 0.3 : 0.15);
     swing(P.spine, isMad ? 0.18 + Math.sin(game.t * 9) * 0.03 : 0.0);
     if (P.head) { P.head.quaternion.copy(P.head.userData.rest); if (!isMad) P.head.rotateY(Math.sin(game.t * 0.7) * 0.12); }
-    root.position.y = tired ? -0.42 : speed > 0.1 ? Math.abs(Math.cos(this.phase)) * (isMad ? 0.07 : 0.025) : 0;
+    root.position.y = this.pos.y + (tired ? -0.42 : speed > 0.1 ? Math.abs(Math.cos(this.phase)) * (isMad ? 0.07 : 0.025) : 0);
     const lt = creatureLight(this.pos.x, this.pos.z);   // she dims with the room like everything else (her texture glows a little)
     if (lt !== this.lt || root !== this.ltRoot) {   // Mad Niki's red cracks keep their own glow
       this.lt = lt; this.ltRoot = root;
       root.traverse(o => { if (o.isMesh) { const m = o.material; m.envMapIntensity = m.userData.env0 * lt; if (!isMad) m.emissiveIntensity = m.userData.glow0 * lt; } });
     }
     const sh = this.shadow, ss = (isMad ? 1.9 : 1.1) * (tired ? 1.25 : 1);
-    sh.visible = true; sh.position.x = this.pos.x; sh.position.z = this.pos.z; sh.scale.set(ss, ss, 1);
+    sh.visible = true; sh.position.set(this.pos.x, this.pos.y + 0.012, this.pos.z); sh.scale.set(ss, ss, 1);
     sh.material.opacity = Math.min(1, 0.35 + lt);   // the darker the room, the less a contact shadow shows
     SFX.setNiki(this.mode === 'close' || this.mode === 'walk' ? clamp(1 - d / 14, 0, 1) : 0, isMad ? clamp(1 - d / 30, 0, 1) : 0, this.pos.x, this.pos.z);
     return d;
@@ -2059,7 +2143,7 @@ const game = {
     $('zoneName').textContent = zone.name;
     if (!zone.visited) { zone.visited = true; toast(zone.name, zone.hint); }
   },
-  collide(axis) { return collideCircle(this.p, CFG.radius, axis, this.zoneIdx); },
+  collide(axis) { return collideCircle(this.p, CFG.radius, axis, this.zoneIdx, this.eyeNow + 0.1); },
   update(dt) {
     this.t += dt; this.dtNow = dt;
     if (this.dead) { this.updateDeath(dt); return; }
@@ -2075,15 +2159,37 @@ const game = {
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     const vx = (-sy * mv.y + cy * mv.x) * speed, vz = (-cy * mv.y - sy * mv.x) * speed;
     const ox = this.p.x, oz = this.p.z;
-    this.p.x += vx * dt; this.collide('x');
-    this.p.z += vz * dt; this.collide('z');
+    // a ladder in front of you: push forward to climb, back to climb down
+    let lad = null;
+    for (let zi = Math.max(0, this.zoneIdx - 1); zi <= this.zoneIdx + 1 && !lad; zi++)
+      for (const l of zones[zi]?.ladders || []) if (this.p.x > l.x0 - 0.3 && this.p.x < l.x1 + 0.3 && this.p.z > l.z0 - 0.3 && this.p.z < l.z1 + 0.3 && this.p.y > l.y0 - 0.3 && this.p.y < l.y1 + 0.05) { lad = l; break; }
+    this.climbing = !!(lad && (Math.abs(mv.y) > 0.25 || (this.climbing && this.p.y > lad.y0 + 0.05)));
+    if (this.climbing) {
+      const top = this.p.y >= lad.y1 - 0.02;
+      this.p.y = clamp(this.p.y + mv.y * 2.1 * dt, lad.y0, lad.y1 + 0.02); this.vy = 0; this.onGround = true;
+      if (top && mv.y > 0) { this.p.x += vx * dt; this.collide('x'); this.p.z += vz * dt; this.collide('z'); }   // step off at the top
+      if (Math.floor(this.p.y / 0.3) !== Math.floor((this.ladY ?? this.p.y) / 0.3)) SFX.step('metal', 0.7);
+      this.ladY = this.p.y;
+    } else {
+      this.p.x += vx * dt; this.collide('x');
+      this.p.z += vz * dt; this.collide('z');
+    }
     this.speedNow = Math.hypot(this.p.x - ox, this.p.z - oz) / Math.max(dt, 1e-4);
-    if (input.jump && this.onGround && !crawl) { this.vy = CFG.jumpV; this.onGround = false; }
+    if (input.jump && this.onGround && !crawl && !this.climbing) { this.vy = CFG.jumpV; this.onGround = false; this.fallFrom = this.p.y; }
     input.jump = false;
-    this.vy -= CFG.gravity * dt; this.p.y += this.vy * dt;
-    if (this.p.y <= 0) { this.p.y = 0; this.vy = 0; this.onGround = true; }
-    const ceil = (zc && zc.h) || CFG.ceil;
-    if (this.p.y > ceil - this.eyeNow - 0.12) { this.p.y = Math.max(0, ceil - this.eyeNow - 0.12); this.vy = Math.min(this.vy, 0); }
+    const g = groundAt(this.p.x, this.p.z, this.p.y, this.zoneIdx);
+    if (!this.climbing) {
+      // stay on stairs going down; otherwise fall (and a long fall kills)
+      if (this.onGround && this.vy <= 0 && g > this.p.y - 0.5 && g < this.p.y) this.p.y = g;
+      this.vy -= CFG.gravity * dt; this.p.y += this.vy * dt;
+      if (this.p.y <= g) {
+        if ((this.fallFrom ?? g) - g > 5.5) { this.p.y = g; return this.die('fall'); }
+        this.p.y = g; this.vy = 0; this.onGround = true; this.fallFrom = null;
+      } else if (this.p.y > g + 0.05) { if (this.onGround) this.fallFrom = this.p.y; this.onGround = false; }
+      if (!isFinite(g) && this.p.y < (zc?.oy ?? 0) - 30) return this.die('fall');
+    }
+    const ceil = zc ? zc.oy + (zc.h || CFG.ceil) : CFG.ceil;
+    if (this.p.y > ceil - this.eyeNow - 0.12 && this.vy > 0) { this.p.y = ceil - this.eyeNow - 0.12; this.vy = 0; }
     $('sprintTag').classList.toggle('on', mv.sprint);
 
     const zn = zoneAt(this.p.z);
@@ -2098,7 +2204,15 @@ const game = {
       this.enterZone(zn);
     }
     this.maxDist = Math.max(this.maxDist, -this.p.z);
+    // rooms with several exits: the room behind the door you walk up to is built now (cheap check every few frames)
+    if ((this.streamT = (this.streamT || 0) - dt) <= 0 && zones[this.zoneIdx]?.exits?.length > 1) { this.streamT = 0.25; streamZones(); }
 
+    for (const z of zones) if (z && !z.disposed && z.exitDoors) for (const d of z.exitDoors) {
+      const nxt = zones[z.i + 1], ready = nxt && !nxt.disposed && nxt.via === d.k;
+      const near = Math.hypot(this.p.x - d.e.x, this.p.z - d.e.z) < 3.2 && Math.abs(this.p.y - d.e.y) < 1.5;
+      d.open = clamp(d.open + (near && ready ? 2.5 : -1.5) * dt, 0, 1);
+      d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); });
+    }
     for (const z of zones) if (z && !z.disposed && z.door) {
       const d = z.door, near = Math.abs(this.p.z - d.z) < 4 && Math.abs(this.p.x) < 4;
       d.open = clamp(d.open + (near ? 3 : -2) * dt, 0, 1);
@@ -2321,7 +2435,8 @@ function frame(now) {
   if (OPT.refl) {
     reflCam.fov = camera.fov; reflCam.aspect = camera.aspect; reflCam.near = camera.near; reflCam.far = camera.far;
     reflCam.updateProjectionMatrix();
-    reflCam.position.set(camera.position.x, -camera.position.y, camera.position.z);
+    const fy = zones[game.zoneIdx]?.oy || 0;   // the floor you stand on is the mirror
+    reflCam.position.set(camera.position.x, 2 * fy - camera.position.y, camera.position.z);
     reflCam.rotation.set(-camera.rotation.x, camera.rotation.y, -camera.rotation.z);
     reflCam.updateMatrixWorld();
     REFL.uReflVP.value.multiplyMatrices(reflCam.projectionMatrix, reflCam.matrixWorldInverse);
