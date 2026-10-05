@@ -1260,7 +1260,13 @@ function buildRoom(zone, kind) {
   // it comes in through doorways (1.9 x 2.4 m in every room), so the head has to fit one; in a corridor that also
   // leaves room to flatten against a wall
   zone.kr = Math.min(KR, (m.h - 0.12) / 2, KILLI_DOOR_R);
-  zone.killiT = 2.5 + zone.rng() * 3.5;
+  // Killi director: each room has a mood, so the rhythm can't be learnt. calm: nothing comes (maybe one far horn
+  // that never arrives); uneasy: one or two heads, long gaps; active: the old cadence. Never in the first 8 s.
+  const mr = zone.rng(), calmP = Math.max(0.2, 0.35 - zone.i * 0.01), activeP = Math.min(0.5, 0.25 + zone.i * 0.015);
+  zone.mood = zone.i <= 1 ? 'uneasy' : mr < calmP ? 'calm' : mr > 1 - activeP ? 'active' : 'uneasy';
+  zone.killiT = 8 + zone.rng() * 12;
+  zone.killiLeft = zone.mood === 'calm' ? 0 : zone.mood === 'uneasy' ? 1 + (zone.rng() < 0.5 ? 1 : 0) : Infinity;
+  if (zone.mood === 'calm' && zone.rng() < 0.6) zone.fakeHornT = 10 + zone.rng() * 25;
 }
 function createZone(i, z0) {
   const zone = {
@@ -1439,11 +1445,14 @@ const Hazards = {
   killi: {
     update(dt, zone, active) {
       if (active && zone.meta && zone.meta.axes.length && zone.i === game.zoneIdx) {
+        // Niki close by or the power cut going: nothing else comes until it is over (plus a quiet stretch)
+        if ((zone.handsPlan && zone.handsPlan.level > 0) || (NIKI.mode !== 'none' && NIKI.mode !== 'gone')) zone.killiT = Math.max(zone.killiT, 20);
+        if (zone.fakeHornT !== undefined && (zone.fakeHornT -= dt) <= 0) { SFX.horn(0.25 + zone.rng() * 0.1, false); zone.fakeHornT = undefined; }
         zone.killiT -= dt;
-        if (zone.killiT <= 0) {
-          spawnKilli(zone, game.p);
+        if (zone.killiT <= 0 && zone.killiLeft > 0) {
+          spawnKilli(zone, game.p); zone.killiLeft--;
           const pace = Math.max(0.45, 1 - zone.i * 0.035);
-          zone.killiT = (6 + zone.rng() * 7) * pace;
+          zone.killiT = zone.mood === 'active' ? (6 + zone.rng() * 7) * pace : 15 + zone.rng() * 25;
         }
       }
       zone.killis = zone.killis.filter(k => { const alive = k.update(dt); if (!alive) k.dispose(); return alive; });
@@ -1457,6 +1466,7 @@ const Hazards = {
           continue;
         }
         if (d < k.r + CFG.radius - 0.05 && p.y < k.r * 2) return { kill: 'killi' };
+        if (d < k.r + 1.5 && !k.near) { k.near = true; zone.killiT = Math.max(zone.killiT, 20 + zone.rng() * 10); }   // a near miss buys a quiet stretch
         best = Math.max(best, clamp(1 - d / 30, 0, 1) ** 2);
       }
       return { shake: best };
@@ -2228,7 +2238,7 @@ loadAssets((f, label) => {
     ? 'Open this through a web server (e.g. <code>npx http-server</code> or GitHub Pages) — browsers block file:// assets.'
     : 'Failed to load assets: ' + escapeHTML(err.message || String(err));
 });
-if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX };
+if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards };
 </script>
 </body>
 </html>
