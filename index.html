@@ -264,12 +264,12 @@ const CRACK = {
 const DEX = [
   { id: 'killi', name: 'KILLI', live: true, desc: 'You hear the horn first. Then it comes through the wall.' },
   { id: 'hands', name: 'THE HANDS', live: true, desc: 'It puts the lights out. Stay in the light.' },
-  { id: 'matryoshka', name: 'MATRYOSHKA', live: false, desc: 'Rock to break free.' },
-  { id: 'extra', name: 'EXTRA', live: false, desc: "Don't stare." },
+  { id: 'matryoshka', name: 'MATRYOSHKA', live: true, desc: 'Rock to break free.' },
+  { id: 'extra', name: 'THE EXTRA', live: true, desc: "Don't stare." },
   { id: 'niki', name: 'NIKI', live: true, desc: "Stay close to her. Don't run unless you can keep running." },
-  { id: 'whistle', name: 'WHISTLE', live: false, desc: 'Avoid the beep.' },
+  { id: 'whistle', name: 'THE WHISTLE', live: true, desc: 'Avoid the beep.' },
 ];
-const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki', fall: 'Fell' };
+const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki', fall: 'Fell', matryoshka: 'Sealed in the Matryoshka', extra: 'You stared at The Extra', whistle: 'Found by The Whistle' };
 
 /* ============================================================
    UTIL
@@ -544,6 +544,8 @@ const MAT_DEF = {
   car1: { color: 0x7a1414, glow: 0.2 }, car2: { color: 0x182c55, glow: 0.2 }, car3: { color: 0x8a8c8c, glow: 0.2 }, car4: { color: 0x2c3826, glow: 0.2 },
   grate: { color: 0xffe2b0, lm: false, boost: 2.2 }, lightbox: { color: 0xfff6e6, lm: false, boost: 2.0 },
   // cinema: velvet seats, deep plum walls, the screen (lit by the projector), aisle step lights
+  brick: { tex: 'block.jpg', color: 0xb8624a }, purple: { color: 0x4a1650 },
+  neonpink: { color: 0xff4fd8, lm: false, boost: 2.4 }, neonblue: { color: 0x4f9dff, lm: false, boost: 2.4 }, neongreen: { color: 0x7dff9a, lm: false, boost: 2.2 },
   birch: { color: 0xcdb08a }, fabric: { color: 0x6b6f75 }, cream: { color: 0xece4d0 }, nordgreen: { color: 0x14482f },
   velvet: { color: 0x6a1018 }, cinewall: { color: 0x3a2a30 }, screen: { color: 0xe8ecf2, lm: false, boost: 1.25 }, steplight: { color: 0xffc070, lm: false, boost: 2.5 },
 };
@@ -997,15 +999,12 @@ const SFX = {
   crack() { if (!this.ctx) return; const t = this.ctx.currentTime; this._noise(t, 0.05, 'bandpass', 3200, 3, 0.4); this.tone(1320, 0.05, 0.6, 0.04); },
   madNiki(x, z) {
     if (!this.ctx) return;
+    // the change: a long rising scream, a second voice an octave under it, and a low growl under both
+    this.scream(null, { dur: 2.2, f0: 380, f1: 1150, vol: 0.62, x, z });
+    this.scream(null, { dur: 2.0, f0: 190, f1: 560, vol: 0.3, x, z });
     const ctx = this.ctx, t = ctx.currentTime, d = x === undefined ? this.master : this.panner(4, 0.4, x, 1.8, z);
-    for (const [f0, f1, type, v] of [[260, 820, 'sawtooth', 0.12], [262, 790, 'square', 0.05], [70, 48, 'sawtooth', 0.25]]) {
-      const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
-      o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + 0.9);
-      o.connect(lp); lp.connect(g); g.connect(d); g.connect(this.verb);
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.08); g.gain.exponentialRampToValueAtTime(0.0005, t + 1.4);
-      o.start(t); o.stop(t + 1.5);
-    }
-    this._noise(t, 1.2, 'bandpass', 1400, 0.8, 0.3, d);
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(45, t + 1.6);
+    o.connect(g); g.connect(d); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.28, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0005, t + 1.8); o.start(t); o.stop(t + 1.9);
   },
   nikiTired(x, z) { if (!this.ctx) return; const d = x === undefined ? undefined : this.panner(3, 0.5, x, 1.0, z);
     this.tone(523, 0, 0.5, 0.05, 'sine', d); this.tone(440, 0.35, 0.6, 0.05, 'sine', d); this.tone(349, 0.75, 1.0, 0.05, 'sine', d); },
@@ -1033,6 +1032,74 @@ const SFX = {
       o.start(t); o.stop(t + 1.0); this.nk.next = t + 0.42;
     }
   },
+  // a human-ish scream: two detuned saw "vocal folds" through a hard waveshaper (rasp), then vowel formants (an open
+  // "AAAH": 800 / 1150 / 2900 / 3900 Hz), a pitch that shoots up and cracks, wide vibrato and breath noise
+  scream(dest, { dur = 1.7, f0 = 420, f1 = 1050, vol = 0.55, x, z } = {}) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime, out = dest || (x === undefined ? this.master : this.panner(4, 0.35, x, 1.9, z));
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.05);
+    g.gain.setValueAtTime(vol, t + dur * 0.65); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    g.connect(out); g.connect(this.verb);
+    const sh = ctx.createWaveShaper(), n = 1024, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const v = i / (n - 1) * 2 - 1; curve[i] = Math.tanh(v * 7) * 0.9; }
+    sh.curve = curve;
+    for (const [f, q, a] of [[800, 5, 1], [1150, 7, 0.75], [2900, 9, 0.45], [3900, 11, 0.3]]) {
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+      const ga = ctx.createGain(); ga.gain.value = a; sh.connect(bp); bp.connect(ga); ga.connect(g);
+    }
+    const vib = ctx.createOscillator(), vg = ctx.createGain(); vib.frequency.value = 6.5 + Math.random() * 2; vg.gain.value = f1 * 0.04; vib.connect(vg); vib.start(t); vib.stop(t + dur);
+    for (const det of [0, 7, -5]) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.detune.value = det * 3;
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + 0.28);
+      o.frequency.setValueAtTime(f1, t + dur * 0.55); o.frequency.exponentialRampToValueAtTime(f1 * 0.72, t + dur);   // the voice gives out
+      vg.connect(o.frequency); const og = ctx.createGain(); og.gain.value = 0.35; o.connect(og); og.connect(sh); o.start(t); o.stop(t + dur);
+    }
+    this._noise(t, dur * 0.9, 'bandpass', 2400, 0.7, vol * 0.25, out);
+  },
+  // the doll: hollow wooden knocks as it hops, the lid closing over you
+  knock(x, z, s = 1) {
+    if (!this.ctx) return;
+    const p = this.panner(2, 1, x, 0.4, z);
+    this.tone(180 / s + Math.random() * 30, 0, 0.12, 0.25, 'triangle', p); this._noise(this.ctx.currentTime, 0.04, 'bandpass', 900 / s, 2, 0.25, p);
+  },
+  dollClose() { if (!this.ctx) return; this.tone(90, 0, 0.5, 0.4, 'triangle'); this.tone(60, 0.05, 0.8, 0.4, 'sine'); this._noise(this.ctx.currentTime, 0.2, 'lowpass', 500, 0.7, 0.6); },
+  // being stared back at: a thin rising whine and a heartbeat, both growing with the stare
+  setStare(v, x, z) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    if (!this.st) {
+      const pan = this.panner(3, 0.5), g = ctx.createGain(); g.gain.value = 0; g.connect(pan);
+      const o = ctx.createOscillator(); o.frequency.value = 3150; o.connect(g); o.start();
+      const o2 = ctx.createOscillator(); o2.frequency.value = 3170; o2.connect(g); o2.start();
+      this.st = { pan, g, beat: 0 };
+    }
+    if (x !== undefined) this.at(this.st.pan, x, 1.8, z);
+    this.st.g.gain.setTargetAtTime(v * v * 0.05, t, 0.1);
+    if (v > 0.15 && t > this.st.beat) { this.st.beat = t + 0.9 - v * 0.55; this.heartbeat(0.25 + v * 0.5); }
+  },
+  heartbeat(v = 0.5) { if (!this.ctx) return; this.tone(55, 0, 0.16, 0.5 * v, 'sine'); this.tone(48, 0.17, 0.2, 0.4 * v, 'sine'); },
+  extraShriek(x, z) { this.scream(null, { dur: 1.2, f0: 900, f1: 1800, vol: 0.5, x, z }); },
+  // The Whistle: a sharp electronic beep from where it is (louder and higher when close)
+  beep(x, y, z, d) {
+    if (!this.ctx) return;
+    const p = this.panner(1.5, 1.1, x, y, z);
+    this.tone(2600 + clamp(8 - d, 0, 8) * 60, 0, 0.07, 0.22, 'square', p);
+  },
+  shriek(x, z) { this.scream(null, { dur: 0.7 + Math.random() * 0.4, f0: 600, f1: 1300 + Math.random() * 300, vol: 0.38, x, z }); },
+  // rewards: a bright little arpeggio (more notes for more tokens); milestone: a big swelling chord + low hit
+  coin(n = 1) { if (!this.ctx) return; [0, 4, 7, 12, 16].slice(0, Math.min(5, 1 + n)).forEach((s, k) => this.tone(880 * Math.pow(2, s / 12), k * 0.05, 0.18, 0.07, 'square')); },
+  milestone() { if (!this.ctx) return; this.tone(55, 0, 1.2, 0.5, 'sawtooth'); [0, 7, 12, 15, 19].forEach((s, k) => this.tone(220 * Math.pow(2, s / 12), 0.05 * k, 1.6, 0.06, 'sawtooth')); },
+  // the cats
+  meow(v = 1) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), bp = ctx.createBiquadFilter();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(520, t); o.frequency.linearRampToValueAtTime(780, t + 0.18); o.frequency.exponentialRampToValueAtTime(430, t + 0.55);
+    bp.type = 'bandpass'; bp.Q.value = 3; bp.frequency.setValueAtTime(900, t); bp.frequency.linearRampToValueAtTime(1700, t + 0.2); bp.frequency.linearRampToValueAtTime(800, t + 0.55);
+    o.connect(bp); bp.connect(g); g.connect(this.master); g.connect(this.verb);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.18 * v, t + 0.05); g.gain.exponentialRampToValueAtTime(0.001, t + 0.6); o.start(t); o.stop(t + 0.65);
+  },
+  hiss() { if (!this.ctx) return; this._noise(this.ctx.currentTime, 0.5, 'highpass', 3000, 0.7, 0.25); },
+  fizz() { if (!this.ctx) return; const t = this.ctx.currentTime; this._noise(t, 0.15, 'bandpass', 1200, 1, 0.3); for (let k = 0; k < 12; k++) this._noise(t + 0.1 + k * 0.05 + Math.random() * 0.04, 0.03, 'highpass', 6000, 1, 0.12); },
   chime() { if (!this.ctx) return; this.tone(659, 0, 0.9, 0.1); this.tone(523, 0.32, 1.2, 0.1); },
   warn() { if (!this.ctx) return; for (let i = 0; i < 3; i++) this.tone(70, i * 0.5, 0.45, 0.25, 'sawtooth'); },
   crush() {
@@ -1043,6 +1110,121 @@ const SFX = {
     s.start(); s.stop(ctx.currentTime + 1);
     this.tone(55, 0, 0.8, 0.5, 'square');
   },
+};
+
+/* ============================================================
+   MUSIC (procedural, WebAudio): creepy lo-fi that builds. A layer joins every 10 rooms (bass, a music-box line,
+   busier hats, distorted 808 + choir), the tempo creeps up, danger opens the filter and adds a drone; every 100 rooms
+   the song changes (key, progression, groove). The shop has its own: hotel-lounge lo-fi with a bouncy chip lead.
+   ============================================================ */
+const MUSIC = {
+  on: false, mode: 'run', depth: 0, danger: 0, step: 0, next: 0, timer: null,
+  // songs: chords as MIDI voicings, bass roots, a scale for the music box, a groove
+  SONGS: [
+    { chords: [[57, 60, 64, 67, 71], [53, 57, 60, 64], [50, 53, 57, 60, 64], [52, 56, 59, 62, 65]], roots: [45, 41, 38, 40], scale: [69, 71, 72, 74, 76, 77, 80, 81], kick: [0, 6, 10], snare: [4, 12] },
+    { chords: [[61, 64, 68, 71], [57, 61, 64, 68], [54, 57, 61, 64], [56, 60, 63, 66]], roots: [49, 45, 42, 44], scale: [73, 75, 76, 78, 80, 81, 84, 85], kick: [0, 3, 8, 11], snare: [4, 12] },
+    { chords: [[53, 56, 60, 63], [54, 58, 61, 65], [51, 54, 58, 61], [48, 52, 55, 58]], roots: [41, 42, 39, 36], scale: [77, 78, 80, 82, 84, 85, 87, 89], kick: [0, 7, 10], snare: [4, 12, 14] },
+    { chords: [[50, 53, 57, 60], [46, 50, 53, 57], [43, 46, 50, 53], [45, 49, 52, 55]], roots: [38, 34, 31, 33], scale: [74, 76, 77, 79, 81, 82, 85, 86], kick: [0, 2, 8, 10], snare: [4, 12] },
+  ],
+  LOUNGE: { chords: [[63, 67, 70, 74], [60, 63, 67, 70], [65, 68, 72, 75], [58, 62, 65, 68]], roots: [51, 48, 53, 46],
+    // a bouncy, original chip melody (16 steps per bar, 0 = rest)
+    lead: [[75, 0, 79, 0, 82, 0, 79, 84, 0, 82, 0, 79, 77, 0, 75, 0], [72, 0, 75, 72, 0, 79, 0, 77, 75, 0, 72, 0, 70, 0, 0, 0],
+           [77, 0, 80, 0, 84, 0, 80, 0, 82, 84, 82, 80, 77, 0, 0, 0], [74, 0, 77, 0, 74, 70, 0, 74, 77, 0, 82, 0, 80, 0, 79, 0]] },
+  hz: m => 440 * Math.pow(2, (m - 69) / 12),
+  init() {
+    const ctx = SFX.ctx; if (!ctx || this.out) return;
+    this.out = ctx.createGain(); this.out.gain.value = 0; this.out.connect(SFX.master);
+    this.lp = ctx.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 2200; this.lp.connect(this.out);
+    this.duck = ctx.createGain(); this.duck.connect(this.lp);
+    // tape wow on everything pitched
+    this.wow = ctx.createOscillator(); this.wow.frequency.value = 0.35; this.wowG = ctx.createGain(); this.wowG.gain.value = 9; this.wow.connect(this.wowG); this.wow.start();
+    // vinyl crackle: sparse clicks in a looping buffer
+    const len = ctx.sampleRate * 3, b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() < 0.0009 ? (Math.random() - 0.5) * 0.9 : 0) + (Math.random() - 0.5) * 0.012;
+    const cr = ctx.createBufferSource(); cr.buffer = b; cr.loop = true; const cf = ctx.createBiquadFilter(); cf.type = 'highpass'; cf.frequency.value = 900;
+    const cg = ctx.createGain(); cg.gain.value = 0.5; cr.connect(cf); cf.connect(cg); cg.connect(this.out); cr.start();
+    // the danger drone: a dissonant low cluster that fades in with danger
+    this.drone = ctx.createGain(); this.drone.gain.value = 0; this.drone.connect(this.duck);
+    const dl = ctx.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 420; dl.connect(this.drone);
+    for (const m of [38, 39, 45]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = this.hz(m); o.detune.value = Math.random() * 10; o.connect(dl); o.start(); }
+  },
+  start(mode = 'run') {
+    if (!SFX.ctx) return; this.init();
+    this.mode = mode; this.on = true; this.step = 0; this.next = SFX.ctx.currentTime + 0.1;
+    this.out.gain.setTargetAtTime(mode === 'shop' ? 0.34 : 0.26, SFX.ctx.currentTime, 0.6);
+    if (!this.timer) this.timer = setInterval(() => this.tick(), 30);
+  },
+  stop(tapeStop = false) {
+    if (!this.out) return; this.on = false;
+    const t = SFX.ctx.currentTime;
+    if (tapeStop) { this.lp.frequency.setTargetAtTime(120, t, 0.25); }
+    this.out.gain.setTargetAtTime(0, t, tapeStop ? 0.35 : 0.8);
+  },
+  setDepth(i) { this.depth = i; },
+  setDanger(v) { this.danger += (clamp(v, 0, 1) - this.danger) * 0.05; },
+  bpm() { return this.mode === 'shop' ? 72 : Math.min(136, 76 + Math.floor(this.depth / 10) * 5 + this.danger * 10); },
+  // a short rising stinger (close calls, milestones)
+  sting() {
+    if (!this.out) return; const ctx = SFX.ctx, t = ctx.currentTime;
+    [0, 4, 7, 12].forEach((s, k) => this.bell(t + k * 0.06, this.hz(76 + s), 0.25));
+  },
+  tick() {
+    const ctx = SFX.ctx; if (!ctx || !this.on) return;
+    if (this.lp && this.mode === 'run') this.lp.frequency.setTargetAtTime(1400 + this.danger * 5000 + Math.min(this.depth, 60) * 25, ctx.currentTime, 0.4);
+    if (this.drone && this.mode === 'run') this.drone.gain.setTargetAtTime(this.danger * 0.12, ctx.currentTime, 0.5);
+    while (this.next < ctx.currentTime + 0.15) { this.play(this.step, this.next); this.step++; const sw = (this.step % 2 ? 0.14 : -0.14); this.next += 60 / this.bpm() / 4 * (1 + sw); }
+  },
+  play(s, t) {
+    const shop = this.mode === 'shop';
+    const song = shop ? this.LOUNGE : this.SONGS[Math.floor(this.depth / 100) % this.SONGS.length];
+    const bar = Math.floor(s / 16) % 4, st = s % 16, tier = shop ? 0 : Math.floor(this.depth / 10), dg = this.danger;
+    const beat = 60 / this.bpm();
+    if (st === 0) this.keys(t, song.chords[bar], beat * 3.6, shop ? 0.09 : 0.075);
+    if (shop && st === 8) this.keys(t, song.chords[bar], beat * 1.6, 0.05);
+    // drums
+    const kick = shop ? [0, 10] : song.kick, snare = shop ? [4, 12] : song.snare;
+    if (kick.includes(st)) this.kick(t, shop ? 0.5 : 0.75);
+    if (snare.includes(st)) this.snare(t, shop ? 0.18 : 0.35, shop);
+    const hats = shop || tier < 3 ? st % 2 === 0 : true;
+    if (hats) this.hat(t, (st % 4 === 2 ? 0.09 : 0.05) * (shop ? 0.7 : 1) + dg * 0.03, !shop && tier >= 3 && st === 14);
+    // bass from tier 1 (and always in the shop)
+    if ((shop || tier >= 1) && (st === 0 || st === 7 || st === 10)) this.bass(t, this.hz(song.roots[bar] + (st === 10 ? 7 : 0)), beat * (st === 0 ? 1.6 : 0.7), shop ? 0.16 : 0.2);
+    // music box from tier 2: sparse notes from the scale, more of them with danger
+    if (!shop && tier >= 2 && (st % 4 === 0 || (dg > 0.4 && st % 2 === 0)) && Math.random() < 0.55 + dg * 0.3) this.bell(t, this.hz(song.scale[(Math.random() * song.scale.length) | 0]), 0.09);
+    // tier 4+: distorted 808 slides and a choir pad
+    if (!shop && tier >= 4 && (st === 0 || st === 8)) this.e808(t, this.hz(song.roots[bar] - 12), beat * 1.8);
+    if (!shop && tier >= 4 && st === 0 && bar % 2 === 0) this.choir(t, song.chords[bar], beat * 7.5);
+    if (shop) { const n = song.lead[bar][st]; if (n) this.chip(t, this.hz(n), beat * 0.22); }
+  },
+  env(g, t, a, peak, d) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0008, t + a + d); },
+  keys(t, notes, dur, v) {
+    const ctx = SFX.ctx, f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1900; f.connect(this.duck);
+    const trem = ctx.createGain(); trem.connect(f); const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 4.2; lg.gain.value = 0.25; lfo.connect(lg); lg.connect(trem.gain); lfo.start(t); lfo.stop(t + dur + 0.2);
+    for (const m of notes) for (const det of [-7, 7]) {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.value = this.hz(m); o.detune.value = det; this.wowG.connect(o.detune);
+      o.connect(g); g.connect(trem); this.env(g, t, 0.012, v / notes.length * 1.6, dur); o.start(t); o.stop(t + dur + 0.1);
+    }
+  },
+  kick(t, v) { const ctx = SFX.ctx, o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.18); o.connect(g); g.connect(this.duck); this.env(g, t, 0.003, v, 0.3); o.start(t); o.stop(t + 0.35);
+    this.duck.gain.setValueAtTime(0.55, t); this.duck.gain.linearRampToValueAtTime(1, t + 0.18); },
+  snare(t, v, brush) { const ctx = SFX.ctx, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = SFX.white;
+    f.type = brush ? 'lowpass' : 'bandpass'; f.frequency.value = brush ? 3500 : 1900; f.Q.value = 0.7; s.connect(f); f.connect(g); g.connect(this.duck); this.env(g, t, brush ? 0.03 : 0.002, v, brush ? 0.25 : 0.16); s.start(t, Math.random()); s.stop(t + 0.35);
+    if (!brush) { const o = ctx.createOscillator(), og = ctx.createGain(); o.frequency.value = 190; o.connect(og); og.connect(this.duck); this.env(og, t, 0.002, v * 0.5, 0.08); o.start(t); o.stop(t + 0.12); } },
+  hat(t, v, open) { const ctx = SFX.ctx, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = SFX.white; f.type = 'highpass'; f.frequency.value = 7200;
+    s.connect(f); f.connect(g); g.connect(this.duck); this.env(g, t, 0.001, v, open ? 0.22 : 0.035); s.start(t, Math.random()); s.stop(t + 0.3); },
+  bass(t, f, dur, v) { const ctx = SFX.ctx, o = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
+    o.frequency.value = f; o2.type = 'sawtooth'; o2.frequency.value = f; lp.type = 'lowpass'; lp.frequency.value = 280; o.connect(g); o2.connect(lp); lp.connect(g); g.connect(this.duck);
+    this.env(g, t, 0.01, v, dur); o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1); },
+  bell(t, f, v) { const ctx = SFX.ctx; for (const [m, a, d] of [[1, 1, 1.4], [2.76, 0.35, 0.6], [5.4, 0.12, 0.3]]) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f * m; this.wowG.connect(o.detune);
+    o.connect(g); g.connect(this.duck); g.connect(SFX.verb); this.env(g, t, 0.003, v * a, d); o.start(t); o.stop(t + d + 0.1); } },
+  e808(t, f, dur) { const ctx = SFX.ctx, o = ctx.createOscillator(), sh = ctx.createWaveShaper(), g = ctx.createGain(), c = new Float32Array(256);
+    for (let i = 0; i < 256; i++) { const v = i / 127.5 - 1; c[i] = Math.tanh(v * 4); } sh.curve = c;
+    o.frequency.setValueAtTime(f * 1.5, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.12); o.connect(sh); sh.connect(g); g.connect(this.duck); this.env(g, t, 0.005, 0.16, dur); o.start(t); o.stop(t + dur + 0.1); },
+  choir(t, notes, dur) { const ctx = SFX.ctx; for (const m of notes.slice(0, 3)) { const o = ctx.createOscillator(), bp = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'sawtooth'; o.frequency.value = this.hz(m + 12);
+    bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 3; o.connect(bp); bp.connect(g); g.connect(this.duck); g.connect(SFX.verb);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + dur * 0.4); g.gain.linearRampToValueAtTime(0, t + dur); o.start(t); o.stop(t + dur + 0.1); } },
+  chip(t, f, dur) { const ctx = SFX.ctx, o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter(); o.type = 'square'; o.frequency.setValueAtTime(f * 1.02, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.03);
+    lp.type = 'lowpass'; lp.frequency.value = 3200; o.connect(lp); lp.connect(g); g.connect(this.duck); this.env(g, t, 0.004, 0.06, dur); o.start(t); o.stop(t + dur + 0.05); },
 };
 
 /* ============================================================
@@ -1314,14 +1496,19 @@ const ROOM_WEIGHT = { mart: 1, club: 1, subway: 1, burger: 1, parking: 1, gas: 0
 function pickRoom(i, k = 0, from = null) {
   if (DEBUG && window.__forceRooms?.length) return window.__forceRooms.shift();   // screenshot scripts pin the order
   const avail = (ASSET.meta.rooms || []).filter(n => ASSET.proto[n]);
+  if (i >= 4 && avail.includes('shop') && !zones.slice(Math.max(0, i - 6), i).some(z => z?.kind === 'shop') && mulberry32(game.seed * 17 + i * 3)() < 0.05) return 'shop';
   const fresh = ['cinema', 'nordbo'].filter(n => avail.includes(n));   // the new 3D spaces come first while they are being built
   if (i === 1 && fresh.length && !(DEBUG && window.__forceRooms)) return fresh[(mulberry32(game.seed * 13)() * fresh.length) | 0];
-  const recent = [from ?? zones[i - 1]?.kind, from ? zones[i - 1]?.kind : zones[i - 2]?.kind];
+  // layout variants of one kind of place (burger, burger2...) count as the same place: not twice in a row, one share
+  const fam = n => (n || '').replace(/\d+$/, '');
+  const recent = [from ?? zones[i - 1]?.kind, from ? zones[i - 1]?.kind : zones[i - 2]?.kind].map(fam);
   const r = mulberry32(game.seed * 31 + i * 7717 + k * 131)();
-  const pool = avail.filter(n => !recent.includes(n) && !(n === 'duct' && i < 2));
-  const total = pool.reduce((s, n) => s + (ROOM_WEIGHT[n] ?? 1), 0);
+  const pool = avail.filter(n => !recent.includes(fam(n)) && n !== 'shop' && !(n === 'duct' && i < 2));
+  const famN = n => avail.filter(m => fam(m) === fam(n)).length;
+  const wt = n => (ROOM_WEIGHT[fam(n)] ?? 1) / famN(n);
+  const total = pool.reduce((s, n) => s + wt(n), 0);
   let acc = 0;
-  for (const n of pool) { acc += (ROOM_WEIGHT[n] ?? 1) / total; if (r < acc) return n; }
+  for (const n of pool) { acc += wt(n) / total; if (r < acc) return n; }
   return pool[pool.length - 1] || avail[0] || null;
 }
 const signCache = new Map();
@@ -1410,6 +1597,7 @@ function createZone(i, z0, opts = {}) {
   };
   zone.g.position.y = zone.oy;
   if (i === 0) buildLobby(zone); else buildRoom(zone, opts.kind || pickRoom(i));
+  if (i > 0 && !zone.meta?.safe) scatterTokens(zone);
   if (!zone.surf) {   // the lobby (built by hand): flat floor everywhere
     zone.surf = [{ x0: -60, x1: 60, z0: zone.exitZ ?? -40, z1: z0 + 1, ya: zone.oy, yb: zone.oy }]; zone.ladders = [];
     for (const c of zone.cols) if (c.y0 === undefined) { c.y0 = zone.oy - 0.5; c.y1 = zone.oy + 9; }
@@ -1422,6 +1610,8 @@ function disposeZone(zone) {
   scene.remove(zone.g);
   zone.killis.forEach(k => k.dispose());
   zone.hands?.dispose(); zone.hands = null; zone.dark = [];
+  zone.doll?.dispose(); zone.doll = null; if (zone.extra) scene.remove(zone.extra.obj); if (zone.wh) scene.remove(zone.wh.obj);
+  for (const t of zone.tokens || []) scene.remove(t);
   zone.killis = [];
 }
 function zoneAt(z) {
@@ -1537,7 +1727,7 @@ function wallOpen(zone, side, z, r) {
 function killiLanes(zone) {
   if (zone.lanes) return zone.lanes;
   const m = zone.meta, L = [];
-  if (m.lanes) for (const l of m.lanes) L.push({ a: l.a, c: l.a === 'x' ? zone.z0 + l.c : zone.ox + l.c, from: l.from || [-1, 1] });
+  if (m.lanes) for (const l of m.lanes) L.push({ a: l.a, c: l.a === 'x' ? zone.z0 + l.c : zone.ox + l.c, from: l.from || [-1, 1], y: l.y || 0 });
   else {
     const kr = zone.kr, w = m.x1 - m.x0, corridor = w < 4;
     if ((m.axes.includes('z') && w > 2 * kr + 1) || corridor) {
@@ -1591,7 +1781,7 @@ function spawnKilli(zone, p) {
   for (let k = 0; k < n; k++) {
     const jitter = (r() - 0.5) * 0.3, along = s0 - dir * back;
     const [x, z, dx, dz] = axis === 'x' ? [along, lane.c + jitter, dir, 0] : [lane.c + jitter, along, 0, dir];
-    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.wall = farClosed; k.lane = lane; if (hideAt !== undefined) { k.hideAt = hideAt; k.obj.visible = false; } zone.killis.push(k);
+    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.obj.position.y += lane.y || 0; k.wall = farClosed;   // lanes can run on an upper floor k.lane = lane; if (hideAt !== undefined) { k.hideAt = hideAt; k.obj.visible = false; } zone.killis.push(k);
     back += kr * 2 + 0.8 + r() * 2.5;
   }
   // the horn: loudness says roughly how far, nothing says where (the rolling itself is what you can place)
@@ -1624,6 +1814,7 @@ const Hazards = {
         }
         if (d < k.r + CFG.radius - 0.05 && p.y - k.obj.position.y < k.r * 2 && p.y > k.obj.position.y - 0.6) return { kill: 'killi', by: k };
         if (d < k.r + 1.5 && !k.near) { k.near = true; zone.killiT = Math.max(zone.killiT, 20 + zone.rng() * 10); }   // a near miss buys a quiet stretch
+        if (k.near && !k.paid && d > k.r + 2.5 && Math.abs(p.y - k.obj.position.y) < 2) { k.paid = true; DOPA.nearMiss(); }
         best = Math.max(best, clamp(1 - d / 30, 0, 1) ** 2);
       }
       return { shake: best };
@@ -1789,8 +1980,7 @@ Hazards.hands = {
     if (zone.handsPlan === undefined) {
       // deeper rooms with ceiling lights may hold a mound; it starts at the far side of the room
       // rarer than before (owner: too many): never two rooms running, at most ~1 room in 5 even deep down
-      const prevHands = zones[zone.i - 1]?.handsPlan;
-      const ok = zone.i >= 3 && !zone.meta.crawl && !prevHands && (window.__forceHands ?? zone.rng() < Math.min(0.08 + zone.i * 0.008, 0.2));
+      const ok = !zone.meta.crawl && !zone.meta.safe && (window.__forceHands ?? eerieFor(zone) === 'hands');
       zone.handsPlan = ok ? { delay: 4 + zone.rng() * 6, flick: 0, level: 0 } : null;
     }
     const plan = zone.handsPlan;
@@ -1936,7 +2126,7 @@ const NIKI = {
       this.cool -= dt;
       const z = zones[game.zoneIdx];
       if (z && z.nikiRoll === undefined) z.nikiRoll = z.rng() < 0.35;
-      if (this.cool <= 0 && z && z.meta && !z.meta.crawl && z.i >= 2 && (window.__forceNiki || z.nikiRoll)) this.spawn(z);
+      if (this.cool <= 0 && z && z.meta && !z.meta.crawl && !z.meta.safe && z.i >= 2 && (window.__forceNiki || z.nikiRoll)) this.spawn(z);
       return;
     }
     const dx = p.x - this.pos.x, dz = p.z - this.pos.z, d = Math.hypot(dx, dz) || 1;
@@ -1951,6 +2141,7 @@ const NIKI = {
       if (this.giveT <= 0 && d < 3.2) { this.giveT = 28 + Math.random() * 14; GLOW.give(); }
     } else if (this.mode === 'mad') {
       this.morph = Math.min(1, this.morph + dt * 1.6);
+      if (this.morph >= 1 && (this.shriekT = (this.shriekT ?? 2) - dt) <= 0) { this.shriekT = 2.2 + Math.random() * 2.5; SFX.shriek(this.pos.x, this.pos.z); }
       speed = this.morph < 1 ? 0 : 6.45;
       this.sprintT = game.speedNow > 5.6 ? this.sprintT + dt : 0;
       if (this.sprintT >= 10) { this.mode = 'tired'; this.tiredT = 0; SFX.nikiTired(this.pos.x, this.pos.z); toast('NIKI', 'She is exhausted.', false); }
@@ -2036,6 +2227,449 @@ const GLOW = {
     document.body.classList.toggle('has-item', this.n > 0);
   },
   reset() { this.n = 0; this.t = 0; this.hud(); },
+};
+
+/* ============================================================
+   DOPAMINE: tokens (picked up, paid for close calls, room clears, milestones) spent in the shop; slow-motion
+   near misses with a combo; a milestone banner every 10 rooms; NEW RECORD when you pass your best distance.
+   ============================================================ */
+const DOPA = {
+  tokens: 0, combo: 0, comboT: 0, slowT: 0, best: +store.get('ieori.best', '0') || 0, recordShown: false,
+  el: null, banner: null,
+  init() {
+    if (this.el) return;
+    const st = document.createElement('style');
+    st.textContent = `#dopa{position:fixed;left:50%;top:58%;transform:translateX(-50%);pointer-events:none;text-align:center;z-index:3;
+        font:800 26px/1.1 "Barlow Condensed",sans-serif;letter-spacing:.08em;color:#ffd84a;text-shadow:0 2px 6px #000,0 0 12px rgba(255,200,40,.6)}
+      #dopa div{animation:dpop 1.3s ease-out forwards}
+      @keyframes dpop{0%{transform:scale(.4);opacity:0}12%{transform:scale(1.25);opacity:1}30%{transform:scale(1)}100%{transform:translateY(-60px);opacity:0}}
+      #banner{position:fixed;left:0;right:0;top:30%;text-align:center;pointer-events:none;z-index:3;opacity:0;
+        font:800 64px/1 "Barlow Condensed",sans-serif;letter-spacing:.18em;color:#fff;text-shadow:0 0 24px rgba(255,60,40,.9),0 4px 10px #000}
+      #banner small{display:block;font-size:22px;letter-spacing:.3em;color:#ffd84a;margin-top:8px}
+      #banner.on{animation:bann 2.6s ease-out forwards}
+      @keyframes bann{0%{opacity:0;transform:scale(1.6)}10%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(.96)}}
+      #tokTag{color:#ffd84a}`;
+    document.head.appendChild(st);
+    this.el = Object.assign(document.createElement('div'), { id: 'dopa' }); document.body.appendChild(this.el);
+    this.banner = Object.assign(document.createElement('div'), { id: 'banner' }); document.body.appendChild(this.banner);
+    const tag = Object.assign(document.createElement('div'), { id: 'tokTag' }); $('osdBL').prepend(tag);
+  },
+  reset() { this.init(); this.tokens = 0; this.combo = 0; this.comboT = 0; this.slowT = 0; this.recordShown = false; this.best = +store.get('ieori.best', '0') || 0; this.hud(); },
+  hud() { const t = document.getElementById('tokTag'); if (t) t.textContent = `◆ ${this.tokens}` + (game.colaT > 0 ? `   ⚡ COLA ${Math.ceil(game.colaT)}s` : ''); },
+  pop(text) { const d = document.createElement('div'); d.textContent = text; this.el.appendChild(d); setTimeout(() => d.remove(), 1300); },
+  reward(n, label) { this.tokens += n; this.hud(); this.pop(`+${n} ◆  ${label}`); SFX.coin(n); },
+  show(big, small) { this.banner.innerHTML = `${big}<small>${small}</small>`; this.banner.classList.remove('on'); void this.banner.offsetWidth; this.banner.classList.add('on'); },
+  // a Killi went past within arm's reach and you lived: slow motion, a flash, tokens, a combo
+  nearMiss() {
+    this.combo = this.comboT > 0 ? this.combo + 1 : 1; this.comboT = 25;
+    this.slowT = 0.55; vhsMat.uniforms.uGlitch.value = Math.max(vhsMat.uniforms.uGlitch.value, 0.5);
+    this.reward(1 + this.combo, this.combo > 1 ? `CLOSE CALL x${this.combo}` : 'CLOSE CALL');
+    MUSIC.sting();
+  },
+  roomCleared(i) {
+    if (i < 1) return;
+    if (i % 10 === 0) {
+      this.show(`ROOM ${i}`, i % 100 === 0 ? 'A NEW SONG BEGINS' : 'IT GETS WORSE FROM HERE'); this.reward(5 + Math.floor(i / 10), `ROOM ${i}`);
+      SFX.milestone(); MUSIC.setDepth(i);
+    } else this.reward(1, 'ROOM');
+  },
+  update(dt, dist) {
+    this.comboT = Math.max(0, this.comboT - dt); if (this.comboT <= 0) this.combo = 0;
+    this.slowT = Math.max(0, this.slowT - dt / 0.35);
+    if (!this.recordShown && this.best > 30 && dist > this.best) { this.recordShown = true; this.show('NEW RECORD', `${Math.floor(this.best)} M BEATEN`); SFX.milestone(); this.reward(5, 'RECORD'); }
+  },
+  saveBest(dist) { if (dist > this.best) store.set('ieori.best', String(Math.floor(dist))); },
+};
+// tokens lying around: a few per room, some up the stairs / down the ladders, spinning and glinting
+const TOKEN_GEO = new THREE.CylinderGeometry(0.11, 0.11, 0.025, 20);
+const TOKEN_MAT = new THREE.MeshStandardMaterial({ color: 0xffc83a, emissive: 0x7a4a00, emissiveIntensity: 0.6, metalness: 1, roughness: 0.25, envMap: envTex, envMapIntensity: 1.6 });
+function scatterTokens(zone) {
+  if (!zone.surf || zone.meta?.crawl) return;
+  zone.tokens = [];
+  const n = 2 + Math.floor(zone.rng() * 3), r = zone.rng;
+  const area = s => (s.x1 - s.x0) * (s.z1 - s.z0);
+  const surfs = zone.surf.filter(s => !s.axis && area(s) > 2);
+  for (let k = 0, tries = 0; k < n && tries < 80; tries++) {
+    // floors above or below the entry level are favoured: a reason to take the stairs
+    const s = surfs[(r() * surfs.length) | 0]; if (!s) break;
+    if (Math.abs(s.ya - zone.oy) < 0.1 && r() < 0.5) continue;
+    const x = s.x0 + 0.6 + r() * (s.x1 - s.x0 - 1.2), z = s.z0 + 0.6 + r() * (s.z1 - s.z0 - 1.2), y = s.ya;
+    if (zone.cols.some(c => colBlocks(c, y) && x > c.x0 - 0.3 && x < c.x1 + 0.3 && z > c.z0 - 0.3 && z < c.z1 + 0.3)) continue;
+    const m = new THREE.Mesh(TOKEN_GEO, TOKEN_MAT); m.rotation.x = Math.PI / 2; m.position.set(x, y + 0.75, z);
+    scene.add(m); zone.tokens.push(m); k++;
+  }
+}
+function updateTokens(dt) {
+  const zn = zones[game.zoneIdx]; if (!zn?.tokens) return;
+  for (const m of zn.tokens) {
+    if (!m.parent) continue;
+    m.rotation.z += dt * 2.4; m.position.y += Math.sin(game.t * 2 + m.position.x) * 0.002;
+    if (Math.hypot(m.position.x - game.p.x, m.position.z - game.p.z) < 0.75 && Math.abs(m.position.y - 0.75 - game.p.y) < 1.2) { scene.remove(m); DOPA.reward(1, 'TOKEN'); }
+  }
+}
+
+/* ============================================================
+   EERIE DIRECTOR: at most one of these per room (never two rooms running), more likely the deeper you are.
+   ============================================================ */
+function eerieFor(zone) {
+  if (zone.eerie !== undefined) return zone.eerie;
+  let e = null;
+  if (DEBUG && window.__forceEerie) e = window.__forceEerie;
+  else if (zone.i >= 3 && zone.meta && !zone.meta.crawl && !zone.meta.safe && !zones[zone.i - 1]?.eerie) {
+    if (zone.rng() < Math.min(0.2 + zone.i * 0.015, 0.55)) {
+      const opts = [['hands', 0.55], ['whistle', zone.i >= 3 ? 1 : 0], ['matryoshka', zone.i >= 4 ? 1 : 0], ['extra', zone.i >= 5 ? 1 : 0]];
+      let r = zone.rng() * opts.reduce((s, o) => s + o[1], 0);
+      for (const [k, w] of opts) { r -= w; if (r <= 0) { e = k; break; } }
+    }
+  }
+  return (zone.eerie = e);
+}
+// can you see from a to b at eye height (things lower than your eyes, like tables and counters, don't hide anything)
+function sightBlocked(ax, az, bx, bz, zi, eyeY) {
+  const dx = bx - ax, dz = bz - az;
+  for (let i = Math.max(0, zi - 1); i <= zi + 1; i++) {
+    const zn = zones[i]; if (!zn || zn.disposed) continue;
+    for (const c of zn.cols) {
+      if (c.y1 < eyeY || c.y0 > eyeY) continue;
+      let t0 = 0, t1 = 1;
+      for (const [o, d, lo, hi] of [[ax, dx, c.x0, c.x1], [az, dz, c.z0, c.z1]]) {
+        if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) { t0 = 2; break; } continue; }
+        let u0 = (lo - o) / d, u1 = (hi - o) / d; if (u0 > u1) [u0, u1] = [u1, u0];
+        t0 = Math.max(t0, u0); t1 = Math.min(t1, u1); if (t0 > t1) break;
+      }
+      if (t0 <= t1 && t0 < 0.97) return true;
+    }
+  }
+  return false;
+}
+// a thin, too-tall person: shared by The Extra (grey suit) and The Whistle (black, with a red light)
+function humanoid(mat, h = 2.05, hunch = 0) {
+  const g = new THREE.Group(), top = new THREE.Group(); top.rotation.x = hunch;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, h * 0.42, 6, 12), mat); body.position.y = h * 0.52; body.scale.z = 0.7;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), mat); head.position.y = h * 0.9; head.scale.set(0.95, 1.15, 1);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.14, 8), mat); neck.position.y = h * 0.83;
+  top.add(body, head, neck); g.add(top);
+  for (const s of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, h * 0.5, 4, 8), mat); arm.position.set(s * 0.25, h * 0.45, 0.04); arm.rotation.z = s * 0.05; top.add(arm);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, h * 0.38, 4, 8), mat); leg.position.set(s * 0.1, h * 0.2, 0); g.add(leg);
+  }
+  g.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+  return g;
+}
+
+/* ---------- 이어리: MATRYOSHKA — a painted nesting doll that waddles after you. If it reaches you it closes over
+   you: rock left / right to split it open before it seals. Every time you break out it is one doll smaller. ---------- */
+const MATRYOSHKA = (() => {
+  const pts = [[0, 0], [0.42, 0.02], [0.5, 0.18], [0.52, 0.45], [0.48, 0.7], [0.4, 0.86], [0.33, 0.95], [0.36, 1.05], [0.38, 1.18], [0.34, 1.32], [0.24, 1.44], [0.1, 1.5], [0, 1.51]];
+  const geo = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 40);
+  const map = canvasTex(1024, 512, (g, w, h) => {
+    // body: red lacquer with gold scrolls and painted flowers; head band: a scarf with a pale face at u = 0 (front)
+    g.fillStyle = '#9d1010'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#e0b040'; for (let k = 0; k < 9; k++) { g.beginPath(); g.ellipse(w * (k / 9 + 0.05), h * 0.62, 26, 40, 0, 0, 7); g.fill(); }
+    g.fillStyle = '#f2e6c8'; g.fillRect(0, h * 0.78, w, h * 0.03);
+    for (const fx of [0.2, 0.5, 0.8]) for (let p = 0; p < 6; p++) { g.fillStyle = p % 2 ? '#f4d23a' : '#ffffff'; g.beginPath(); g.ellipse(w * fx + Math.cos(p) * 30, h * 0.45 + Math.sin(p) * 30, 22, 14, p, 0, 7); g.fill(); }
+    g.fillStyle = '#16401c'; g.fillRect(0, h * 0.32, w, h * 0.02);
+    g.fillStyle = '#b81818'; g.fillRect(0, 0, w, h * 0.3);
+    for (const cx of [0, w]) {
+      g.fillStyle = '#f1e2cf'; g.beginPath(); g.ellipse(cx, h * 0.15, 120, 96, 0, 0, 7); g.fill();
+      g.fillStyle = '#060303'; for (const ex of [-44, 44]) { g.beginPath(); g.ellipse(cx + ex, h * 0.13, 30, 38, 0, 0, 7); g.fill(); }
+      g.fillStyle = 'rgba(120,10,10,0.5)'; for (const ex of [-44, 44]) { g.fillRect(cx + ex - 3, h * 0.13 + 30, 6, 34); }   // painted tears
+      g.fillStyle = 'rgba(220,60,60,0.55)'; for (const ex of [-62, 62]) { g.beginPath(); g.arc(cx + ex, h * 0.2, 18, 0, 7); g.fill(); }
+      g.strokeStyle = '#7a0808'; g.lineWidth = 4; g.beginPath(); g.arc(cx, h * 0.15, 58, 0.18 * Math.PI, 0.82 * Math.PI); g.stroke();
+    }
+    for (let k = 0; k < 400; k++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.05})`; g.fillRect(Math.random() * w, Math.random() * h, 3, 3); }   // worn lacquer
+  });
+  map.flipY = true;
+  const mat = addDarkness(new THREE.MeshStandardMaterial({ map, roughness: 0.32, metalness: 0, envMap: envTex, envMapIntensity: 0.8 }));
+  return { geo, mat };
+})();
+class Matryoshka {
+  constructor(zone, x, z) {
+    this.zone = zone; this.obj = new THREE.Group(); this.mesh = new THREE.Mesh(MATRYOSHKA.geo, MATRYOSHKA.mat); this.obj.add(this.mesh);
+    this.size = 1.15; this.obj.position.set(x, zone.oy || 0, z); this.t = 0; this.pos = this.obj.position; this.head = null;
+    this.mesh.frustumCulled = false; scene.add(this.obj);
+  }
+  update(dt, p) {
+    this.t += dt;
+    const o = this.obj.position, dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz) || 1;
+    if (this.cool > 0) this.cool -= dt;
+    else if (d > 0.5) {
+      // it hops: a tilt to one side, a little jump, a tilt to the other
+      const sp = (0.9 + this.zone.i * 0.02) * (0.4 + 0.6 * Math.abs(Math.sin(this.t * 3)));
+      stepAvoiding(o, dx / d, dz / d, sp * dt, 0.45 * this.size, this);
+      const g = groundAt(o.x, o.z, o.y + 0.1); if (isFinite(g)) o.y = g;
+      if (Math.floor(this.t * 3 / Math.PI) !== this.lastHop) { this.lastHop = Math.floor(this.t * 3 / Math.PI); SFX.knock(o.x, o.z, this.size); }
+    }
+    this.mesh.scale.setScalar(this.size);
+    this.mesh.rotation.set(0, Math.atan2(dx, dz), Math.sin(this.t * 3) * 0.14);
+    this.mesh.position.y = Math.abs(Math.sin(this.t * 3)) * 0.06;
+    MATRYOSHKA.mat.envMapIntensity = 0.8 * creatureLight(o.x, o.z);
+    return d;
+  }
+  dispose() { scene.remove(this.obj); }
+}
+// trapped inside the doll: the screen is its painted inside, rock left/right (A/D, arrows, joystick or the two halves
+// of the screen) fast enough to split it before it closes
+const TRAP = {
+  on: false,
+  start(doll) {
+    const need = Math.min(14, 9 + Math.floor(game.zoneIdx / 6));
+    Object.assign(this, { on: true, doll, t: 0, limit: Math.max(3.0, 4.4 - game.zoneIdx * 0.04), need, got: 0, side: 0, roll: 0 });
+    if (!this.el) {
+      this.el = document.createElement('div');
+      this.el.innerHTML = '<div class="trapIn"></div><div class="trapTxt">ROCK!<br><span>◀&nbsp;&nbsp;▶</span></div><div class="trapBar"><i></i></div>';
+      Object.assign(this.el.style, { position: 'fixed', inset: '0', zIndex: 5, display: 'none', touchAction: 'none' });
+      document.body.appendChild(this.el);
+      const st = document.createElement('style');
+      st.textContent = `.trapIn{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 55%,rgba(0,0,0,0) 0,rgba(0,0,0,0) 18%,#3a0606 38%,#140202 70%);}
+        .trapTxt{position:absolute;left:0;right:0;top:38%;text-align:center;color:#ffd84a;font:800 44px/1.1 "Barlow Condensed",sans-serif;letter-spacing:.2em;text-shadow:0 2px 8px #000}
+        .trapTxt span{font-size:56px;color:#fff}.trapBar{position:absolute;left:20%;right:20%;bottom:18%;height:10px;border-radius:5px;background:rgba(255,255,255,.18)}
+        .trapBar i{display:block;height:100%;width:0;border-radius:5px;background:#ffd84a}`;
+      document.head.appendChild(st);
+      this.el.addEventListener('pointerdown', e => { if (this.on) this.rock(e.clientX < innerWidth / 2 ? -1 : 1); });
+      window.addEventListener('keydown', e => { if (!this.on) return; if (e.code === 'KeyA' || e.code === 'ArrowLeft') this.rock(-1); if (e.code === 'KeyD' || e.code === 'ArrowRight') this.rock(1); });
+    }
+    this.el.style.display = 'block'; SFX.dollClose();
+  },
+  rock(s) { if (s !== this.side) { this.side = s; this.got++; this.roll = s; SFX.knock(game.p.x, game.p.z, 0.8); game.shake = Math.max(game.shake, 0.35); } },
+  update(dt) {
+    this.t += dt;
+    if (Math.abs(input.mx) > 0.6) this.rock(Math.sign(input.mx));
+    this.el.querySelector('i').style.width = Math.min(100, this.got / this.need * 100) + '%';
+    camera.rotation.z += (this.roll * 0.35 - camera.rotation.z) * Math.min(1, dt * 10); this.roll *= Math.max(0, 1 - dt * 4);
+    if (this.got >= this.need) {   // split open: free, and the doll is one size smaller (the smallest one is gone)
+      this.end(); SFX.crack(); SFX.knock(game.p.x, game.p.z, 1.4); toast('YOU BROKE OUT', '', false); DOPA.reward(3, 'BROKE OUT');
+      const d = this.doll; d.size *= 0.72; d.cool = 4; const a = Math.random() * 6.28; d.obj.position.x += Math.cos(a) * 2; d.obj.position.z += Math.sin(a) * 2;
+      if (d.size < 0.5) { d.dispose(); d.zone.doll = null; }
+      return;
+    }
+    if (this.t > this.limit) { this.end(); game.die('matryoshka', this.doll); }
+  },
+  end() { this.on = false; if (this.el) this.el.style.display = 'none'; camera.rotation.z = 0; },
+};
+Hazards.matryoshka = {
+  update(dt, zone, active) {
+    if (!zone.meta || eerieFor(zone) !== 'matryoshka' || zone.i !== game.zoneIdx || !active) return;
+    if (!zone.doll && !zone.dollDone && (zone.dollT = (zone.dollT ?? 5 + zone.rng() * 5) - dt) <= 0) {
+      zone.dollDone = true;
+      const x = zone.x0 + (zone.x1 - zone.x0) * (0.25 + zone.rng() * 0.5), z = zone.exitZ + Math.min(5, zone.len * 0.3);
+      zone.doll = new Matryoshka(zone, x, z);
+      if (!game.metDoll) { game.metDoll = true; toast('MATRYOSHKA', 'If it catches you, rock to break free.', true); }
+    }
+    if (zone.doll && !TRAP.on) {
+      const d = zone.doll.update(dt, game.p);
+      if (d < 0.75 * zone.doll.size && Math.abs(game.p.y - zone.doll.obj.position.y) < 1 && !(zone.doll.cool > 0)) TRAP.start(zone.doll);
+    }
+  },
+  check() { return {}; },
+};
+
+/* ---------- 이어리: THE EXTRA — someone standing in the room who should not be there. It only moves while you are not
+   looking; look straight at it too long and it comes for you. ---------- */
+const EXTRA_MAT = addDarkness(new THREE.MeshStandardMaterial({ color: 0x3b3b3e, roughness: 0.9, metalness: 0, envMap: envTex, envMapIntensity: 0.5 }));
+const _ev = new THREE.Vector3(), _ef = new THREE.Vector3();
+Hazards.extra = {
+  update(dt, zone, active) {
+    if (!zone.meta || eerieFor(zone) !== 'extra') return;
+    const here = active && zone.i === game.zoneIdx, P = game.p;
+    if (!here) { if (zone.extra) { scene.remove(zone.extra.obj); zone.extra = null; SFX.setStare(0); STARE.style.opacity = 0; } return; }
+    let e = zone.extra;
+    if (!e) {
+      if ((zone.extraT = (zone.extraT ?? 3 + zone.rng() * 4) - dt) > 0) return;
+      e = zone.extra = { obj: humanoid(EXTRA_MAT, 2.05), stare: 0, moveT: 0, lunge: false, dist: 13 };
+      scene.add(e.obj); this.place(zone, e, true);
+      if (!game.metExtra) { game.metExtra = true; toast('THE EXTRA', "Don't stare.", true); }
+    }
+    const o = e.obj.position, dx = P.x - o.x, dz = P.z - o.z, d = Math.hypot(dx, dz) || 1;
+    // is it on screen near the centre (and not behind a shelf)?
+    camera.getWorldDirection(_ef); _ev.set(o.x - camera.position.x, o.y + 1.7 - camera.position.y, o.z - camera.position.z).normalize();
+    const look = _ef.dot(_ev), seen = look > 0.55, centred = look > 0.975 && !sightBlocked(P.x, P.z, o.x, o.z, zone.i, camera.position.y);
+    if (e.lunge) {
+      stepAvoiding(o, dx / d, dz / d, 10.5 * dt, 0.3, e); const g = groundAt(o.x, o.z, o.y + 0.1); if (isFinite(g)) o.y = g;
+      e.obj.rotation.y = Math.atan2(dx, dz); e.obj.rotation.x = 0.25;
+      if (d < 0.7 && Math.abs(P.y - o.y) < 1.2) { SFX.setStare(0); zone.pendingKill = { kill: 'extra', by: { pos: o } }; }
+      return;
+    }
+    e.stare = clamp(e.stare + (centred && d < 22 ? dt / Math.max(1.4, 2.4 - zone.i * 0.03) : -dt * 0.5), 0, 1);
+    SFX.setStare(e.stare, o.x, o.z);
+    STARE.style.opacity = (e.stare * 0.85).toFixed(3);
+    e.obj.rotation.y = Math.atan2(dx, dz);   // always facing you
+    if (e.stare >= 1) { e.lunge = true; SFX.extraShriek(o.x, o.z); game.shake = 1; STARE.style.opacity = 0; return; }
+    // while unseen it steps closer: it is just somewhere else the next time you look
+    if (!seen && (e.moveT -= dt) <= 0) { e.moveT = 2.5 + Math.random() * 3; e.dist = Math.max(3.2, e.dist - 2.2); this.place(zone, e, false); }
+  },
+  place(zone, e, first) {
+    const P = game.p;
+    for (let k = 0; k < 40; k++) {
+      const a = Math.random() * 6.28, r = e.dist * (0.85 + Math.random() * 0.3), x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r;
+      if (x < zone.x0 + 0.5 || x > zone.x1 - 0.5 || z > zone.z0 - 0.5 || z < zone.exitZ + 0.5) continue;
+      const g = groundAt(x, z, P.y + 0.5, zone.i); if (!isFinite(g) || Math.abs(g - P.y) > 0.5) continue;
+      if (zone.cols.some(c => colBlocks(c, g) && x > c.x0 - 0.4 && x < c.x1 + 0.4 && z > c.z0 - 0.4 && z < c.z1 + 0.4)) continue;
+      camera.getWorldDirection(_ef); _ev.set(x - camera.position.x, 0, z - camera.position.z).normalize();
+      if (!first && _ef.x * _ev.x + _ef.z * _ev.z > 0.5) continue;   // never pops in where you are looking
+      e.obj.position.set(x, g, z); return;
+    }
+  },
+  check(zone) { const k = zone.pendingKill; zone.pendingKill = null; return k || {}; },
+};
+const STARE = Object.assign(document.createElement('div'), { id: 'stare' });
+Object.assign(STARE.style, { position: 'fixed', inset: '0', pointerEvents: 'none', opacity: 0, zIndex: 2,
+  background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(30,0,0,.65) 75%, rgba(0,0,0,.95) 100%)' });
+document.body.appendChild(STARE);
+
+/* ---------- 이어리: THE WHISTLE — a tall black shape you barely see, a red light on its chest, and a beep that
+   comes faster the closer it is. Stay out of its reach; the beep tells you where it is. ---------- */
+const WHISTLE_MAT = addDarkness(new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.95, metalness: 0, envMap: envTex, envMapIntensity: 0.25 }));
+Hazards.whistle = {
+  update(dt, zone, active) {
+    if (!zone.meta || eerieFor(zone) !== 'whistle') return;
+    const here = active && zone.i === game.zoneIdx, P = game.p;
+    if (!here) { if (zone.wh) { scene.remove(zone.wh.obj); zone.wh = null; } return; }
+    let w = zone.wh;
+    if (!w) {
+      if (zone.whDone || (zone.whT = (zone.whT ?? 4 + zone.rng() * 5) - dt) > 0) return;
+      zone.whDone = true;
+      const obj = humanoid(WHISTLE_MAT, 2.6, 0.22), led = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2010 }));
+      led.position.set(0, 1.62, 0.3); obj.add(led);
+      w = zone.wh = { obj, led, beepT: 0, danger: 0, life: 50 };
+      const x = zone.x0 + (zone.x1 - zone.x0) * (0.2 + zone.rng() * 0.6);
+      obj.position.set(x, zone.oy, zone.exitZ + 2); scene.add(obj);
+      if (!game.metWhistle) { game.metWhistle = true; toast('THE WHISTLE', 'Avoid the beep.', true); }
+    }
+    const o = w.obj.position, dx = P.x - o.x, dz = P.z - o.z, d = Math.hypot(dx, dz) || 1;
+    w.life -= dt;
+    if (w.life <= 0) { scene.remove(w.obj); zone.wh = null; return; }
+    if (d > 1.0) { stepAvoiding(o, dx / d, dz / d, (1.25 + zone.i * 0.025) * dt, 0.3, w); const g = groundAt(o.x, o.z, o.y + 0.1); if (isFinite(g)) o.y = g; }
+    w.obj.rotation.y = Math.atan2(dx, dz);
+    // the beep: interval shrinks with distance, from a slow ping to a continuous tone
+    const iv = clamp((d - 1.5) / 9, 0.07, 1.4);
+    if ((w.beepT -= dt) <= 0) { w.beepT = iv; SFX.beep(o.x, o.y + 1.5, o.z, d); w.led.visible = true; w.ledT = 0.06; }
+    if ((w.ledT -= dt) <= 0) w.led.visible = false;
+    w.danger = d < 2.2 && Math.abs(P.y - o.y) < 1.5 ? w.danger + dt : Math.max(0, w.danger - dt);
+    if (w.danger > 1.3) zone.pendingKill = { kill: 'whistle', by: { pos: o } };
+  },
+  check(zone) { const k = zone.pendingKill; zone.pendingKill = null; return k || {}; },
+};
+
+/* ============================================================
+   NINE LIVES — the rest stop (about 1 room in 20): safe, its own music, black cats behind the counter selling
+   glow sticks (◆3) and speed cola (◆4).
+   ============================================================ */
+const CAT = (() => {
+  const fur = new THREE.MeshStandardMaterial({ color: 0x0c0b0e, roughness: 0.82, metalness: 0, envMap: envTex, envMapIntensity: 0.7 });
+  const pink = new THREE.MeshStandardMaterial({ color: 0x3a1a20, roughness: 0.9 });
+  // faces drawn after the two photos: SHOCK = huge round yellow-green eyes, open mouth with two fangs;
+  // SMUG = eyes squeezed to crescents, chubby cheeks, the tongue out
+  function face(kind) {
+    const t = canvasTex(512, 512, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      const whisk = (side) => { g.strokeStyle = 'rgba(235,235,235,0.85)'; g.lineWidth = 3;
+        for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(256 + side * 70, 350 + k * 14); g.quadraticCurveTo(256 + side * 170, 330 + k * 24, 256 + side * 250, 320 + k * 34); g.stroke(); } };
+      if (kind === 'shock') {
+        for (const ex of [150, 362]) {
+          const gr = g.createRadialGradient(ex, 215, 10, ex, 215, 96); gr.addColorStop(0, '#f0e65a'); gr.addColorStop(0.75, '#b9b22a'); gr.addColorStop(1, '#5d4a12');
+          g.fillStyle = gr; g.beginPath(); g.arc(ex, 215, 96, 0, 7); g.fill();
+          g.fillStyle = '#050505'; g.beginPath(); g.arc(ex + 4, 212, 70, 0, 7); g.fill();
+          g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.arc(ex - 18, 186, 13, 0, 7); g.fill(); g.beginPath(); g.arc(ex + 26, 236, 5, 0, 7); g.fill();
+        }
+        g.fillStyle = '#e8a0a8'; g.beginPath(); g.moveTo(222, 315); g.quadraticCurveTo(256, 300, 290, 315); g.quadraticCurveTo(272, 352, 256, 356); g.quadraticCurveTo(240, 352, 222, 315); g.fill();
+        g.fillStyle = '#3a0c12'; g.beginPath(); g.ellipse(256, 404, 52, 30, 0, 0, 7); g.fill();
+        g.fillStyle = '#c75a6a'; g.beginPath(); g.ellipse(256, 418, 30, 12, 0, 0, 7); g.fill();
+        g.fillStyle = '#f4f0ea'; for (const fx of [226, 286]) { g.beginPath(); g.moveTo(fx - 9, 380); g.lineTo(fx + 9, 380); g.lineTo(fx, 404); g.fill(); }
+      } else {
+        g.fillStyle = 'rgba(40,36,44,0.6)'; g.beginPath(); g.ellipse(256, 330, 200, 110, 0, 0, 7); g.fill();   // fluffy cheeks
+        for (const ex of [168, 344]) {
+          g.fillStyle = '#1a0e08'; g.beginPath(); g.moveTo(ex - 62, 222); g.quadraticCurveTo(ex, 186, ex + 62, 214); g.quadraticCurveTo(ex, 236, ex - 62, 222); g.fill();
+          g.fillStyle = '#b8862a'; g.beginPath(); g.ellipse(ex + 6, 214, 30, 11, -0.08, 0, 7); g.fill();
+          g.fillStyle = 'rgba(255,255,255,0.9)'; g.beginPath(); g.arc(ex + 16, 210, 4, 0, 7); g.fill();
+        }
+        g.fillStyle = '#e8a6ae'; g.beginPath(); g.moveTo(218, 300); g.quadraticCurveTo(256, 284, 294, 300); g.quadraticCurveTo(276, 344, 256, 348); g.quadraticCurveTo(236, 344, 218, 300); g.fill();
+        g.strokeStyle = '#2a1414'; g.lineWidth = 5; g.beginPath(); g.moveTo(256, 348); g.lineTo(256, 372); g.quadraticCurveTo(226, 392, 206, 376); g.moveTo(256, 372); g.quadraticCurveTo(286, 392, 306, 376); g.stroke();
+        g.fillStyle = '#e46a86'; g.beginPath(); g.ellipse(244, 404, 34, 26, 0.1, 0, 7); g.fill();
+        g.strokeStyle = '#b0405a'; g.lineWidth = 3; g.beginPath(); g.moveTo(244, 386); g.lineTo(244, 420); g.stroke();
+      }
+      whisk(-1); whisk(1);
+    });
+    return new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.05, depthWrite: false });
+  }
+  const FACES = { shock: face('shock'), smug: face('smug') };
+  function build(kind) {
+    const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+    const torso = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 16), fur); torso.scale.set(1.0, 1.15, 1.25); torso.position.set(0, 0.2, -0.02); body.add(torso);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 14), fur); chest.position.set(0, 0.3, 0.12); body.add(chest);
+    for (const s of [-1, 1]) { const paw = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), fur); paw.scale.set(1, 0.7, 1.3); paw.position.set(s * 0.08, 0.03, 0.2); body.add(paw); }
+    const head = new THREE.Group(); head.position.set(0, 0.52, 0.08); g.add(head);
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.17, 28, 20), fur); skull.scale.set(kind === 'smug' ? 1.22 : 1.08, 0.95, 0.95); head.add(skull);
+    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), fur); muzzle.scale.set(1.35, 0.85, 0.9); muzzle.position.set(0, -0.05, 0.12); head.add(muzzle);
+    const fm = new THREE.Mesh(new THREE.SphereGeometry(0.176, 32, 20, Math.PI / 2 - 1.15, 2.3, 0.55, 1.6), FACES[kind]);
+    fm.scale.copy(skull.scale); fm.renderOrder = 2; head.add(fm);
+    for (const s of [-1, 1]) {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.13, 12), fur); ear.position.set(s * 0.11, 0.15, -0.01); ear.rotation.z = -s * 0.35; head.add(ear);
+      const inner = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.08, 10), pink); inner.position.set(s * 0.107, 0.14, 0.025); inner.rotation.set(0.1, 0, -s * 0.35); head.add(inner);
+    }
+    const tail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.08, -0.22), new THREE.Vector3(0.12, 0.05, -0.36), new THREE.Vector3(0.26, 0.12, -0.3), new THREE.Vector3(0.3, 0.3, -0.22)]), 20, 0.03, 8), fur);
+    g.add(tail);
+    g.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+    return { g, head, body, tail, kind, ph: Math.random() * 6 };
+  }
+  return { build, FACES };
+})();
+const SHOP = {
+  ui: null, near: false, cats: [],
+  ITEMS: [{ id: 'glow', name: 'GLOW STICK', cost: 3 }, { id: 'cola', name: 'SPEED COLA', cost: 4 }],
+  enter(zone) {
+    const m = zone.meta;
+    if (!zone.catsBuilt) {
+      zone.catsBuilt = true;
+      for (const [x, y, z, ry, kind] of m.cats || []) {
+        const c = CAT.build(kind); c.g.position.set(zone.ox + x, y, zone.z0 + z); c.g.rotation.y = ry; c.ry = ry; c.g.scale.setScalar(1.35);
+        zone.g.add(c.g); (zone.catList ||= []).push(c);   // zone.g is lifted to the room's height
+      }
+    }
+    this.zone = zone;
+    if (!game.metShop) { game.metShop = true; toast('NINE LIVES', 'Nothing hunts in here. Spend your ◆.', false); }
+  },
+  initUI() {
+    if (this.ui) return;
+    const st = document.createElement('style');
+    st.textContent = `#shopUI{position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom));transform:translateX(-50%);display:none;gap:10px;z-index:4}
+      #shopUI button{font:700 18px/1.1 "Barlow Condensed",sans-serif;letter-spacing:.08em;padding:12px 16px;border-radius:12px;border:2px solid #ff4fd8;
+        background:rgba(20,6,26,.82);color:#fff;text-shadow:0 0 8px #ff4fd8;min-width:132px}
+      #shopUI button b{display:block;color:#ffd84a;font-size:16px;margin-top:3px}
+      #shopUI button:disabled{opacity:.45}`;
+    document.head.appendChild(st);
+    this.ui = Object.assign(document.createElement('div'), { id: 'shopUI' });
+    this.ui.innerHTML = this.ITEMS.map((it, k) => `<button data-k="${k}">${it.name}<b>◆ ${it.cost}${isTouch ? '' : `  [${k + 1}]`}</b></button>`).join('');
+    document.body.appendChild(this.ui);
+    this.ui.addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); this.buy(+b.dataset.k); } });
+    window.addEventListener('keydown', e => { if (this.near && (e.code === 'Digit1' || e.code === 'Digit2')) this.buy(e.code === 'Digit1' ? 0 : 1); });
+  },
+  buy(k) {
+    const it = this.ITEMS[k]; if (!it || !this.near) return;
+    if (DOPA.tokens < it.cost) { SFX.hiss(); toast('NOT ENOUGH ◆', '', true); return; }
+    DOPA.tokens -= it.cost; DOPA.hud();
+    if (it.id === 'glow') { GLOW.n = Math.min(5, GLOW.n + 1); GLOW.hud(); }
+    else { game.colaT = 30; SFX.fizz(); }
+    SFX.meow(); this.happy = 1.2;
+    toast(it.id === 'glow' ? 'GLOW STICK' : 'SPEED COLA', it.id === 'glow' ? 'Mrrp.' : 'You feel fast. 30 s.', false);
+  },
+  update(dt) {
+    this.initUI();
+    const zone = zones[game.zoneIdx], m = zone?.meta;
+    const near = !!(m?.safe && m.counter && Math.hypot(game.p.x - (zone.ox + m.counter[0]), game.p.z - (zone.z0 + m.counter[1])) < 3.2 && Math.abs(game.p.y - zone.oy) < 1);
+    if (near !== this.near) { this.near = near; this.ui.style.display = near ? 'flex' : 'none'; if (near) SFX.meow(0.6); }
+    if (near) this.ui.querySelectorAll('button').forEach((b, k) => b.disabled = DOPA.tokens < this.ITEMS[k].cost);
+    this.happy = Math.max(0, (this.happy || 0) - dt);
+    for (const z of zones) if (z && !z.disposed && z.catList) for (const c of z.catList) {
+      c.ph += dt;
+      const br = 1 + Math.sin(c.ph * 2.2) * 0.025; c.body.scale.set(1, br, 1);
+      const p = c.g.position, a = Math.atan2(game.p.x - p.x, game.p.z - p.z) - c.ry;
+      const ty = clamp(Math.atan2(Math.sin(a), Math.cos(a)), -0.8, 0.8);
+      c.head.rotation.y += (ty - c.head.rotation.y) * Math.min(1, dt * 3);
+      c.head.rotation.z = Math.sin(c.ph * 0.7) * 0.08 + (this.happy > 0 ? Math.sin(c.ph * 12) * 0.12 : 0);
+      c.tail.rotation.y = Math.sin(c.ph * 1.6) * 0.35;
+    }
+  },
 };
 
 /* ============================================================
@@ -2139,6 +2773,8 @@ const game = {
     NIKI.reset(); GLOW.reset();
     for (const v of DARK.uDark.value) v.set(0, 0, 0, 0);
     DARK.uBlack.value.set(0, 0, 0, 0); SFX.powerOn();
+    DOPA.reset(); TRAP.end(); STARE.style.opacity = 0; SFX.setStare?.(0); this.colaT = 0;
+    MUSIC.setDepth(0); MUSIC.start('run');
     vhsMat.uniforms.uDark.value = 0;
     streamZones();
   },
@@ -2152,6 +2788,7 @@ const game = {
     scene.fog.near = f[1]; scene.fog.far = f[2]; camera.far = Math.max(70, f[2]);
     camera.updateProjectionMatrix();
     SFX.setSpace(m.space || 'store');
+    if (m.safe) { SHOP.enter(zone); MUSIC.start('shop'); } else if (MUSIC.mode === 'shop' || !MUSIC.on) MUSIC.start('run');
     $('zoneNo').textContent = pad4(zone.i);
     $('zoneName').textContent = zone.name;
     if (!zone.visited) { zone.visited = true; toast(zone.name, zone.hint); }
@@ -2160,6 +2797,8 @@ const game = {
   update(dt) {
     this.t += dt; this.dtNow = dt;
     if (this.dead) { this.updateDeath(dt); return; }
+    if (TRAP.on) { TRAP.update(dt); this.updateHUD(); return; }
+    this.colaT = Math.max(0, (this.colaT || 0) - dt);
     const mv = readMove();
     // crawling: inside a duct, or about to go in / just coming out of one
     const zc = zones[this.zoneIdx], zn1 = zones[this.zoneIdx + 1];
@@ -2168,7 +2807,7 @@ const game = {
       || (this.zoneIdx > 0 && zones[this.zoneIdx - 1]?.meta?.crawl && zones[this.zoneIdx - 1].exitZ - this.p.z < 1.0));
     if (crawl) mv.sprint = false;
     this.eyeNow += ((crawl ? 0.5 : CFG.eye) - this.eyeNow) * Math.min(1, dt * 7);
-    const speed = crawl ? CFG.walk * 0.45 : mv.sprint ? CFG.sprint : CFG.walk;
+    const speed = (crawl ? CFG.walk * 0.45 : mv.sprint ? CFG.sprint : CFG.walk) * (this.colaT > 0 ? 1.35 : 1);
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     const vx = (-sy * mv.y + cy * mv.x) * speed, vz = (-cy * mv.y - sy * mv.x) * speed;
     const ox = this.p.x, oz = this.p.z;
@@ -2210,7 +2849,7 @@ const game = {
       if (zn.i > this.zoneIdx && zones[zn.i - 1] && !zones[zn.i - 1].cleared) {
         zones[zn.i - 1].cleared = true;
         if (zn.i - 1 >= 1) this.cleared = Math.max(this.cleared, zn.i - 1);
-        SFX.chime();
+        SFX.chime(); DOPA.roomCleared(zn.i - 1);
       }
       this.zoneIdx = zn.i;
       streamZones();
@@ -2247,6 +2886,13 @@ const game = {
     const nd = NIKI.update(dt);
     if (nd === 'kill') return this.die('niki');
     GLOW.update(dt);
+    DOPA.update(dt, this.maxDist); updateTokens(dt); SHOP.update(dt);
+    // how tense the music gets: anything close and hunting
+    const zd = zones[this.zoneIdx];
+    MUSIC.setDanger(Math.max(shakeK * 1.5, rumble * 2, NIKI.mode === 'mad' ? 1 : 0, zd?.extra ? zd.extra.stare + 0.3 : 0,
+      zd?.wh ? clamp(1 - Math.hypot(zd.wh.obj.position.x - this.p.x, zd.wh.obj.position.z - this.p.z) / 14, 0, 1) : 0,
+      zd?.doll ? 0.6 : 0, zd?.handsPlan?.black ? 0.8 : 0));
+    if (this.colaT > 0 || this.colaShown) { DOPA.hud(); this.colaShown = this.colaT > 0; }
     // pack the darkness spots of the rooms around the player into the shader uniforms
     let di = 0;
     for (const z of zones) if (z && !z.disposed && z.dark) for (const s of z.dark) if (di < DARK_N) DARK.uDark.value[di++].set(s.x, s.z, s.r, s.w);
@@ -2311,7 +2957,7 @@ const game = {
   // with the thing that got you in frame. Nothing here plays before the hit, so Killi's approach stays unannounced.
   die(cause, by = null) {
     this.dead = true; this.cause = cause; this.deathT = 0;
-    SFX.crush(); SFX.setRumble(0);
+    SFX.crush(); SFX.setRumble(0); MUSIC.stop(true); DOPA.saveBest(this.maxDist); STARE.style.opacity = 0; SFX.setStare?.(0); TRAP.end();
     vhsMat.uniforms.uGlitch.value = 3;
     if (document.pointerLockElement) document.exitPointerLock();
     const c = camera.position, src = cause === 'niki' ? NIKI.pos : by?.obj?.position || by?.pos || null;
@@ -2420,7 +3066,7 @@ if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right
 let last = performance.now(), idleT = 0, ready = false;
 const prevRot = { yaw: 0, pitch: 0 };
 function frame(now) {
-  const dt = Math.min((now - last) / 1000, 0.05);
+  const dt = Math.min((now - last) / 1000, 0.05) * (DOPA.slowT > 0 ? 0.35 : 1);
   last = now;
   if (ready) {
     if (game.running) game.update(dt);
@@ -2505,7 +3151,7 @@ loadAssets((f, label) => {
     ? 'Open this through a web server (e.g. <code>npx http-server</code> or GitHub Pages) — browsers block file:// assets.'
     : 'Failed to load assets: ' + escapeHTML(err.message || String(err));
 });
-if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards };
+if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP };
 </script>
 </body>
 </html>
