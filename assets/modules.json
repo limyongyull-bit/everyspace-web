@@ -2967,9 +2967,9 @@
    ],
    "lm": "cinema_lm.jpg",
    "glb": "cinema.glb",
-   "faces": 4101,
-   "medianIrradiance": 0.061,
-   "bytes": 347423
+   "faces": 4128,
+   "medianIrradiance": 0.066,
+   "bytes": 359648
   },
   "nordbo": {
    "type": "room",
