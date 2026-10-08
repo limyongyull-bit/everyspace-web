@@ -268,8 +268,9 @@ const DEX = [
   { id: 'extra', name: 'THE EXTRA', live: true, desc: "Don't stare." },
   { id: 'niki', name: 'NIKI', live: true, desc: "Stay close to her. Don't run unless you can keep running." },
   { id: 'whistle', name: 'THE WHISTLE', live: true, desc: 'Avoid the beep.' },
+  { id: 'follower', name: 'THE FOLLOWER', live: true, desc: "Don't stop." },
 ];
-const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki', fall: 'Fell', matryoshka: 'Sealed in the Matryoshka', extra: 'You stared at The Extra', whistle: 'Found by The Whistle' };
+const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki', fall: 'Fell', matryoshka: 'Sealed in the Matryoshka', extra: 'You stared at The Extra', whistle: 'Found by The Whistle', follower: 'Caught by The Follower' };
 
 /* ============================================================
    UTIL
@@ -754,6 +755,7 @@ async function loadAssets(onProgress) {
     .map(f => document.fonts.load(f).catch(() => null)));
   const k = await loadGLB(ASSETS + 'killi.glb'); tick('killi.glb');
   k.scene.traverse(o => { if (o.isMesh) ASSET.killi = o.geometry; });
+  ASSET.killi.computeBoundingBox(); ASSET.killiOff = ASSET.killi.boundingBox.getCenter(new THREE.Vector3());
   ASSET.killi.center();
   ASSET.killi.computeBoundingSphere();
   // the head is not a ball: keep its outer vertices so a rolling Killi can sit on whichever point touches the floor
@@ -788,7 +790,7 @@ const SFX = {
     for (let i = 0; i < len; i++) hd[i] = Math.random() * 2 - 1;
     const hs = ctx.createBufferSource(); hs.buffer = hb; hs.loop = true;
     const hf = ctx.createBiquadFilter(); hf.type = 'highpass'; hf.frequency.value = 3500;
-    this.hiss = ctx.createGain(); this.hiss.gain.value = OPT.vhs ? 0.012 : 0;
+    this.hiss = ctx.createGain(); this.hiss.gain.value = OPT.vhs ? 0.004 : 0;
     hs.connect(hf); hf.connect(this.hiss); this.hiss.connect(this.master); hs.start();
     const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
     const rlp = ctx.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 160;
@@ -948,7 +950,7 @@ const SFX = {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.rumble.gain.setTargetAtTime(clamp(v, 0, 1.4), t, 0.08);
-    this.hiss.gain.setTargetAtTime(OPT.vhs ? 0.012 : 0, t, 0.2);
+    this.hiss.gain.setTargetAtTime(OPT.vhs ? 0.004 : 0, t, 0.2);
   },
   tone(f, start, dur, vol = 0.12, type = 'sine', dest) {
     const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain();
@@ -1140,9 +1142,9 @@ const MUSIC = {
     this.wow = ctx.createOscillator(); this.wow.frequency.value = 0.35; this.wowG = ctx.createGain(); this.wowG.gain.value = 9; this.wow.connect(this.wowG); this.wow.start();
     // vinyl crackle: sparse clicks in a looping buffer
     const len = ctx.sampleRate * 3, b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() < 0.0009 ? (Math.random() - 0.5) * 0.9 : 0) + (Math.random() - 0.5) * 0.012;
+    for (let i = 0; i < len; i++) d[i] = Math.random() < 0.0005 ? (Math.random() - 0.5) * 0.6 : 0;
     const cr = ctx.createBufferSource(); cr.buffer = b; cr.loop = true; const cf = ctx.createBiquadFilter(); cf.type = 'highpass'; cf.frequency.value = 900;
-    const cg = ctx.createGain(); cg.gain.value = 0.5; cr.connect(cf); cf.connect(cg); cg.connect(this.out); cr.start();
+    const cg = ctx.createGain(); cg.gain.value = 0.08; cr.connect(cf); cf.connect(cg); cg.connect(this.out); cr.start();
     // the danger drone: a dissonant low cluster that fades in with danger
     this.drone = ctx.createGain(); this.drone.gain.value = 0; this.drone.connect(this.duck);
     const dl = ctx.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 420; dl.connect(this.drone);
@@ -1151,7 +1153,7 @@ const MUSIC = {
   start(mode = 'run') {
     if (!SFX.ctx) return; this.init();
     this.mode = mode; this.on = true; this.step = 0; this.next = SFX.ctx.currentTime + 0.1;
-    this.out.gain.setTargetAtTime(mode === 'shop' ? 0.34 : 0.26, SFX.ctx.currentTime, 0.6);
+    this.out.gain.setTargetAtTime(mode === 'shop' ? 0.75 : 0.62, SFX.ctx.currentTime, 0.6);
     if (!this.timer) this.timer = setInterval(() => this.tick(), 30);
   },
   stop(tapeStop = false) {
@@ -1597,6 +1599,7 @@ function createZone(i, z0, opts = {}) {
   };
   zone.g.position.y = zone.oy;
   if (i === 0) buildLobby(zone); else buildRoom(zone, opts.kind || pickRoom(i));
+  if (i > 0 && !zone.meta?.safe && !zone.meta?.crawl) dressZone(zone);
   if (i > 0 && !zone.meta?.safe) scatterTokens(zone);
   if (!zone.surf) {   // the lobby (built by hand): flat floor everywhere
     zone.surf = [{ x0: -60, x1: 60, z0: zone.exitZ ?? -40, z1: z0 + 1, ya: zone.oy, yb: zone.oy }]; zone.ladders = [];
@@ -1612,6 +1615,7 @@ function disposeZone(zone) {
   zone.hands?.dispose(); zone.hands = null; zone.dark = [];
   zone.doll?.dispose(); zone.doll = null; if (zone.extra) scene.remove(zone.extra.obj); if (zone.wh) scene.remove(zone.wh.obj);
   for (const t of zone.tokens || []) scene.remove(t);
+  if (zone.wa) scene.remove(zone.wa.obj);
   zone.killis = [];
 }
 function zoneAt(z) {
@@ -1648,7 +1652,57 @@ function streamZones() {
    It comes from far outside the room, through the walls, and you can't see which way it will come:
    all you get is a horn somewhere in the distance. Look around, then get out of its line.
    ============================================================ */
-const KR = 1.45, KILLI_DOOR_R = 0.9;   // largest head; largest that fits the 1.9 m doorways
+const KR = 1.45, KILLI_DOOR_R = 0.9;
+// its eyes: two wet eyeballs sunk into the head. They roll round with it; whenever one can see you it turns to you,
+// otherwise it darts about in its socket. A head that has stopped keeps watching you.
+const KILLI_EYES = (() => {
+  const sclera = new THREE.MeshStandardMaterial({ color: 0xd9cfb6, roughness: 0.1, metalness: 0, emissive: 0x16120c, envMap: envTex, envMapIntensity: 1.1 });
+  const iris = new THREE.MeshStandardMaterial({ color: 0x3d0a05, roughness: 0.15, emissive: 0x0c0100, envMap: envTex, envMapIntensity: 1 });
+  const pupil = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.05, envMap: envTex, envMapIntensity: 1.4 });
+  const ball = new THREE.SphereGeometry(1, 24, 16);
+  const cap = a => new THREE.SphereGeometry(1.012, 24, 6, 0, Math.PI * 2, 0, a).rotateX(Math.PI / 2);
+  const irisG = cap(0.5), pupilG = cap(0.22).scale(1.004, 1.004, 1.004);
+  const _w = new THREE.Vector3(), _n = new THREE.Vector3(), _c = new THREE.Vector3(), _t = new THREE.Vector3();
+  let sockets = null;
+  // the head was modelled with its eyes closed (lids over two sockets at x ±0.29, y 0.1 of the face, which looks
+  // down +z): find the front of each lid in the centred mesh once
+  const findSockets = () => {
+    const P = ASSET.killi.attributes.position, o = ASSET.killiOff;
+    sockets = [-1, 1].map(sx => {
+      let best = null;
+      for (let i = 0; i < P.count; i++) {
+        const x = P.getX(i) + o.x, y = P.getY(i) + o.y, z = P.getZ(i) + o.z;
+        if (Math.abs(x - sx * 0.29) < 0.05 && Math.abs(y - 0.1) < 0.05 && (!best || z > best.z)) best = { x, y, z };
+      }
+      return new THREE.Vector3(best.x - o.x, best.y - o.y, best.z - o.z);
+    });
+  };
+  return {
+    make(roller) {
+      if (!sockets) findSockets();
+      return sockets.map(p => {
+        const g = new THREE.Group(); g.scale.setScalar(0.105);
+        g.position.copy(p).add(new THREE.Vector3(0, 0, -0.035));
+        g.add(new THREE.Mesh(ball, sclera), new THREE.Mesh(irisG, iris), new THREE.Mesh(pupilG, pupil));
+        roller.add(g); return g;
+      });
+    },
+    // they roll round with the head; whenever the face is toward you they turn to you, otherwise they dart about
+    look(k, dt) {
+      if (!k.eyes || !k.obj.visible) return;
+      if ((k.dartT -= dt) <= 0) { k.dartT = 0.2 + Math.random() * 0.7; k.dart.set(Math.random() - 0.5, Math.random() - 0.5, 0).multiplyScalar(1.2); }
+      const cam = camera.position;
+      _n.set(0, 0, 1).applyQuaternion(k.roller.quaternion);                  // where the face looks
+      for (const e of k.eyes) {
+        e.getWorldPosition(_w);
+        _c.copy(cam).sub(_w); const d = _c.length(); _c.divideScalar(d || 1);
+        if (_c.dot(_n) > 0.05 && d < 30) e.lookAt(cam);
+        else e.lookAt(_t.copy(k.dart).applyQuaternion(k.roller.quaternion).add(_n).add(_w));
+      }
+    },
+  };
+})();
+   // largest head; largest that fits the 1.9 m doorways
 class Killi {
   constructor(zone, x, z, dx, dz, speed, r, travel) {
     this.zone = zone; this.dx = dx; this.dz = dz; this.speed = speed; this.r = r; this.left = travel;
@@ -1667,12 +1721,14 @@ class Killi {
     this.axis = new THREE.Vector3(dz, 0, -dx);          // rolling: spin axis = up x direction
     this.phase = Math.random() * 6;
     this.voice = SFX.killiVoice();
+    this.eyes = KILLI_EYES.make(this.roller); this.dartT = 0; this.dart = new THREE.Vector3();
   }
   update(dt) {
     this.roller.material.envMapIntensity = 0.75 * creatureLight(this.obj.position.x, this.obj.position.z);
     // at rest against a closed wall: it stays there, a dead weight in the room, until you have left the room
     if (this.rest) {
       // after a while it rolls slowly back out of the door it came through (the one nearest that door goes first)
+      KILLI_EYES.look(this, dt);
       if ((this.restT -= dt) > 0 || this.zone.killis.some(o => o !== this && o.rest && o.lane === this.lane &&
           (o.obj.position.x - this.obj.position.x) * this.dx + (o.obj.position.z - this.obj.position.z) * this.dz < 0)) return game.zoneIdx <= this.zone.i;
       this.rest = false; this.wall = false; this.dx = -this.dx; this.dz = -this.dz; this.speed = 2.4;
@@ -1693,6 +1749,7 @@ class Killi {
     this.roller.quaternion.premultiply(this.q);
     this.phase += step;
     this.roller.position.y = this.floorY();
+    KILLI_EYES.look(this, dt);
     if (this.voice) {
       // Doppler: closing speed toward the listener (exaggerated so a pass-by is unmistakable)
       const lx = camera.position.x - p.x, lz = camera.position.z - p.z, ld = Math.hypot(lx, lz) || 1;
@@ -1781,7 +1838,8 @@ function spawnKilli(zone, p) {
   for (let k = 0; k < n; k++) {
     const jitter = (r() - 0.5) * 0.3, along = s0 - dir * back;
     const [x, z, dx, dz] = axis === 'x' ? [along, lane.c + jitter, dir, 0] : [lane.c + jitter, along, 0, dir];
-    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.obj.position.y += lane.y || 0; k.wall = farClosed;   // lanes can run on an upper floor k.lane = lane; if (hideAt !== undefined) { k.hideAt = hideAt; k.obj.visible = false; } zone.killis.push(k);
+    const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.obj.position.y += lane.y || 0; k.wall = farClosed;   // lanes can run on an upper floor
+    k.lane = lane; if (hideAt !== undefined) { k.hideAt = hideAt; k.obj.visible = false; } zone.killis.push(k);
     back += kr * 2 + 0.8 + r() * 2.5;
   }
   // the horn: loudness says roughly how far, nothing says where (the rolling itself is what you can place)
@@ -2317,7 +2375,7 @@ function eerieFor(zone) {
   if (DEBUG && window.__forceEerie) e = window.__forceEerie;
   else if (zone.i >= 3 && zone.meta && !zone.meta.crawl && !zone.meta.safe && !zones[zone.i - 1]?.eerie) {
     if (zone.rng() < Math.min(0.2 + zone.i * 0.015, 0.55)) {
-      const opts = [['hands', 0.55], ['whistle', zone.i >= 3 ? 1 : 0], ['matryoshka', zone.i >= 4 ? 1 : 0], ['extra', zone.i >= 5 ? 1 : 0]];
+      const opts = [['hands', 0.55], ['whistle', zone.i >= 3 ? 1 : 0], ['matryoshka', zone.i >= 4 ? 1 : 0], ['extra', zone.i >= 5 ? 1 : 0], ['follower', zone.i >= 6 ? 1.2 : 0]];
       let r = zone.rng() * opts.reduce((s, o) => s + o[1], 0);
       for (const [k, w] of opts) { r -= w; if (r <= 0) { e = k; break; } }
     }
@@ -2552,6 +2610,205 @@ Hazards.whistle = {
 };
 
 /* ============================================================
+   RE-DRESSING: the same kind of room is never quite the same twice. A few things have turned up since you were last
+   in one like it: a car or two in the car park, a pallet of some new product, a wet-floor sign, a trolley someone left.
+   Placed on open floor only: never across a walking line, a doorway or a Killi lane.
+   ============================================================ */
+const PROP = (() => {
+  const std = (c, r = 0.6, m = 0, e = 0) => addDarkness(new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m, emissive: e, envMap: envTex, envMapIntensity: 0.6 }));
+  const M = { tyre: std(0x101010, 0.9), glass: std(0x0b1216, 0.12, 0.4), chrome: std(0x9a9a9a, 0.3, 0.8), yellow: std(0xf2c200, 0.5),
+    wood: std(0x9b7a4a, 0.85), orange: std(0xff5a10, 0.6), white: std(0xe6e6e6, 0.7), wire: std(0x8a8f96, 0.35, 0.75),
+    head: std(0xfff4d8, 0.3, 0, 0x666050), tail: std(0x8a0d0d, 0.3, 0, 0x300000), black: std(0x161616, 0.7) };
+  const CARS = [0x8f1a1a, 0x1d2f5a, 0xd8d8d0, 0x2b2b2b, 0x5c6b58, 0xb8a27a, 0x3c5f8a, 0x6e6e72].map(c => std(c, 0.28, 0.55));
+  const BOX = new THREE.BoxGeometry(1, 1, 1), WHEEL = new THREE.CylinderGeometry(1, 1, 1, 18).rotateZ(Math.PI / 2), CONE = new THREE.ConeGeometry(1, 1, 16);
+  const box = (g, m, w, h, d, x, y, z) => { const o = new THREE.Mesh(BOX, m); o.scale.set(w, h, d); o.position.set(x, y, z); g.add(o); return o; };
+  // new products: made-up brands, each with its own carton and its own price card
+  const PRODUCTS = [['GLOWBERRY', 'SODA', '#c2185b', '#ffe0f0'], ['MOONCRUNCH', 'CEREAL', '#283593', '#fff3c4'], ['STARLITE', 'MELT', '#d32f2f', '#ffeb3b'],
+    ['NOCTA', 'COLD BREW', '#212121', '#ffb74d'], ['PILLOWSOFT', 'TISSUE', '#4fc3f7', '#ffffff'], ['GRINLY', 'GUM', '#43a047', '#ffffff'],
+    ['HUSH', 'NOODLES', '#ff7043', '#3e2723'], ['VELVA', 'CHIPS', '#6a1b9a', '#ffd54f']];
+  const tex = new Map();
+  const carton = p => {
+    if (!tex.has(p[0])) tex.set(p[0], {
+      side: std(0xffffff, 0.75), sign: new THREE.MeshBasicMaterial({ map: canvasTex(512, 320, (g, w, h) => {
+        g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.fillStyle = '#e53935'; g.fillRect(0, 0, w, 86);
+        g.fillStyle = '#fff'; g.font = '800 64px Rubik'; g.textAlign = 'center'; g.fillText('NEW!', w / 2, 66);
+        g.fillStyle = p[2]; g.font = '800 70px Rubik'; g.fillText(p[0], w / 2, 172); g.font = '700 44px "Barlow Condensed"'; g.fillText(p[1], w / 2, 222);
+        g.fillStyle = '#111'; g.font = '700 54px "Space Mono"'; g.fillText('$' + (1 + Math.random() * 8).toFixed(2), w / 2, 292);
+      }) }) });
+    const t = tex.get(p[0]);
+    if (!t.map) {
+      t.map = canvasTex(256, 256, (g, w, h) => { g.fillStyle = p[2]; g.fillRect(0, 0, w, h); g.fillStyle = p[3]; g.font = '800 40px Rubik'; g.textAlign = 'center'; g.fillText(p[0], w / 2, 120); g.font = '700 30px "Barlow Condensed"'; g.fillText(p[1], w / 2, 160); });
+      t.side = std(0xffffff, 0.75); t.side.map = t.map;
+    }
+    return t;
+  };
+  return {
+    car(r) {   // a parked hatchback, nose toward -z
+      const g = new THREE.Group(), body = CARS[(r() * CARS.length) | 0];
+      box(g, body, 1.76, 0.62, 4.2, 0, 0.62, 0); box(g, body, 1.7, 0.3, 4.05, 0, 0.36, 0);
+      box(g, M.glass, 1.56, 0.5, 2.1, 0, 1.18, 0.25); box(g, body, 1.5, 0.06, 1.7, 0, 1.45, 0.3);
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) { const w = new THREE.Mesh(WHEEL, M.tyre); w.scale.set(0.24, 0.33, 0.33); w.position.set(sx * 0.8, 0.33, sz * 1.35); g.add(w); }
+        box(g, M.head, 0.32, 0.12, 0.04, sx * 0.6, 0.72, -2.1); box(g, M.tail, 0.3, 0.12, 0.04, sx * 0.62, 0.78, 2.1);
+        box(g, body, 0.08, 0.08, 0.18, sx * 0.92, 1.0, -0.75);   // mirrors
+      }
+      box(g, M.black, 1.7, 0.16, 0.08, 0, 0.36, -2.12); box(g, M.black, 1.7, 0.16, 0.08, 0, 0.36, 2.12);
+      return { g, hx: 0.95, hz: 2.2, h: 1.5 };
+    },
+    pallet(r) {   // a pallet of a new product with its price card on a stand
+      const g = new THREE.Group(), p = PRODUCTS[(r() * PRODUCTS.length) | 0], t = carton(p);
+      box(g, M.wood, 1.2, 0.14, 1.0, 0, 0.07, 0);
+      const rows = 2 + ((r() * 2) | 0);
+      for (let y = 0; y < rows; y++) for (const sx of [-1, 1]) for (const sz of [-1, 1]) if (y < rows - 1 || r() < 0.8)
+        box(g, t.side, 0.56, 0.4, 0.46, sx * 0.29, 0.34 + y * 0.41, sz * 0.24);
+      box(g, M.chrome, 0.03, 1.35, 0.03, 0, 0.67, 0.62);
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.45), t.sign); card.position.set(0, 1.45, 0.63); g.add(card);
+      return { g, hx: 0.62, hz: 0.66, h: 1.7 };
+    },
+    wet() {   // CAUTION / WET FLOOR A-frame
+      const g = new THREE.Group();
+      for (const s of [-1, 1]) { const b = box(g, M.yellow, 0.3, 0.62, 0.015, 0, 0.3, s * 0.08); b.rotation.x = s * 0.26; }
+      const lab = box(g, M.black, 0.2, 0.05, 0.02, 0, 0.42, 0.165); lab.rotation.x = 0.26;
+      return { g, hx: 0.25, hz: 0.25, h: 0.7 };
+    },
+    cone() {
+      const g = new THREE.Group(), c = new THREE.Mesh(CONE, M.orange); c.scale.set(0.16, 0.7, 0.16); c.position.y = 0.37; g.add(c);
+      box(g, M.white, 0.2, 0.08, 0.2, 0, 0.42, 0).scale.set(0.2, 0.07, 0.2); box(g, M.orange, 0.38, 0.03, 0.38, 0, 0.015, 0);
+      return { g, hx: 0.22, hz: 0.22, h: 0.75 };
+    },
+    cart() {   // an abandoned trolley
+      const g = new THREE.Group();
+      box(g, M.wire, 0.56, 0.02, 0.9, 0, 0.55, 0);
+      for (const s of [-1, 1]) { box(g, M.wire, 0.02, 0.42, 0.9, s * 0.28, 0.76, 0); box(g, M.wire, 0.56, 0.42, 0.02, 0, 0.76, s * 0.45); }
+      box(g, M.black, 0.6, 0.04, 0.04, 0, 1.05, 0.52);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) { box(g, M.wire, 0.02, 0.5, 0.02, sx * 0.24, 0.3, sz * 0.38); const w = new THREE.Mesh(WHEEL, M.tyre); w.scale.set(0.03, 0.05, 0.05); w.position.set(sx * 0.24, 0.05, sz * 0.38); g.add(w); }
+      return { g, hx: 0.36, hz: 0.6, h: 1.1 };
+    },
+  };
+})();
+const DRESS = { parking: [['car', 2.2], ['cone', 1], ['cart', 0.6]], gas: [['car', 1.6], ['cone', 1]], mart: [['pallet', 2], ['cart', 1], ['wet', 0.8]],
+  nordbo: [['pallet', 1.5], ['cart', 1]], burger: [['wet', 1.5], ['cone', 0.3]], subway: [['wet', 1], ['cone', 0.8]], concourse: [['wet', 1], ['cart', 0.8]],
+  cinema: [['wet', 1]], club: [['wet', 0.6]], ward: [['wet', 1], ['cart', 0.4]] };
+function segDist(px, pz, ax, az, bx, bz) {
+  const dx = bx - ax, dz = bz - az, t = clamp(((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz || 1), 0, 1);
+  return Math.hypot(px - ax - dx * t, pz - az - dz * t);
+}
+function dressZone(zone) {
+  const set = DRESS[(zone.kind || '').replace(/\d+$/, '')]; if (!set || !zone.surf) return;
+  const r = zone.rng, m = zone.meta, oy = zone.oy;
+  const n = r() < 0.15 ? 0 : 1 + ((r() * (zone.len > 20 ? 3 : 2)) | 0);
+  const ground = zone.surf.filter(s => !s.axis && Math.abs(s.ya - oy) < 0.05);
+  const ent = { x: zone.ox + m.entry, z: zone.z0 }, lanes = killiLanes(zone).filter(l => !l.y);
+  zone.props = [];
+  for (let k = 0; k < n; k++) {
+    let pick = r() * set.reduce((a, b) => a + b[1], 0), kind = set[0][0];
+    for (const [nm, w] of set) { pick -= w; if (pick <= 0) { kind = nm; break; } }
+    const p = PROP[kind](r), turn = kind !== 'car' && r() < 0.5 || kind === 'car' && r() < 0.3;
+    const hx = turn ? p.hz : p.hx, hz = turn ? p.hx : p.hz;
+    for (let t = 0; t < 60; t++) {
+      const s = ground[(r() * ground.length) | 0]; if (!s) break;
+      if (s.x1 - s.x0 < 2 * hx + 0.4 || s.z1 - s.z0 < 2 * hz + 0.4) continue;
+      const x = s.x0 + hx + 0.2 + r() * (s.x1 - s.x0 - 2 * hx - 0.4), z = s.z0 + hz + 0.2 + r() * (s.z1 - s.z0 - 2 * hz - 0.4);
+      if (x - hx < zone.x0 + 0.3 || x + hx > zone.x1 - 0.3 || z + hz > zone.z0 - 0.4 || z - hz < zone.exitZ + 0.4) continue;
+      // a body's width of clear floor all round (shelves, counters, walls, other props)
+      if (zone.cols.some(c => c.y1 > oy + 0.1 && c.y0 < oy + 1.8 && x + hx + 0.6 > c.x0 && x - hx - 0.6 < c.x1 && z + hz + 0.6 > c.z0 && z - hz - 0.6 < c.z1)) continue;
+      const rad = Math.max(hx, hz);
+      if (Math.hypot(x - ent.x, z - ent.z) < rad + 3 || zone.exits.some(e => Math.abs(e.y - oy) < 0.5 && Math.hypot(x - e.x, z - e.z) < rad + 3)) continue;
+      if (zone.exits.some(e => Math.abs(e.y - oy) < 0.5 && segDist(x, z, ent.x, ent.z, e.x, e.z) < rad + 0.9)) continue;
+      if (lanes.some(l => Math.abs((l.a === 'z' ? x : z) - l.c) < zone.kr + (l.a === 'z' ? hx : hz) + 0.2)) continue;
+      p.g.position.set(x, 0, z); p.g.rotation.y = (turn ? Math.PI / 2 : 0) + (r() < 0.5 ? Math.PI : 0) + (r() - 0.5) * 0.08;
+      zone.g.add(p.g); zone.props.push(p.g);
+      zone.cols.push({ x0: x - hx, x1: x + hx, z0: z - hz, z1: z + hz, y0: oy - 0.5, y1: oy + p.h });
+      break;
+    }
+  }
+}
+
+/* ---------- 이어리: THE FOLLOWER — a pale, thin thing that steps out of the door behind you and runs. It is just
+   slower than you at a sprint: keep running and it falls behind; stop, or run into a dead end, and it is on you.
+   It gives up after a while. ---------- */
+const FOLLOW_MAT = addDarkness(new THREE.MeshStandardMaterial({ color: 0xd6cdbf, roughness: 0.7, metalness: 0, envMap: envTex, envMapIntensity: 0.6 }));
+const FOLLOW_FACE = new THREE.MeshBasicMaterial({ color: 0x000000 });
+const FOLLOWER = {
+  f: null, dist: 99,
+  start(zone) {
+    if (this.f) return;
+    const m = zone.meta, x = zone.ox + m.entry, z = zone.z0 + 0.8;
+    const obj = humanoid(FOLLOW_MAT, 2.35, 0.32), top = obj.children[0], hy = 2.35 * 0.9;
+    for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), FOLLOW_FACE); e.position.set(s * 0.05, hy + 0.02, 0.115); top.add(e); }
+    const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), FOLLOW_FACE); mouth.scale.set(1.2, 1.6, 0.4); mouth.position.set(0, hy - 0.07, 0.11); top.add(mouth);
+    obj.position.set(x, zone.oy, z); scene.add(obj);
+    this.f = { obj, top, t: 0, life: 22 + zone.rng() * 8 + Math.min(zone.i, 40) * 0.2, speed: 0, stepT: 0, st: {} };
+    SFX.extraShriek(x, z); game.shake = Math.max(game.shake, 0.6); vhsMat.uniforms.uGlitch.value = Math.max(vhsMat.uniforms.uGlitch.value, 1.2);
+    toast('THE FOLLOWER', game.metFol ? '' : "Don't stop.", true); game.metFol = true;
+  },
+  update(dt) {
+    const f = this.f; if (!f) { this.dist = 99; return null; }
+    const P = game.p, o = f.obj.position, dx = P.x - o.x, dz = P.z - o.z, d = Math.hypot(dx, dz) || 1;
+    this.dist = d; f.t += dt; f.life -= dt;
+    if (f.life <= 0 || d > 40) { this.end(true); return null; }
+    const top = CFG.sprint * Math.min(0.97, 0.9 + game.zoneIdx * 0.002);           // just under a sprint
+    f.speed = f.t < 1.1 ? 0 : Math.min(top, f.speed + dt * 6);                       // a beat in the doorway, then it runs
+    stepAvoiding(o, dx / d, dz / d, f.speed * dt, 0.3, f.st);
+    const g = groundAt(o.x, o.z, o.y + 0.6, zones.indexOf(zoneAt(o.z))); o.y = isFinite(g) && Math.abs(g - o.y) < 1.2 ? g : o.y + (P.y - o.y) * Math.min(1, dt * 3);
+    f.obj.rotation.y = Math.atan2(dx, dz);
+    const run = f.speed / CFG.sprint, ph = f.t * 11;
+    f.top.rotation.x = 0.32 + run * 0.25; f.top.rotation.z = Math.sin(ph) * 0.08 * run; f.top.position.y = Math.abs(Math.sin(ph)) * 0.06 * run;
+    if (run > 0.3 && (f.stepT -= dt) <= 0) { f.stepT = 0.29; SFX.knock(o.x, o.z, 0.7); }
+    if (d < 0.75 && Math.abs(P.y - o.y) < 1.3) return 'kill';
+    return null;
+  },
+  end(escaped) {
+    if (!this.f) return;
+    scene.remove(this.f.obj); this.f = null; this.dist = 99;
+    if (escaped && game.running) DOPA.reward(2, 'LOST IT');
+  },
+};
+Hazards.follower = {
+  update(dt, zone, active) {
+    if (!zone.meta || zone.folDone || eerieFor(zone) !== 'follower' || zone.i !== game.zoneIdx || !active) return;
+    if ((zone.folT = (zone.folT ?? 1.5 + zone.rng() * 3) - dt) > 0) return;
+    zone.folDone = true; FOLLOWER.start(zone);
+  },
+  check() { return {}; },
+};
+
+/* ---------- THE WATCHER — not dangerous. Someone standing at the far end of the room, watching you come.
+   Get close, or look at it too long, and it is not there any more. ---------- */
+const WATCH_MAT = addDarkness(new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.9, metalness: 0, envMap: envTex, envMapIntensity: 0.4 }));
+Hazards.watcher = {
+  update(dt, zone, active) {
+    if (zone.i !== game.zoneIdx || !active) { if (zone.wa) { scene.remove(zone.wa.obj); zone.wa = null; } return; }
+    if (!zone.meta || zone.meta.safe || zone.meta.crawl || zone.i < 2) return;
+    if (zone.waDone === undefined) zone.waDone = !(eerieFor(zone) === null && zone.rng() < Math.min(0.18 + zone.i * 0.01, 0.4));
+    const P = game.p;
+    if (!zone.wa) {
+      if (zone.waDone || (zone.waT = (zone.waT ?? 1 + zone.rng() * 3) - dt) > 0) return;
+      zone.waDone = true;
+      for (let t = 0; t < 30; t++) {
+        const x = zone.x0 + 0.8 + zone.rng() * (zone.x1 - zone.x0 - 1.6), z = zone.exitZ + 0.8 + zone.rng() * Math.min(3, zone.len * 0.25);
+        const g = groundAt(x, z, zone.oy + 0.5, zone.i); if (!isFinite(g) || Math.abs(g - zone.oy) > 0.3) continue;
+        if (zone.cols.some(c => colBlocks(c, g) && x > c.x0 - 0.4 && x < c.x1 + 0.4 && z > c.z0 - 0.4 && z < c.z1 + 0.4)) continue;
+        if (Math.hypot(x - P.x, z - P.z) < 12) continue;
+        const obj = humanoid(WATCH_MAT, 2.0 + zone.rng() * 0.3); obj.position.set(x, g, z); scene.add(obj);
+        zone.wa = { obj, look: 0 }; break;
+      }
+      return;
+    }
+    const w = zone.wa, o = w.obj.position, d = Math.hypot(P.x - o.x, P.z - o.z);
+    w.obj.rotation.y = Math.atan2(P.x - o.x, P.z - o.z);
+    camera.getWorldDirection(_ef); _ev.set(o.x - camera.position.x, o.y + 1.6 - camera.position.y, o.z - camera.position.z).normalize();
+    if (_ef.dot(_ev) > 0.97 && !sightBlocked(P.x, P.z, o.x, o.z, zone.i, camera.position.y)) w.look += dt;
+    if (d < 8 || w.look > 1.2) {   // gone between two frames
+      scene.remove(w.obj); zone.wa = null;
+      vhsMat.uniforms.uGlitch.value = Math.max(vhsMat.uniforms.uGlitch.value, 0.9);
+      if (SFX.ctx) SFX._noise(SFX.ctx.currentTime, 0.25, 'bandpass', 700, 0.8, 0.22);
+    }
+  },
+  check() { return {}; },
+};
+
+/* ============================================================
    NINE LIVES — the rest stop (about 1 room in 20): safe, its own music, black cats behind the counter selling
    glow sticks (◆3) and speed cola (◆4).
    ============================================================ */
@@ -2773,7 +3030,7 @@ const game = {
     NIKI.reset(); GLOW.reset();
     for (const v of DARK.uDark.value) v.set(0, 0, 0, 0);
     DARK.uBlack.value.set(0, 0, 0, 0); SFX.powerOn();
-    DOPA.reset(); TRAP.end(); STARE.style.opacity = 0; SFX.setStare?.(0); this.colaT = 0;
+    DOPA.reset(); FOLLOWER.end(false); TRAP.end(); STARE.style.opacity = 0; SFX.setStare?.(0); this.colaT = 0;
     MUSIC.setDepth(0); MUSIC.start('run');
     vhsMat.uniforms.uDark.value = 0;
     streamZones();
@@ -2885,13 +3142,14 @@ const game = {
     }
     const nd = NIKI.update(dt);
     if (nd === 'kill') return this.die('niki');
+    if (FOLLOWER.update(dt) === 'kill') return this.die('follower', { pos: FOLLOWER.f.obj.position });
     GLOW.update(dt);
     DOPA.update(dt, this.maxDist); updateTokens(dt); SHOP.update(dt);
     // how tense the music gets: anything close and hunting
     const zd = zones[this.zoneIdx];
     MUSIC.setDanger(Math.max(shakeK * 1.5, rumble * 2, NIKI.mode === 'mad' ? 1 : 0, zd?.extra ? zd.extra.stare + 0.3 : 0,
       zd?.wh ? clamp(1 - Math.hypot(zd.wh.obj.position.x - this.p.x, zd.wh.obj.position.z - this.p.z) / 14, 0, 1) : 0,
-      zd?.doll ? 0.6 : 0, zd?.handsPlan?.black ? 0.8 : 0));
+      zd?.doll ? 0.6 : 0, zd?.handsPlan?.black ? 0.8 : 0, FOLLOWER.f ? clamp(1.2 - FOLLOWER.dist / 25, 0.6, 1.2) : 0));
     if (this.colaT > 0 || this.colaShown) { DOPA.hud(); this.colaShown = this.colaT > 0; }
     // pack the darkness spots of the rooms around the player into the shader uniforms
     let di = 0;
@@ -2957,7 +3215,7 @@ const game = {
   // with the thing that got you in frame. Nothing here plays before the hit, so Killi's approach stays unannounced.
   die(cause, by = null) {
     this.dead = true; this.cause = cause; this.deathT = 0;
-    SFX.crush(); SFX.setRumble(0); MUSIC.stop(true); DOPA.saveBest(this.maxDist); STARE.style.opacity = 0; SFX.setStare?.(0); TRAP.end();
+    SFX.crush(); SFX.setRumble(0); MUSIC.stop(true); FOLLOWER.end(false); DOPA.saveBest(this.maxDist); STARE.style.opacity = 0; SFX.setStare?.(0); TRAP.end();
     vhsMat.uniforms.uGlitch.value = 3;
     if (document.pointerLockElement) document.exitPointerLock();
     const c = camera.position, src = cause === 'niki' ? NIKI.pos : by?.obj?.position || by?.pos || null;
@@ -3151,7 +3409,7 @@ loadAssets((f, label) => {
     ? 'Open this through a web server (e.g. <code>npx http-server</code> or GitHub Pages) — browsers block file:// assets.'
     : 'Failed to load assets: ' + escapeHTML(err.message || String(err));
 });
-if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP };
+if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER };
 </script>
 </body>
 </html>
