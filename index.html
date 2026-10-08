@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#111111">
+<!-- installable: "Add to Home Screen" opens it full screen, no browser bars (the only way on iPhone) -->
+<link rel="manifest" href="assets/ui/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EVERY SPACE">
+<link rel="apple-touch-icon" href="assets/ui/icon-180.png">
 <title>EVERY SPACE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -162,6 +169,7 @@
       <label class="tog"><input type="checkbox" id="optRefl" checked> Reflections</label>
     </div>
     <p class="keys" id="keysTxt">WASD · Shift run · Space jump · Click to look</p>
+    <div class="row" id="fsRow" style="display:none"><button class="ghost" id="fsBtn">⛶ Full screen</button><span class="keys" id="fsTip"></span></div>
     <h3>LEADERBOARD</h3>
     <div class="row" style="margin-bottom:6px">
       <button class="ghost sel" data-tab="dist">Distance</button>
@@ -2372,7 +2380,23 @@ function playerName() {
 }
 $('nameIn').value = store.get('ieori.name', '');
 
+// full screen on phones: the Fullscreen API where the browser allows it (Android, desktop), otherwise (iPhone Safari)
+// point to "Add to Home Screen", which opens the game without browser bars (see the manifest / apple meta tags)
+const standalone = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone;
+const canFS = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+function goFullscreen() {
+  if (standalone || document.fullscreenElement || document.webkitFullscreenElement) return;
+  const el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (canFS && rq) { try { const p = rq.call(el, { navigationUI: 'hide' }); p?.catch?.(() => {}); } catch { } }
+}
+if (isTouch && !standalone) {
+  $('fsRow').style.display = 'flex';
+  if (canFS) $('fsBtn').addEventListener('click', goFullscreen);
+  else { $('fsBtn').style.display = 'none';
+    $('fsTip').textContent = /iP(hone|ad|od)/.test(navigator.userAgent) ? 'Full screen: Share → Add to Home Screen, then open it from there.' : 'Full screen: browser menu → Add to Home screen.'; }
+}
 function start() {
+  if (isTouch) goFullscreen();
   if (!ready) return;
   SFX.init();
   playerName();
