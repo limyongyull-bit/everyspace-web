@@ -1387,10 +1387,12 @@ function buildRoom(zone, kind) {
   zone.kr = Math.min(KR, (m.h - 0.12) / 2, KILLI_DOOR_R);
   // Killi director: each room has a mood, so the rhythm can't be learnt. calm: nothing comes (maybe one far horn
   // that never arrives); uneasy: one or two heads, long gaps; active: the old cadence. Never in the first 8 s.
-  const mr = zone.rng(), calmP = Math.max(0.2, 0.35 - zone.i * 0.01), activeP = Math.min(0.5, 0.25 + zone.i * 0.015);
+  // difficulty climbs with depth: past room 10 most rooms are 'active' and the heads come faster and in packs
+  const D = clamp((zone.i - 1) / 14, 0, 1);
+  const mr = zone.rng(), calmP = Math.max(0.05, 0.22 - 0.2 * D), activeP = Math.min(0.85, 0.3 + 0.55 * D);
   zone.mood = zone.i <= 1 ? 'uneasy' : mr < calmP ? 'calm' : mr > 1 - activeP ? 'active' : 'uneasy';
-  zone.killiT = 8 + zone.rng() * 12;
-  zone.killiLeft = zone.mood === 'calm' ? 0 : zone.mood === 'uneasy' ? 1 + (zone.rng() < 0.5 ? 1 : 0) : Infinity;
+  zone.killiT = (5 + zone.rng() * 8) * (1 - 0.45 * D);
+  zone.killiLeft = zone.mood === 'calm' ? 0 : zone.mood === 'uneasy' ? 2 + (zone.rng() < 0.5 + 0.5 * D ? 1 : 0) : Infinity;
   if (zone.mood === 'calm' && zone.rng() < 0.6) zone.fakeHornT = 10 + zone.rng() * 25;
 }
 function createZone(i, z0, opts = {}) {
@@ -1561,7 +1563,7 @@ function spawnKilli(zone, p) {
   // +1: travels toward +x / +z; a cross aisle open on one side only is entered from that side
   const dir = lane.from && lane.from.length === 1 ? -lane.from[0] : r() < 0.5 ? 1 : -1;
   const speed = Math.min(6.5 + depth * 0.35, 11) * (0.9 + r() * 0.25);
-  let n = 1 + (r() < Math.min(0.12 + depth * 0.04, 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);
+  let n = 1 + (r() < Math.min(0.12 + depth * 0.04, depth > 10 ? 0.7 : 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);
   const kr = zone.kr;
   let s0, span;
   if (axis === 'x') { s0 = dir > 0 ? zone.x0 - OUTSIDE : zone.x1 + OUTSIDE; span = zone.x1 - zone.x0 + OUTSIDE * 2; }
@@ -1598,8 +1600,8 @@ const Hazards = {
         zone.killiT -= dt;
         if (zone.killiT <= 0 && zone.killiLeft > 0) {
           spawnKilli(zone, game.p); zone.killiLeft--;
-          const pace = Math.max(0.45, 1 - zone.i * 0.035);
-          zone.killiT = zone.mood === 'active' ? (6 + zone.rng() * 7) * pace : 15 + zone.rng() * 25;
+          const pace = Math.max(0.35, 1 - zone.i * 0.045);
+          zone.killiT = zone.mood === 'active' ? (5 + zone.rng() * 6) * pace : (10 + zone.rng() * 14) * pace;
         }
       }
       zone.killis = zone.killis.filter(k => { const alive = k.update(dt); if (!alive) k.dispose(); return alive; });
@@ -1778,7 +1780,9 @@ Hazards.hands = {
     if (!zone.meta || !ASSET.hands) return;
     if (zone.handsPlan === undefined) {
       // deeper rooms with ceiling lights may hold a mound; it starts at the far side of the room
-      const ok = zone.i >= 2 && !zone.meta.crawl && (window.__forceHands ?? zone.rng() < Math.min(0.25 + zone.i * 0.03, 0.5));
+      // rarer than before (owner: too many): never two rooms running, at most ~1 room in 5 even deep down
+      const prevHands = zones[zone.i - 1]?.handsPlan;
+      const ok = zone.i >= 3 && !zone.meta.crawl && !prevHands && (window.__forceHands ?? zone.rng() < Math.min(0.08 + zone.i * 0.008, 0.2));
       zone.handsPlan = ok ? { delay: 4 + zone.rng() * 6, flick: 0, level: 0 } : null;
     }
     const plan = zone.handsPlan;
@@ -2308,14 +2312,15 @@ const game = {
     else if (src) { const dx = c.x - src.x, dz = c.z - src.z, l = Math.hypot(dx, dz) || 1; fx = dx / l; fz = dz / l; }   // flung away from it
     const fling = cause === 'killi' ? 2.4 : cause === 'hands' ? 0.6 : 1.6;
     const side = Math.random() < 0.5 ? -1 : 1;
-    this.drop = { vx: fx * fling, vz: fz * fling, vy: cause === 'killi' ? 2.4 : 0.8, src, by, bounced: 0,
+    const gy = groundAt(this.p.x, this.p.z, this.p.y + 0.1, this.zoneIdx);
+    this.drop = { floorY: isFinite(gy) ? gy : this.p.y, vx: fx * fling, vz: fz * fling, vy: cause === 'killi' ? 2.4 : 0.8, src, by, bounced: 0,
       roll: side * (1.35 + Math.random() * 0.25),                       // lands on its edge
       pitch: cause === 'niki' ? 0.55 : cause === 'hands' ? -0.8 : 0.08,   // looking up at her / tipped toward the floor / along it
       spin: side * (cause === 'killi' ? 9 : 4) };
   },
   updateDeath(dt) {
     this.deathT += dt;
-    const D = this.drop, c = camera.position, floor = 0.13;   // the lens rests a phone's width off the floor (near plane 0.1 m)
+    const D = this.drop, c = camera.position, floor = (D?.floorY ?? 0) + 0.13;   // the lens rests a phone's width off the floor you stood on
     if (D) {
       if (c.y > floor || D.vy > 0) {
         D.vy -= CFG.gravity * dt; c.y += D.vy * dt;
@@ -2381,7 +2386,7 @@ function start() {
 }
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
-$('menuBtn').addEventListener('click', () => { $('dead').classList.remove('on'); $('menu').classList.add('on'); });
+$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('menu').classList.add('on'); });
 $('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
 if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right: look';
 
