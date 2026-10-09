@@ -1601,8 +1601,17 @@ function pickRoom(i, k = 0, from = null) {
   const wt = n => (ROOM_WEIGHT[fam(n)] ?? 1) / famN(n);
   const total = pool.reduce((s, n) => s + wt(n), 0);
   let acc = 0;
-  for (const n of pool) { acc += wt(n) / total; if (r < acc) return n; }
-  return pool[pool.length - 1] || avail[0] || null;
+  for (const n of pool) { acc += wt(n) / total; if (r < acc) return varyRoom(n, avail, r); }
+  return varyRoom(pool[pool.length - 1] || avail[0] || null, avail, r);
+}
+// the same kind of place never looks the same twice running: a layout of it you haven't been in yet (other doors,
+// other aisles), or at least not the one you saw last
+function varyRoom(n, avail, r) {
+  const fam = x => (x || '').replace(/\d+$/, ''), vars = avail.filter(m => fam(m) === fam(n));
+  if (vars.length < 2) return n;
+  const seen = game.seenRooms || new Set(), last = game.lastVariant?.[fam(n)];
+  const fresh = vars.filter(m => !seen.has(m)), pool = fresh.length ? fresh : vars.filter(m => m !== last);
+  return pool[Math.floor(((r * 7919) % 1) * pool.length)] || n;
 }
 const signCache = new Map();
 const FACE_CSS = {
@@ -1631,6 +1640,7 @@ function signMat(s) {
 function buildRoom(zone, kind) {
   const m = ASSET.meta.modules[kind], prev = zones[zone.i - 1];
   zone.kind = kind; zone.meta = m;
+  (game.seenRooms ||= new Set()).add(kind); (game.lastVariant ||= {})[kind.replace(/\d+$/, '')] = kind;
   const pe = prev?.exits?.[zone.via];
   zone.ox = (pe ? pe.x : prev ? prev.exitX : 0) - m.entry;
   placeModule(zone, kind, zone.z0, zone.ox);
@@ -3559,7 +3569,7 @@ const game = {
     NIKI.reset(); GLOW.reset();
     for (const v of DARK.uDark.value) v.set(0, 0, 0, 0);
     DARK.uBlack.value.set(0, 0, 0, 0); SFX.powerOn();
-    DOPA.reset(); FOLLOWER.end(false); CUT.end(false); TRAP.end(); HANDSUI.set(null); this.hp = 1; STARE.style.opacity = 0; SFX.setStare?.(0); this.colaT = 0;
+    DOPA.reset(); FOLLOWER.end(false); CUT.end(false); TRAP.end(); HANDSUI.set(null); this.seenRooms = new Set(); this.lastVariant = {}; this.hp = 1; STARE.style.opacity = 0; SFX.setStare?.(0); this.colaT = 0;
     MUSIC.setDepth(0); MUSIC.start('run');
     vhsMat.uniforms.uDark.value = 0;
     streamZones();
