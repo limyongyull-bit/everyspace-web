@@ -269,8 +269,9 @@ const DEX = [
   { id: 'niki', name: 'NIKI', live: true, desc: "Stay close to her. Don't run unless you can keep running." },
   { id: 'whistle', name: 'THE WHISTLE', live: true, desc: 'Avoid the beep.' },
   { id: 'follower', name: 'THE FOLLOWER', live: true, desc: "Don't stop." },
+  { id: 'sunflower', name: 'THE SUNFLOWERS', live: true, desc: 'Find another way.' },
 ];
-const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki', fall: 'Fell', matryoshka: 'Sealed in the Matryoshka', extra: 'You stared at The Extra', whistle: 'Found by The Whistle', follower: 'Caught by The Follower' };
+const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki', fall: 'Fell', matryoshka: 'Sealed in the Matryoshka', extra: 'You stared at The Extra', whistle: 'Found by The Whistle', follower: 'Caught by The Follower', sunflower: 'Touched The Sunflowers' };
 
 /* ============================================================
    UTIL
@@ -1616,6 +1617,7 @@ function disposeZone(zone) {
   zone.doll?.dispose(); zone.doll = null; if (zone.extra) scene.remove(zone.extra.obj); if (zone.wh) scene.remove(zone.wh.obj);
   for (const t of zone.tokens || []) scene.remove(t);
   if (zone.wa) scene.remove(zone.wa.obj);
+  if (zone.sun) scene.remove(zone.sun.obj);
   zone.killis = [];
 }
 function zoneAt(z) {
@@ -2375,7 +2377,8 @@ function eerieFor(zone) {
   if (DEBUG && window.__forceEerie) e = window.__forceEerie;
   else if (zone.i >= 3 && zone.meta && !zone.meta.crawl && !zone.meta.safe && !zones[zone.i - 1]?.eerie) {
     if (zone.rng() < Math.min(0.2 + zone.i * 0.015, 0.55)) {
-      const opts = [['hands', 0.55], ['whistle', zone.i >= 3 ? 1 : 0], ['matryoshka', zone.i >= 4 ? 1 : 0], ['extra', zone.i >= 5 ? 1 : 0], ['follower', zone.i >= 6 ? 1.2 : 0]];
+      const opts = [['hands', 0.55], ['whistle', zone.i >= 3 ? 1 : 0], ['matryoshka', zone.i >= 4 ? 1 : 0], ['extra', zone.i >= 5 ? 1 : 0], ['follower', zone.i >= 6 ? 1.2 : 0],
+        ['sunflower', zone.i >= 4 && zone.meta.x1 - zone.meta.x0 >= 10 && zone.len >= 14 ? 1.1 : 0]];
       let r = zone.rng() * opts.reduce((s, o) => s + o[1], 0);
       for (const [k, w] of opts) { r -= w; if (r <= 0) { e = k; break; } }
     }
@@ -2773,6 +2776,99 @@ Hazards.follower = {
   check() { return {}; },
 };
 
+/* ---------- 이어리: THE SUNFLOWERS — a tall black sunflower with a ring of small ones round its stem. It drifts, very
+   slowly, into the way between you and the door; every head turns to follow you, like flowers following the sun.
+   Don't touch any of them: find another way round. Only in rooms wide enough to get past. ---------- */
+const SUNFLOWER = (() => {
+  const std = (c, r, e = 0) => addDarkness(new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: 0, emissive: e, envMap: envTex, envMapIntensity: 0.55 }));
+  const stemM = std(0x0d110b, 0.6), petalM = std(0x0d0b0a, 0.22), leafM = std(0x0c100a, 0.45);
+  petalM.envMapIntensity = 1.0; petalM.side = THREE.DoubleSide;
+  const seedM = addDarkness(new THREE.MeshStandardMaterial({ roughness: 0.3, metalness: 0, envMap: envTex, envMapIntensity: 0.9, emissive: 0x140804,
+    map: canvasTex(512, 512, (g, w, h) => {   // a seed head: golden-angle spiral of seeds, darker toward the middle
+      g.fillStyle = '#0a0806'; g.fillRect(0, 0, w, h);
+      for (let k = 0; k < 900; k++) {
+        const r = Math.sqrt(k / 900) * w * 0.48, a = k * 2.39996, x = w / 2 + Math.cos(a) * r, y = h / 2 + Math.sin(a) * r, t = r / (w * 0.48);
+        g.fillStyle = `rgb(${50 + 80 * t | 0},${30 + 40 * t | 0},${16 + 14 * t | 0})`; g.beginPath(); g.ellipse(x, y, 3 + 5 * t, 2 + 3 * t, a, 0, 7); g.fill();
+        if (k % 37 === 0) { g.fillStyle = 'rgba(120,10,6,0.8)'; g.beginPath(); g.arc(x, y, 2 + 2 * t, 0, 7); g.fill(); }
+      }
+    }) }));
+  const PETAL = new THREE.SphereGeometry(1, 12, 6).scale(0.13, 0.025, 0.5).translate(0, 0, 0.5);
+  const DISC = new THREE.CylinderGeometry(1, 1, 0.08, 40).rotateX(Math.PI / 2);
+  const STEM = new THREE.CylinderGeometry(0.035, 0.06, 1, 8).translate(0, 0.5, 0);
+  const LEAF = new THREE.SphereGeometry(1, 10, 6).scale(0.14, 0.012, 0.34).translate(0, 0, 0.3);
+  // one flower: stem height h, head radius r; returns { obj, head } (head faces +z, turned toward you each frame)
+  const flower = (h, r) => {
+    const obj = new THREE.Group(), stem = new THREE.Mesh(STEM, stemM); stem.scale.set(r * 3, h, r * 3); obj.add(stem);
+    for (let k = 0; k < 3; k++) { const l = new THREE.Mesh(LEAF, leafM); l.scale.setScalar(r * 2.6); l.position.y = h * (0.3 + k * 0.17); l.rotation.set(0.45, k * 2.2 + Math.random(), 0); obj.add(l); }
+    const head = new THREE.Group(); head.position.y = h;
+    const disc = new THREE.Mesh(DISC, petalM); disc.scale.set(r * 0.62, r * 0.62, r); head.add(disc);
+    const face = new THREE.Mesh(new THREE.CircleGeometry(r * 0.6, 40), seedM); face.position.z = r * 0.045; head.add(face);
+    for (let k = 0; k < 22; k++) {
+      const p = new THREE.Mesh(PETAL, petalM), a = k / 22 * Math.PI * 2;
+      p.scale.setScalar(r * (k % 2 ? 1.0 : 1.12)); p.rotation.set(Math.PI / 2, 0, 0); const q = new THREE.Group(); q.rotation.z = a; q.add(p);
+      p.rotation.x = Math.PI / 2 - 0.12 - (k % 2) * 0.12; head.add(q);
+    }
+    obj.add(head); obj.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+    return { obj, head, h, r };
+  };
+  return { flower };
+})();
+Hazards.sunflower = {
+  update(dt, zone, active) {
+    if (!zone.meta || eerieFor(zone) !== 'sunflower') return;
+    const here = active && zone.i === game.zoneIdx, P = game.p;
+    if (!here) { if (zone.sun) { scene.remove(zone.sun.obj); zone.sun = null; } return; }
+    let s = zone.sun;
+    if (!s) {
+      if (zone.sunDone || (zone.sunT = (zone.sunT ?? 0.5 + zone.rng() * 1.5) - dt) > 0) return;
+      zone.sunDone = true;
+      const obj = new THREE.Group(), big = SUNFLOWER.flower(2.9, 0.95), small = [];
+      obj.add(big.obj);
+      const n = 6 + ((zone.rng() * 3) | 0);
+      for (let k = 0; k < n; k++) {
+        const f = SUNFLOWER.flower(0.9 + zone.rng() * 0.6, 0.26 + zone.rng() * 0.08);
+        f.a = k / n * Math.PI * 2 + zone.rng() * 0.4; f.rad = 1.5 + zone.rng() * 0.9; f.sway = zone.rng() * 6; obj.add(f.obj); small.push(f);
+      }
+      // starts out in the middle of the way to the door
+      const ex = zone.exits.reduce((a, e) => Math.abs(e.y - zone.oy) < 0.5 && Math.abs(e.x - P.x) < Math.abs(a.x - P.x) ? e : a, zone.exits[0]);
+      const x = clamp(ex.x, zone.x0 + 3.4, zone.x1 - 3.4), z = zone.z0 - zone.len * 0.6;
+      obj.position.set(x, zone.oy, z); scene.add(obj);
+      s = zone.sun = { obj, big, small, st: {}, d: 99, ex, t: 0 };
+      if (!game.metSun) { game.metSun = true; toast('THE SUNFLOWERS', 'Find another way.', true); }
+      SFX.dollClose();
+    }
+    const o = s.obj.position; s.t += dt;
+    // where it wants to be: on your line to the door, a few metres ahead of you; past it, it just creeps after you
+    const ex = s.ex, lx = ex.x - P.x, lz = ex.z - P.z, ll = Math.hypot(lx, lz) || 1;
+    const ahead = Math.min(6, ll * 0.6);
+    let tx = P.x + lx / ll * ahead, tz = P.z + lz / ll * ahead;
+    if ((o.z - P.z) * Math.sign(lz || -1) < -1) { tx = P.x; tz = P.z; }
+    tx = clamp(tx, zone.x0 + 3.2, zone.x1 - 3.2); tz = clamp(tz, zone.exitZ + 2.5, zone.z0 - 3);
+    const dx = tx - o.x, dz = tz - o.z, dd = Math.hypot(dx, dz);
+    if (dd > 0.2) stepAvoiding(o, dx / dd, dz / dd, Math.min(dd, (0.42 + Math.min(zone.i, 40) * 0.008) * dt), 0.55, s.st);
+    o.y = zone.oy;
+    // every head turns to you
+    const look = (f, wx, wz, hy) => { const ax = P.x - wx, az = P.z - wz; f.head.rotation.set(Math.atan2(camera.position.y - (zone.oy + hy), Math.hypot(ax, az)) * -0.6, Math.atan2(ax, az) - s.obj.rotation.y, 0, 'YXZ'); };
+    look(s.big, o.x, o.z, s.big.h);
+    s.big.head.scale.setScalar(1 + Math.sin(s.t * 1.3) * 0.025);
+    let dmin = Math.hypot(P.x - o.x, P.z - o.z) - 0.8;
+    for (const f of s.small) {
+      f.a += dt * 0.12;
+      let r = f.rad, x, z;
+      for (; r > 0.6; r -= 0.2) {   // pulled in where the ring would stand inside a shelf or a wall
+        x = o.x + Math.cos(f.a) * r; z = o.z + Math.sin(f.a) * r;
+        if (x > zone.x0 + 0.3 && x < zone.x1 - 0.3 && !zone.cols.some(c => colBlocks(c, zone.oy) && x > c.x0 - 0.2 && x < c.x1 + 0.2 && z > c.z0 - 0.2 && z < c.z1 + 0.2)) break;
+      }
+      f.obj.position.set(x - o.x, 0, z - o.z); f.obj.rotation.z = Math.sin(s.t * 1.7 + f.sway) * 0.05;
+      look(f, x, z, f.h);
+      dmin = Math.min(dmin, Math.hypot(P.x - x, P.z - z) - 0.3);
+    }
+    s.d = dmin;
+    if (dmin < 0.25 && Math.abs(P.y - o.y) < 1.5) zone.pendingKill = { kill: 'sunflower', by: { pos: o } };
+  },
+  check(zone) { const k = zone.pendingKill; zone.pendingKill = null; return k || {}; },
+};
+
 /* ---------- THE WATCHER — not dangerous. Someone standing at the far end of the room, watching you come.
    Get close, or look at it too long, and it is not there any more. ---------- */
 const WATCH_MAT = addDarkness(new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.9, metalness: 0, envMap: envTex, envMapIntensity: 0.4 }));
@@ -3149,7 +3245,7 @@ const game = {
     const zd = zones[this.zoneIdx];
     MUSIC.setDanger(Math.max(shakeK * 1.5, rumble * 2, NIKI.mode === 'mad' ? 1 : 0, zd?.extra ? zd.extra.stare + 0.3 : 0,
       zd?.wh ? clamp(1 - Math.hypot(zd.wh.obj.position.x - this.p.x, zd.wh.obj.position.z - this.p.z) / 14, 0, 1) : 0,
-      zd?.doll ? 0.6 : 0, zd?.handsPlan?.black ? 0.8 : 0, FOLLOWER.f ? clamp(1.2 - FOLLOWER.dist / 25, 0.6, 1.2) : 0));
+      zd?.doll ? 0.6 : 0, zd?.sun ? clamp(1 - zd.sun.d / 9, 0, 0.9) : 0, zd?.handsPlan?.black ? 0.8 : 0, FOLLOWER.f ? clamp(1.2 - FOLLOWER.dist / 25, 0.6, 1.2) : 0));
     if (this.colaT > 0 || this.colaShown) { DOPA.hud(); this.colaShown = this.colaT > 0; }
     // pack the darkness spots of the rooms around the player into the shader uniforms
     let di = 0;
