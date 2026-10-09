@@ -267,7 +267,7 @@ const DEX = [
   { id: 'matryoshka', name: 'MATRYOSHKA', live: true, desc: 'Rock to break free.' },
   { id: 'extra', name: 'THE EXTRA', live: true, desc: "Don't stare." },
   { id: 'niki', name: 'NIKI', live: true, desc: "Stay close to her. Don't run unless you can keep running." },
-  { id: 'whistle', name: 'THE WHISTLE', live: true, desc: 'Avoid the beep.' },
+  { id: 'whistle', name: 'THE WHISTLE', live: true, desc: 'Stay off the marks. Keep your distance. Don\'t let it fill your view.' },
   { id: 'follower', name: 'THE FOLLOWER', live: true, desc: "Don't stop." },
   { id: 'sunflower', name: 'THE SUNFLOWERS', live: true, desc: 'Find another way.' },
 ];
@@ -1088,6 +1088,22 @@ const SFX = {
     const p = this.panner(1.5, 1.1, x, y, z);
     this.tone(2600 + clamp(8 - d, 0, 8) * 60, 0, 0.07, 0.22, 'square', p);
   },
+  // a fist on a metal grate
+  clang(x, z, v = 1) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime, p = this.panner(2, 0.6, x, 0.6, z);
+    for (const f of [410 + Math.random() * 60, 1130 + Math.random() * 90, 2310]) this.tone(f, 0, 0.35, 0.09 * v, 'triangle', p);
+    this._noise(t, 0.07, 'bandpass', 2600, 1.5, 0.35 * v, p); this._noise(t, 0.12, 'lowpass', 400, 0.7, 0.4 * v, p);
+  },
+  // a long breath out
+  sigh() {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime, s = ctx.createBufferSource(); s.buffer = this.white;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4; f.frequency.setValueAtTime(1300, t); f.frequency.exponentialRampToValueAtTime(420, t + 1.6);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.22, t + 0.18); g.gain.exponentialRampToValueAtTime(0.001, t + 1.7);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random()); s.stop(t + 1.8);
+    this.tone(150, 0.02, 0.5, 0.03, 'sine');
+  },
   shriek(x, z) { this.scream(null, { dur: 0.7 + Math.random() * 0.4, f0: 600, f1: 1300 + Math.random() * 300, vol: 0.38, x, z }); },
   // rewards: a bright little arpeggio (more notes for more tokens); milestone: a big swelling chord + low hit
   coin(n = 1) { if (!this.ctx) return; [0, 4, 7, 12, 16].slice(0, Math.min(5, 1 + n)).forEach((s, k) => this.tone(880 * Math.pow(2, s / 12), k * 0.05, 0.18, 0.07, 'square')); },
@@ -1343,6 +1359,8 @@ const DYN = {
 };
 const GEO = { plane: new THREE.PlaneGeometry(1, 1), box: new THREE.BoxGeometry(1, 1, 1) };
 function addPlane(group, mat, w, h, x, y, z, rx = 0, ry = 0) {
+  // planes are decals on something (a sign on a wall, digits on a plate): always drawn in front of it, never flickering
+  if (!mat.polygonOffset) { mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.polygonOffsetUnits = -4; mat.needsUpdate = true; }
   const m = new THREE.Mesh(GEO.plane, mat);
   m.scale.set(w, h, 1); m.position.set(x, y, z); m.rotation.set(rx, ry, 0);
   group.add(m); return m;
@@ -1367,6 +1385,7 @@ function placeModule(zone, name, z, x = 0) {
   const meta = ASSET.meta.modules[name], oy = zone.oy || 0, h = meta.h || CFG.ceil;
   const obj = ASSET.proto[name].clone();
   obj.position.set(x, 0, z);
+  if (!meta.crawl) zone.solid = { g: SOLID.grid(name), ox: x, oy, oz: z };
   zone.g.add(obj);
   for (const c of meta.colliders) zone.cols.push({ x0: c[0] + x, x1: c[1] + x, z0: c[2] + z, z1: c[3] + z,
     y0: oy + (c.length > 4 ? c[4] : -0.5), y1: oy + (c.length > 4 ? c[5] : h + 0.5) });
@@ -1614,7 +1633,7 @@ function disposeZone(zone) {
   scene.remove(zone.g);
   zone.killis.forEach(k => k.dispose());
   zone.hands?.dispose(); zone.hands = null; zone.dark = [];
-  zone.doll?.dispose(); zone.doll = null; if (zone.extra) scene.remove(zone.extra.obj); if (zone.wh) scene.remove(zone.wh.obj);
+  zone.doll?.dispose(); zone.doll = null; if (zone.extra) scene.remove(zone.extra.obj); if (zone.wh) { scene.remove(zone.wh.obj); scene.remove(zone.wh.marks); } if (zone.grate) scene.remove(zone.grate);
   for (const t of zone.tokens || []) scene.remove(t);
   if (zone.wa) scene.remove(zone.wa.obj);
   if (zone.sun) scene.remove(zone.sun.obj);
@@ -1649,6 +1668,106 @@ function streamZones() {
   for (let i = 0; i < cur - 1; i++) if (zones[i] && !zones[i].disposed) { disposeZone(zones[i]); zones[i].disposed = true; }
 }
 
+/* ============================================================
+   SOLID GEOMETRY: what you see is what stops you. The hand-placed box colliders do the main work; this keeps the
+   body and the camera out of anything they miss (a wall end, a glass panel, a post, a sign, the underside of a slab).
+   Every triangle of a room that faces sideways or down is binned once per module into a 1 m grid; each frame the
+   eye, the chest and the top of the head are pushed out of anything nearer than the body radius.
+   ============================================================ */
+const SOLID = {
+  grids: new Map(),
+  skip: /^(sky|light|downlight|lightstrip|lightoff|highbay|steplight|paint|tactile|track|product|price|peg|leaf|ad|fids)$/,
+  grid(name) {
+    if (this.grids.has(name)) return this.grids.get(name);
+    const proto = ASSET.proto[name], T = [], v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    const e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), n = new THREE.Vector3();
+    proto.updateMatrixWorld(true);
+    proto.traverse(o => {
+      if (!o.isMesh || !o.visible || o.material.transparent) return;
+      if (this.skip.test((o.material.name || '').replace(/\.\d+$/, ''))) return;
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, cnt = idx ? idx.count : pos.count;
+      for (let i = 0; i + 2 < cnt; i += 3) {
+        for (let k = 0; k < 3; k++) v[k].fromBufferAttribute(pos, idx ? idx.getX(i + k) : i + k).applyMatrix4(o.matrixWorld);
+        n.crossVectors(e1.subVectors(v[1], v[0]), e2.subVectors(v[2], v[0]));
+        const len = n.length(); if (len < 0.02 || n.y / len > 0.6) continue;     // floors and treads: the floor code has those; specks (area < 0.01 m2) don't matter
+        T.push(v[0].x, v[0].y, v[0].z, v[1].x, v[1].y, v[1].z, v[2].x, v[2].y, v[2].z, n.y / len);
+      }
+    });
+    const tris = new Float32Array(T), cells = new Map();
+    for (let t = 0; t < tris.length; t += 10) {
+      const xs = [tris[t], tris[t + 3], tris[t + 6]], zs = [tris[t + 2], tris[t + 5], tris[t + 8]];
+      for (let ix = Math.floor(Math.min(...xs)); ix <= Math.floor(Math.max(...xs)); ix++)
+        for (let iz = Math.floor(Math.min(...zs)); iz <= Math.floor(Math.max(...zs)); iz++) {
+          const key = ix * 8192 + iz; let c = cells.get(key); if (!c) cells.set(key, c = []); c.push(t);
+        }
+    }
+    const g = { tris, cells }; this.grids.set(name, g); return g;
+  },
+  // closest point on triangle (a, b, c) to p (Ericson, Real-Time Collision Detection 5.1.5), written into out
+  closest(p, T, t, out) {
+    const ax = T[t], ay = T[t + 1], az = T[t + 2], bx = T[t + 3], by = T[t + 4], bz = T[t + 5], cx = T[t + 6], cy = T[t + 7], cz = T[t + 8];
+    const abx = bx - ax, aby = by - ay, abz = bz - az, acx = cx - ax, acy = cy - ay, acz = cz - az;
+    const apx = p.x - ax, apy = p.y - ay, apz = p.z - az;
+    const d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+    if (d1 <= 0 && d2 <= 0) return out.set(ax, ay, az);
+    const bpx = p.x - bx, bpy = p.y - by, bpz = p.z - bz;
+    const d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+    if (d3 >= 0 && d4 <= d3) return out.set(bx, by, bz);
+    const vc = d1 * d4 - d3 * d2;
+    if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return out.set(ax + abx * v, ay + aby * v, az + abz * v); }
+    const cpx = p.x - cx, cpy = p.y - cy, cpz = p.z - cz;
+    const d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+    if (d6 >= 0 && d5 <= d6) return out.set(cx, cy, cz);
+    const vb = d5 * d2 - d1 * d6;
+    if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return out.set(ax + acx * w, ay + acy * w, az + acz * w); }
+    const va = d3 * d6 - d5 * d4;
+    if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return out.set(bx + (cx - bx) * w, by + (cy - by) * w, bz + (cz - bz) * w); }
+    const den = 1 / (va + vb + vc), v = vb * den, w = vc * den;
+    return out.set(ax + abx * v + acx * w, ay + aby * v + acy * w, az + abz * v + acz * w);
+  },
+  _l: new THREE.Vector3(), _c: new THREE.Vector3(),
+  // push the point (world) out of the zone's geometry to at least r, adding the push to out; true if it moved
+  push(zone, wx, wy, wz, r, out) {
+    const s = zone.solid; if (!s) return false;
+    const l = this._l.set(wx - s.ox, wy - s.oy, wz - s.oz), c = this._c, T = s.g.tris;
+    let hit = false;
+    for (let ix = Math.floor(l.x - r); ix <= Math.floor(l.x + r); ix++)
+      for (let iz = Math.floor(l.z - r); iz <= Math.floor(l.z + r); iz++) {
+        const cell = s.g.cells.get(ix * 8192 + iz); if (!cell) continue;
+        for (const t of cell) {
+          if (Math.min(T[t + 1], T[t + 4], T[t + 7]) > l.y + r || Math.max(T[t + 1], T[t + 4], T[t + 7]) < l.y - r) continue;
+          if (Math.min(T[t], T[t + 3], T[t + 6]) > l.x + r || Math.max(T[t], T[t + 3], T[t + 6]) < l.x - r) continue;
+          if (Math.min(T[t + 2], T[t + 5], T[t + 8]) > l.z + r || Math.max(T[t + 2], T[t + 5], T[t + 8]) < l.z - r) continue;
+          this.closest(l, T, t, c);
+          const dx = l.x - c.x, dy = l.y - c.y, dz = l.z - c.z, d2 = dx * dx + dy * dy + dz * dz;
+          if (d2 >= r * r) continue;
+          const d = Math.sqrt(d2);
+          if (T[t + 9] < -0.6 && c.y > l.y) { out.y -= r - d; l.y -= r - d; }            // a ceiling / underside above
+          else if (d > 1e-4 && dx * dx + dz * dz > 1e-8) {                                  // a wall: sideways only
+            const h = Math.hypot(dx, dz);
+            out.x += dx / h * (r - d); out.z += dz / h * (r - d); l.x += dx / h * (r - d); l.z += dz / h * (r - d);
+          } else continue;
+          hit = true;
+        }
+      }
+    return hit;
+  },
+  // keep a body (feet at p, eye height eh) out of the geometry of the rooms around it
+  body(p, eh, zi, r = 0.27, ceilings = true) {
+    const out = { x: 0, y: 0, z: 0 };
+    for (let pass = 0; pass < 2; pass++) {
+      for (let k = Math.max(0, zi - 1); k <= zi + 1; k++) {
+        const zn = zones[k]; if (!zn || zn.disposed || !zn.solid || p.z > zn.z0 + 1.5 || p.z < zn.exitZ - 1.5) continue;
+        for (const hy of [eh, Math.max(0.95, eh - 0.6)]) {
+          const o = { x: 0, y: 0, z: 0 };
+          if (this.push(zn, p.x, p.y + hy, p.z, r, o)) { p.x += o.x; p.z += o.z; if (o.y && ceilings) { p.y += o.y; out.y += o.y; } out.x += o.x; out.z += o.z; }
+        }
+        if (ceilings) { const o = { x: 0, y: 0, z: 0 }; if (this.push(zn, p.x, p.y + eh + 0.08, p.z, 0.14, o) && o.y) { p.y += o.y; out.y += o.y; } }
+      }
+    }
+    return out;
+  },
+};
 /* ============================================================
    HAZARD: 킬리 (Killi) — rolling black head, straight line only.
    It comes from far outside the room, through the walls, and you can't see which way it will come:
@@ -1737,6 +1856,12 @@ class Killi {
       this.axis.set(this.dz, 0, -this.dx); this.left = this.came + 4; this.voice = SFX.killiVoice();
     }
     const p = this.obj.position;
+    if (this.wait > 0) {   // still beyond the door: you hear it coming, then it rolls into view
+      this.wait -= dt;
+      if (this.voice) SFX.moveVoice(this.voice, p.x - this.dx * this.wait * this.speed, this.r, p.z - this.dz * this.wait * this.speed, 1, 0);
+      if (this.wait > 0) return true;
+      this.obj.visible = true;
+    }
     let step = this.speed * dt;
     if (this.wall) {   // a head already resting in this lane: this one stops against it instead
       for (const o of this.zone.killis) if (o !== this && o.rest) {
@@ -1746,7 +1871,12 @@ class Killi {
       step = Math.min(step, Math.max(0, this.left));
     }
     p.x += this.dx * step; p.z += this.dz * step; this.left -= step;
-    if (this.hideAt !== undefined && (this.dz < 0 ? p.z <= this.hideAt : p.z >= this.hideAt)) { this.obj.visible = true; this.hideAt = undefined; } this.came = (this.came || 0) + (this.wall ? step : 0);
+    const zin = zoneAt(p.z); if (zin && zin !== this.zone && zin.meta?.safe) return false;   // stops at the shop's door
+    // inside its room it never rolls through anything: a shelf, a car, a counter or a resting head stops it dead
+    if (!this.wall && !this.rest && p.z < this.zone.z0 + 0.2 && p.z > this.zone.exitZ - 0.2 && p.x > this.zone.x0 - 0.2 && p.x < this.zone.x1 + 0.2 && this.blocked()) {
+      p.x -= this.dx * step; p.z -= this.dz * step; this.left = 0; this.wall = true;
+    }
+    this.came = (this.came || 0) + step;
     this.q.setFromAxisAngle(this.axis, step / this.r);
     this.roller.quaternion.premultiply(this.q);
     this.phase += step;
@@ -1765,6 +1895,12 @@ class Killi {
     }
     if (this.left <= 0 && this.wall) { this.rest = true; this.restT = 10 + Math.random() * 6; SFX.stopVoice(this.voice); this.voice = null; return true; }
     return this.left > 0;
+  }
+  blocked() {
+    const p = this.obj.position, r = this.r * 0.72, y = p.y, z = this.zone;
+    if (z.cols.some(c => colBlocks(c, y, this.r * 2) && p.x + r > c.x0 && p.x - r < c.x1 && p.z + r > c.z0 && p.z - r < c.z1)) return true;
+    const o = { x: 0, y: 0, z: 0 };
+    return SOLID.push(z, p.x, y + this.r, p.z, r, o) || SOLID.push(z, p.x, y + this.r * 0.45, p.z, r, o);
   }
   // height of the centre so the lowest point of the (non-round) head rests on the floor in its current orientation
   floorY() {
@@ -1805,7 +1941,8 @@ function killiLanes(zone) {
   }
   return (zone.lanes = L);
 }
-const OUTSIDE = 22;   // how far beyond the room a Killi starts (heard long before it is seen)
+const OUTSIDE = 0;    // a Killi rolls in at the room's own door / wall opening, so you see it coming
+const KILLI_LEAD = [1.1, 1.8];   // horn and rumble first, then it rolls into view
 function spawnKilli(zone, p) {
   const r = zone.rng, depth = zone.i;
   // a lane with two heads already resting in it is full (a third pile would start to block the doors)
@@ -1813,39 +1950,34 @@ function spawnKilli(zone, p) {
   const lanes = killiLanes(zone).filter(l => inLane(l) < 2);
   if (!lanes.length) return;
   // mostly the passage you are in or next to; sometimes one further off, so you see it go by
-  const wts = lanes.map(l => Math.exp(-Math.abs((l.a === 'x' ? p.z : p.x) - l.c) / 3) + 0.08);
+  // and mostly from in front of you (where you can see it), seldom through the door behind you
+  const wts = lanes.map(l => (Math.exp(-Math.abs((l.a === 'x' ? p.z : p.x) - l.c) / 3) + 0.08) * (l.a === 'z' && l.from?.length === 1 && l.from[0] === 1 ? 0.25 : 1));
   let pick = r() * wts.reduce((a, b) => a + b, 0), lane = lanes[0];
   for (let k = 0; k < lanes.length; k++) { pick -= wts[k]; if (pick <= 0) { lane = lanes[k]; break; } }
   const axis = lane.a;
   // +1: travels toward +x / +z; a cross aisle open on one side only is entered from that side
-  const dir = lane.from && lane.from.length === 1 ? -lane.from[0] : r() < 0.5 ? 1 : -1;
+  const dir = lane.from && lane.from.length === 1 ? -lane.from[0] : axis === 'z' ? (r() < 0.8 ? 1 : -1) : r() < 0.5 ? 1 : -1;
   const speed = Math.min(6.5 + depth * 0.35, 11) * (0.9 + r() * 0.25);
   let n = 1 + (r() < Math.min(0.12 + depth * 0.04, depth > 10 ? 0.7 : 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);
   const kr = zone.kr;
   let s0, span;
-  if (axis === 'x') { s0 = dir > 0 ? zone.x0 - OUTSIDE : zone.x1 + OUTSIDE; span = zone.x1 - zone.x0 + OUTSIDE * 2; }
-  else { s0 = dir > 0 ? zone.exitZ - OUTSIDE : zone.z0 + OUTSIDE; span = zone.len + OUTSIDE * 2; }
+  if (axis === 'x') { s0 = dir > 0 ? zone.x0 - kr : zone.x1 + kr; span = zone.x1 - zone.x0 + kr * 2 + 3; }
+  else { s0 = dir > 0 ? zone.exitZ - kr : zone.z0 + kr; span = zone.len + kr * 2 + 3; }
+  // never through a shut door into a room that isn't there yet
+  if (axis === 'z' && dir > 0 && zone.exitDoors?.some(d => Math.abs(d.e.x - lane.c) < 1.2 && !(zones[zone.i + 1] && !zones[zone.i + 1].disposed && zones[zone.i + 1].via === d.k))) return;
   const farClosed = !!(lane.from && !lane.from.includes(dir));      // no opening in the far wall: it stops against it
-  if (farClosed) { span -= OUTSIDE + kr; n = Math.min(n, 2 - inLane(lane)); }
-  // the run-up behind a door crosses the neighbouring room: the full run-up stays (you hear it coming from far off),
-  // but the body stays hidden until it is past the last thing standing on that line, so it never rolls through it
-  let hideAt;
-  if (axis === 'z') {
-    const ze = dir < 0 ? zone.z0 + 0.3 : zone.exitZ - 0.3;
-    let s1 = ze;
-    while (Math.abs(s1 - ze) < OUTSIDE && !segmentBlocker(lane.c, ze, lane.c, s1 - dir * 0.5, kr * 0.9, zone.i)) s1 -= dir * 0.5;
-    if (Math.abs(s1 - ze) < OUTSIDE) hideAt = s1;
-  }
+  if (farClosed) { span -= 3 + kr * 2; n = Math.min(n, 2 - inLane(lane)); }
+  const lead = KILLI_LEAD[0] + r() * (KILLI_LEAD[1] - KILLI_LEAD[0]);
   let back = 0;
   for (let k = 0; k < n; k++) {
     const jitter = (r() - 0.5) * 0.3, along = s0 - dir * back;
     const [x, z, dx, dz] = axis === 'x' ? [along, lane.c + jitter, dir, 0] : [lane.c + jitter, along, 0, dir];
     const k = new Killi(zone, x, z, dx, dz, speed, kr, span + back); k.obj.position.y += lane.y || 0; k.wall = farClosed;   // lanes can run on an upper floor
-    k.lane = lane; if (hideAt !== undefined) { k.hideAt = hideAt; k.obj.visible = false; } zone.killis.push(k);
+    k.lane = lane; k.wait = lead; k.obj.visible = false; zone.killis.push(k);
     back += kr * 2 + 0.8 + r() * 2.5;
   }
   // the horn: loudness says roughly how far, nothing says where (the rolling itself is what you can place)
-  const d0 = axis === 'x' ? Math.abs(s0 - p.x) : Math.abs(s0 - p.z);
+  const d0 = (axis === 'x' ? Math.abs(s0 - p.x) : Math.abs(s0 - p.z)) + lead * speed;
   SFX.horn(clamp(1 - (d0 - 15) / 40, 0.25, 1), n > 1);
 }
 const Hazards = {
@@ -1867,6 +1999,7 @@ const Hazards = {
     check(zone, p) {
       let best = 0;
       for (const k of zone.killis) {
+        if (k.wait > 0) continue;
         const d = Math.hypot(k.obj.position.x - p.x, k.obj.position.z - p.z);
         if (k.rest) {   // resting head: solid, not deadly; push the player out of it
           if (d < k.r + CFG.radius) { const s = (k.r + CFG.radius) / (d || 1); p.x = k.obj.position.x + (p.x - k.obj.position.x) * s; p.z = k.obj.position.z + (p.z - k.obj.position.z) * s; }
@@ -2127,6 +2260,7 @@ function stepAvoiding(p, ux, uz, step, r, st) {
   if (st.wp) { const wx = st.wp.x - x0, wz = st.wp.z - z0, wl = Math.hypot(wx, wz) || 1; ux = wx / wl; uz = wz / wl; }
   // walk, sliding along anything still in the way
   p.x = x0 + ux * step; collideCircle(p, r, 'x', zi); p.z = z0 + uz * step; collideCircle(p, r, 'z', zi);
+  SOLID.body(p, 1.2, zi, Math.min(r, 0.45), false);   // and out of anything the box colliders miss
   const mx = p.x - x0, mz = p.z - z0, ml = Math.hypot(mx, mz);
   if (ml > step * 0.2) (st.head ||= new THREE.Vector3()).set(mx / ml, 0, mz / ml);
 }
@@ -2167,6 +2301,7 @@ const NIKI = {
   // straight line is blocked walk around the obstacle (keep to one side until the way to the player is clear again)
   walk(ux, uz, step, r) {
     stepAvoiding(this.pos, ux, uz, step, r, this);
+    for (const z of zones) if (z && !z.disposed && z.meta?.crawl && this.pos.z < z.z0 + 0.7 && this.pos.z > z.exitZ - 0.7) this.pos.z = this.pos.z > (z.z0 + z.exitZ) / 2 ? z.z0 + 0.7 : z.exitZ - 0.7;
     const g = groundAt(this.pos.x, this.pos.z, this.pos.y + 0.1);
     if (isFinite(g)) this.pos.y = g;   // up and down stairs with you (she does not drop off ledges: she has no reason to)
   },
@@ -2205,7 +2340,7 @@ const NIKI = {
       speed = this.morph < 1 ? 0 : 6.45;
       this.sprintT = game.speedNow > 5.6 ? this.sprintT + dt : 0;
       if (this.sprintT >= 10) { this.mode = 'tired'; this.tiredT = 0; SFX.nikiTired(this.pos.x, this.pos.z); toast('NIKI', 'She is exhausted.', false); }
-      if (d < 1.0 && this.morph >= 1) return 'kill';
+      if (d < 1.0 && this.morph >= 1 && !zones[game.zoneIdx]?.meta?.crawl) return 'kill';
     } else if (this.mode === 'tired') {
       this.tiredT += dt; this.morph = Math.max(0, this.morph - dt * 1.2);
       if (this.tiredT > 14) { this.mode = 'gone'; this.cool = 70; this.obj.visible = this.mad.visible = false; return; }
@@ -2243,6 +2378,69 @@ const NIKI = {
     sh.material.opacity = Math.min(1, 0.35 + lt);   // the darker the room, the less a contact shadow shows
     SFX.setNiki(this.mode === 'close' || this.mode === 'walk' ? clamp(1 - d / 14, 0, 1) : 0, isMad ? clamp(1 - d / 30, 0, 1) : 0, this.pos.x, this.pos.z);
     return d;
+  },
+};
+/* ============================================================
+   CUTSCENE: lost her in the vent. Mad Niki can't follow you into a duct: she throws herself at the grate, crouches to
+   stare in at you, rattles it, gives up. You breathe out. (Black bars, the camera looks back, then you crawl on.)
+   ============================================================ */
+const PROP_GRATE = addDarkness(new THREE.MeshStandardMaterial({ color: 0x8a8d90, roughness: 0.4, metalness: 0.8, envMap: envTex, envMapIntensity: 0.8 }));
+const CUT = {
+  on: false, t: 0, el: null,
+  bars() {
+    if (this.el) return;
+    const mk = top => { const d = document.createElement('div'); Object.assign(d.style, { position: 'fixed', left: 0, right: 0, height: '0vh', background: '#000', zIndex: 6,
+      transition: 'height .45s ease', pointerEvents: 'none', [top ? 'top' : 'bottom']: 0 }); document.body.appendChild(d); return d; };
+    this.el = [mk(true), mk(false)];
+  },
+  ventEscape(duct) {
+    if (this.on || NIKI.mode !== 'mad') return;
+    this.bars(); this.on = true; this.t = 0; this.duct = duct; this.yaw0 = game.yaw; this.pitch0 = game.pitch; this.sighed = false; this.clangT = 0;
+    const mx = duct.ox + duct.meta.entry;
+    this.mouth = new THREE.Vector3(mx, duct.oy, duct.z0);
+    NIKI.mode = 'mad'; NIKI.morph = 1; NIKI.pos.set(mx + (NIKI.pos.x > mx ? 0.4 : -0.4), zones[duct.i - 1]?.oy ?? duct.oy, duct.z0 + 3.5);
+    for (const e of this.el) e.style.height = '11vh';
+    if (!duct.grate) {
+      const g = new THREE.Group(), w = Math.min(1.3, duct.meta.x1 - duct.meta.x0), h = Math.min(1.1, duct.meta.h), mat = PROP_GRATE;
+      for (let x = -w / 2; x <= w / 2 + 1e-6; x += 0.12) { const b = new THREE.Mesh(GEO.box, mat); b.scale.set(0.02, h, 0.02); b.position.set(x, h / 2, 0); g.add(b); }
+      for (const y of [0.02, h / 2, h - 0.02]) { const b = new THREE.Mesh(GEO.box, mat); b.scale.set(w, 0.03, 0.03); b.position.set(0, y, 0); g.add(b); }
+      g.position.set(mx, duct.oy, duct.z0 + 0.02); scene.add(g); duct.grate = g; this.grate = g;
+    }
+    SFX.shriek(mx, duct.z0); game.shake = 0.8;
+  },
+  update(dt) {
+    const T = this.t += dt, P = game.p, m = this.mouth, N = NIKI, root = N.mad, B = N.madParts;
+    // the camera turns to look back out of the vent, then forward again at the end
+    const back = Math.atan2(-(m.x - P.x), -(m.z + 0.5 - P.z)), k = T < 0.7 ? T / 0.7 : T > 5.4 ? Math.max(0, 1 - (T - 5.4) / 0.6) : 1;
+    const ease = k * k * (3 - 2 * k);
+    game.yaw = this.yaw0 + Math.atan2(Math.sin(back - this.yaw0), Math.cos(back - this.yaw0)) * ease; game.pitch = this.pitch0 + (0.2 - this.pitch0) * ease;
+    // Niki: runs up to the grate, crouches, rattles it, stares, backs away
+    const crouchAt = new THREE.Vector3(m.x, N.pos.y, m.z + 1.25);
+    if (T < 1.2) N.pos.lerp(crouchAt, Math.min(1, dt * 5));
+    else if (T > 4.6) { N.pos.z += dt * 1.6; }
+    const crouch = T < 1.0 ? T : T > 4.6 ? Math.max(0, 1 - (T - 4.6) * 2) : 1;
+    const rattle = T > 1.1 && T < 3.3, shake = rattle ? Math.sin(T * 38) * 0.06 : 0;
+    if (this.grate) this.grate.position.x = m.x + (rattle ? Math.sin(T * 41) * 0.012 : 0);
+    root.visible = T < 5.4; N.obj.visible = false; N.shadow.visible = root.visible;
+    root.position.set(N.pos.x + shake, N.pos.y - 0.4 * crouch, N.pos.z + 0.75 * crouch); root.rotation.set(0.5 * crouch, Math.PI, 0, "YXZ");   // bent right over
+    N.shadow.position.set(N.pos.x, N.pos.y + 0.012, N.pos.z);
+    swing(B.spine, 0.8 * crouch); swing(B.legL, -1.25 * crouch); swing(B.legR, -1.25 * crouch); swing(B.shinL, 1.6 * crouch); swing(B.shinR, 1.6 * crouch);
+    const arms = rattle ? -1.45 + Math.sin(T * 38) * 0.18 : -0.6 * crouch;
+    swing(B.armL, arms); swing(B.armR, rattle ? -1.45 - Math.sin(T * 38) * 0.18 : arms); swing(B.foreL, 0.25); swing(B.foreR, 0.25);
+    if (B.head) { B.head.quaternion.copy(B.head.userData.rest); B.head.rotateX(-0.95 * crouch); if (T > 3.3 && T < 4.6) B.head.rotateZ(Math.sin((T - 3.3) * 1.3) * 0.35); }
+    if (rattle && (this.clangT -= dt) <= 0) { this.clangT = 0.09 + Math.random() * 0.07; SFX.clang(m.x, m.z, 0.8 + Math.random() * 0.4); game.shake = Math.max(game.shake, 0.35); }
+    if (T > 1.15 && T < 1.25) vhsMat.uniforms.uGlitch.value = Math.max(vhsMat.uniforms.uGlitch.value, 1.0);
+    if (T > 2.4 && !this.shrieked) { this.shrieked = true; SFX.shriek(m.x, m.z); }
+    MUSIC.setDanger(T < 3.3 ? 1.2 : Math.max(0, 1 - (T - 3.3)));
+    if (T > 4.9 && !this.sighed) { this.sighed = true; SFX.sigh(); }
+    if (T > 6.0) this.end(true);
+  },
+  end(ok) {
+    if (!this.on) return;
+    this.on = false; this.shrieked = false; if (NIKI.mad) NIKI.mad.rotation.set(0, 0, 0);
+    for (const e of this.el || []) e.style.height = '0vh';
+    NIKI.mode = 'gone'; NIKI.cool = 70; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; }
+    if (ok) { game.yaw = this.yaw0; game.pitch = this.pitch0; DOPA.reward(3, 'ESCAPED'); toast('LOST HER', '', false); }
   },
 };
 // bend a bone away from its rest pose about its own x axis (forward/back swing for legs and arms)
@@ -2355,6 +2553,7 @@ function scatterTokens(zone) {
     if (Math.abs(s.ya - zone.oy) < 0.1 && r() < 0.5) continue;
     const x = s.x0 + 0.6 + r() * (s.x1 - s.x0 - 1.2), z = s.z0 + 0.6 + r() * (s.z1 - s.z0 - 1.2), y = s.ya;
     if (zone.cols.some(c => colBlocks(c, y) && x > c.x0 - 0.3 && x < c.x1 + 0.3 && z > c.z0 - 0.3 && z < c.z1 + 0.3)) continue;
+    if (SOLID.push(zone, x, y + 0.75, z, 0.4, { x: 0, y: 0, z: 0 })) continue;
     const m = new THREE.Mesh(TOKEN_GEO, TOKEN_MAT); m.rotation.x = Math.PI / 2; m.position.set(x, y + 0.75, z);
     scene.add(m); zone.tokens.push(m); k++;
   }
@@ -2377,7 +2576,7 @@ function eerieFor(zone) {
   if (DEBUG && window.__forceEerie) e = window.__forceEerie;
   else if (zone.i >= 3 && zone.meta && !zone.meta.crawl && !zone.meta.safe && !zones[zone.i - 1]?.eerie) {
     if (zone.rng() < Math.min(0.2 + zone.i * 0.015, 0.55)) {
-      const opts = [['hands', 0.55], ['whistle', zone.i >= 3 ? 1 : 0], ['matryoshka', zone.i >= 4 ? 1 : 0], ['extra', zone.i >= 5 ? 1 : 0], ['follower', zone.i >= 6 ? 1.2 : 0],
+      const opts = [['hands', 0.55], ['whistle', zone.i >= 3 ? (zone.len >= 16 ? 1.3 : 0.4) : 0], ['matryoshka', zone.i >= 4 ? 1 : 0], ['extra', zone.i >= 5 ? 1 : 0], ['follower', zone.i >= 6 ? 1.2 : 0],
         ['sunflower', zone.i >= 4 && zone.meta.x1 - zone.meta.x0 >= 10 && zone.len >= 14 ? 1.1 : 0]];
       let r = zone.rng() * opts.reduce((s, o) => s + o[1], 0);
       for (const [k, w] of opts) { r -= w; if (r <= 0) { e = k; break; } }
@@ -2566,6 +2765,7 @@ Hazards.extra = {
       if (x < zone.x0 + 0.5 || x > zone.x1 - 0.5 || z > zone.z0 - 0.5 || z < zone.exitZ + 0.5) continue;
       const g = groundAt(x, z, P.y + 0.5, zone.i); if (!isFinite(g) || Math.abs(g - P.y) > 0.5) continue;
       if (zone.cols.some(c => colBlocks(c, g) && x > c.x0 - 0.4 && x < c.x1 + 0.4 && z > c.z0 - 0.4 && z < c.z1 + 0.4)) continue;
+      if (solidNear(zone, x, g, z, 0.4)) continue;
       camera.getWorldDirection(_ef); _ev.set(x - camera.position.x, 0, z - camera.position.z).normalize();
       if (!first && _ef.x * _ev.x + _ef.z * _ev.z > 0.5) continue;   // never pops in where you are looking
       e.obj.position.set(x, g, z); return;
@@ -2578,36 +2778,120 @@ Object.assign(STARE.style, { position: 'fixed', inset: '0', pointerEvents: 'none
   background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(30,0,0,.65) 75%, rgba(0,0,0,.95) 100%)' });
 document.body.appendChild(STARE);
 
-/* ---------- 이어리: THE WHISTLE — a tall black shape you barely see, a red light on its chest, and a beep that
-   comes faster the closer it is. Stay out of its reach; the beep tells you where it is. ---------- */
-const WHISTLE_MAT = addDarkness(new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.95, metalness: 0, envMap: envTex, envMapIntensity: 0.25 }));
+/* ---------- 이어리: THE WHISTLE — a steel tower wrapped in dead snakes, six megaphones on top. It never moves.
+   Each time it beeps it marks ground around you: step on a mark while it is lit and you die. Being near it wears you
+   down (the SIGNAL bar), fastest when the tower fills about half your view: keep your distance, don't stare at it. ---------- */
+const WHISTLE = (() => {
+  const std = (c, r, m = 0) => addDarkness(new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m, envMap: envTex, envMapIntensity: 0.7 }));
+  const steel = std(0x5d5f60, 0.45, 0.8), snake = std(0x2d3122, 0.55), horn = std(0x8e8f88, 0.35, 0.7);
+  const markRing = new THREE.MeshBasicMaterial({ color: 0xff2414, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, side: THREE.DoubleSide });
+  const markFill = markRing.clone(); markFill.opacity = 0.35;
+  const RING = new THREE.RingGeometry(0.95, 1.12, 48).rotateX(-Math.PI / 2), DISC = new THREE.CircleGeometry(1.12, 48).rotateX(-Math.PI / 2);
+  const beam = (g, a, b, w, m) => {   // a box from point a to point b
+    const d = new THREE.Vector3().subVectors(b, a), o = new THREE.Mesh(new THREE.BoxGeometry(w, w, d.length()), m);
+    o.position.copy(a).addScaledVector(d, 0.5); o.lookAt(b); g.add(o);
+  };
+  return {
+    markRing, markFill, RING, DISC,
+    tower(H) {
+      const g = new THREE.Group(), V = (x, y, z) => new THREE.Vector3(x, y, z), b0 = 0.75, b1 = 0.32;
+      const corner = (sx, sz, y) => { const t = y / H, w = b0 + (b1 - b0) * t; return V(sx * w, y, sz * w); };
+      const cs = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+      for (const [sx, sz] of cs) beam(g, corner(sx, sz, 0), corner(sx, sz, H), 0.09, steel);
+      for (let y = 0; y < H - 0.5; y += 1.1) for (let k = 0; k < 4; k++) {
+        const [ax, az] = cs[k], [bx, bz] = cs[(k + 1) % 4];
+        beam(g, corner(ax, az, y), corner(bx, bz, y + 1.1), 0.04, steel); beam(g, corner(ax, az, y + 1.1), corner(bx, bz, y + 1.1), 0.05, steel);
+      }
+      // dead snakes wound round it, heads hanging
+      for (let k = 0; k < 3; k++) {
+        const pts = [], y0 = 0.4 + k * 1.1, turns = 1.6 + k * 0.3, ph = k * 2.1;
+        for (let i = 0; i <= 60; i++) { const t = i / 60, y = y0 + t * 1.6, w = b0 + (b1 - b0) * (y / H) + 0.06, a = ph + t * turns * Math.PI * 2; pts.push(V(Math.cos(a) * w, y, Math.sin(a) * w)); }
+        const end = pts[pts.length - 1]; pts.push(end.clone().multiplyScalar(1.25).setY(end.y - 0.25), end.clone().multiplyScalar(1.3).setY(end.y - 0.6));
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.045, 8), snake); g.add(tube);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), snake); head.scale.set(1, 0.7, 1.6); head.position.copy(pts[pts.length - 1]); g.add(head);
+      }
+      // the top: a platform and six megaphones facing out
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.08, 16), steel); top.position.y = H; g.add(top);
+      const mega = new THREE.CylinderGeometry(0.06, 0.3, 0.62, 18, 1, true);
+      for (let k = 0; k < 6; k++) {
+        const a = k / 6 * Math.PI * 2, m = new THREE.Mesh(mega, horn);
+        m.position.set(Math.cos(a) * 0.5, H + 0.32, Math.sin(a) * 0.5); g.add(m);
+        m.lookAt(m.position.x * 3, H + 0.05, m.position.z * 3); m.rotateX(-Math.PI / 2);   // wide mouth outward, tipped down
+      }
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff2010 })); led.position.y = H + 0.75; g.add(led);
+      g.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+      return { g, led };
+    },
+  };
+})();
+const HPUI = (() => {
+  const el = document.createElement('div');
+  el.innerHTML = '<div style="font:700 11px/1 \'Space Mono\',monospace;letter-spacing:.2em;color:#ff5a4a;margin-bottom:5px">SIGNAL</div><div style="width:180px;height:5px;background:rgba(255,255,255,.15)"><div id="hpFill" style="height:100%;width:100%;background:#ff3a2a"></div></div>';
+  Object.assign(el.style, { position: 'fixed', top: '64px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', zIndex: 3, pointerEvents: 'none', opacity: 0, transition: 'opacity .3s' });
+  document.body.appendChild(el);
+  return { set(v) { el.style.opacity = v < 0.999 ? 1 : 0; el.querySelector('#hpFill').style.width = (v * 100).toFixed(1) + '%'; } };
+})();
 Hazards.whistle = {
   update(dt, zone, active) {
     if (!zone.meta || eerieFor(zone) !== 'whistle') return;
     const here = active && zone.i === game.zoneIdx, P = game.p;
-    if (!here) { if (zone.wh) { scene.remove(zone.wh.obj); zone.wh = null; } return; }
     let w = zone.wh;
     if (!w) {
-      if (zone.whDone || (zone.whT = (zone.whT ?? 4 + zone.rng() * 5) - dt) > 0) return;
+      if (!here || zone.whDone || (zone.whT = (zone.whT ?? 0.3) - dt) > 0) return;
       zone.whDone = true;
-      const obj = humanoid(WHISTLE_MAT, 2.6, 0.22), led = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2010 }));
-      led.position.set(0, 1.62, 0.3); obj.add(led);
-      w = zone.wh = { obj, led, beepT: 0, danger: 0, life: 50 };
-      const x = zone.x0 + (zone.x1 - zone.x0) * (0.2 + zone.rng() * 0.6);
-      obj.position.set(x, zone.oy, zone.exitZ + 2); scene.add(obj);
-      if (!game.metWhistle) { game.metWhistle = true; toast('THE WHISTLE', 'Avoid the beep.', true); }
+      const H = Math.min(5.2, (zone.h || 4) - 0.5), t = WHISTLE.tower(H);
+      const spot = findSpot(zone, 0.85, 0.85, 1.6) || { x: zone.x0 + 1.2, z: zone.exitZ + zone.len * 0.45 };
+      t.g.position.set(spot.x, zone.oy, spot.z); scene.add(t.g);
+      zone.cols.push({ x0: spot.x - 0.85, x1: spot.x + 0.85, z0: spot.z - 0.85, z1: spot.z + 0.85, y0: zone.oy - 0.5, y1: zone.oy + H + 1 });
+      const marks = new THREE.Group(); scene.add(marks);
+      w = zone.wh = { obj: t.g, led: t.led, H, marks, list: [], beepT: 1.2, ledT: 0 };
+      if (!game.metWhistle) { game.metWhistle = true; toast('THE WHISTLE', 'Stay off the marks.', true); }
     }
-    const o = w.obj.position, dx = P.x - o.x, dz = P.z - o.z, d = Math.hypot(dx, dz) || 1;
-    w.life -= dt;
-    if (w.life <= 0) { scene.remove(w.obj); zone.wh = null; return; }
-    if (d > 1.0) { stepAvoiding(o, dx / d, dz / d, (1.25 + zone.i * 0.025) * dt, 0.3, w); const g = groundAt(o.x, o.z, o.y + 0.1); if (isFinite(g)) o.y = g; }
-    w.obj.rotation.y = Math.atan2(dx, dz);
-    // the beep: interval shrinks with distance, from a slow ping to a continuous tone
-    const iv = clamp((d - 1.5) / 9, 0.07, 1.4);
-    if ((w.beepT -= dt) <= 0) { w.beepT = iv; SFX.beep(o.x, o.y + 1.5, o.z, d); w.led.visible = true; w.ledT = 0.06; }
+    const o = w.obj.position;
+    if (!here) { SFX.setStare(0); return; }
+    // the beep: the megaphones call, the ground lights up where it will be deadly
+    if ((w.beepT -= dt) <= 0) {
+      w.beepT = Math.max(1.8, 3.4 - zone.i * 0.03) * (0.85 + Math.random() * 0.3);
+      SFX.beep(o.x, o.y + w.H, o.z, 6); w.led.visible = true; w.ledT = 0.12;
+      const ex = zone.exits.reduce((a, e) => Math.abs(e.y - P.y) < 0.6 && Math.hypot(e.x - P.x, e.z - P.z) < Math.hypot(a.x - P.x, a.z - P.z) ? e : a, zone.exits[0]);
+      const n = 2 + (Math.random() < Math.min(0.2 + zone.i * 0.02, 0.7) ? 1 : 0);
+      for (let k = 0, tries = 0; k < n && tries < 30; tries++) {
+        let x, z;
+        if (k === 0) { const lx = ex.x - P.x, lz = ex.z - P.z, ll = Math.hypot(lx, lz) || 1, a = 3 + Math.random() * 3; x = P.x + lx / ll * a + (Math.random() - 0.5) * 1.5; z = P.z + lz / ll * a; }
+        else { const a = Math.random() * 6.28, r = 2.5 + Math.random() * 6; x = P.x + Math.cos(a) * r; z = P.z + Math.sin(a) * r; }
+        const g = groundAt(x, z, P.y + 0.4, zone.i); if (!isFinite(g) || Math.abs(g - P.y) > 0.4) continue;
+        if (Math.hypot(x - P.x, z - P.z) < 1.9) continue;                        // never right under your feet
+        if (w.list.some(m => Math.hypot(m.x - x, m.z - z) < 2.2)) continue;
+        const ring = new THREE.Mesh(WHISTLE.RING, WHISTLE.markRing.clone()), fill = new THREE.Mesh(WHISTLE.DISC, WHISTLE.markFill.clone());
+        ring.position.set(x, g + 0.02, z); fill.position.set(x, g + 0.015, z); w.marks.add(ring, fill);
+        w.list.push({ x, z, y: g, t: 0, ring, fill }); k++;
+        SFX.beep(x, g + 0.2, z, 8);
+      }
+    }
     if ((w.ledT -= dt) <= 0) w.led.visible = false;
-    w.danger = d < 2.2 && Math.abs(P.y - o.y) < 1.5 ? w.danger + dt : Math.max(0, w.danger - dt);
-    if (w.danger > 1.3) zone.pendingKill = { kill: 'whistle', by: { pos: o } };
+    for (const m of w.list) {
+      m.t += dt;
+      const warn = m.t < 0.8, live = !warn && m.t < 4.0, s = warn ? 0.35 + m.t * 0.8 : 1;
+      m.ring.scale.setScalar(s); m.fill.scale.setScalar(s);
+      m.ring.material.opacity = warn ? (Math.sin(m.t * 30) > 0 ? 0.9 : 0.3) : live ? 0.9 : Math.max(0, 0.9 - (m.t - 4) * 2.2);
+      m.fill.material.opacity = warn ? 0.08 : live ? 0.28 + Math.sin(m.t * 9) * 0.08 : Math.max(0, 0.28 - (m.t - 4) * 0.7);
+      if (live && Math.hypot(P.x - m.x, P.z - m.z) < 0.95 && Math.abs(P.y - m.y) < 0.6) zone.pendingKill = { kill: 'whistle', by: { pos: o } };
+    }
+    for (const m of w.list.filter(m => m.t > 4.4)) { w.marks.remove(m.ring, m.fill); m.ring.material.dispose(); m.fill.material.dispose(); }
+    w.list = w.list.filter(m => m.t <= 4.4);
+    // the drain: proximity, and how much of the screen the tower fills (worst at about half)
+    const d = Math.hypot(P.x - o.x, P.z - o.z);
+    let drain = 0;
+    if (d < 20 && !sightBlocked(P.x, P.z, o.x + (P.x - o.x) / (d || 1) * 1.0, o.z + (P.z - o.z) / (d || 1) * 1.0, zone.i, camera.position.y)) {   // (to just outside its own collider)
+      camera.getWorldDirection(_ef); _ev.set(o.x - camera.position.x, o.y + w.H / 2 - camera.position.y, o.z - camera.position.z).normalize();
+      const onScreen = _ef.dot(_ev) > Math.cos(THREE.MathUtils.degToRad(camera.fov * 0.6));
+      const f = w.H / (2 * Math.max(d, 0.5) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+      const cov = onScreen ? Math.exp(-(((f - 0.5) / 0.22) ** 2)) : 0;
+      drain = (0.03 + 0.24 * cov) * clamp(1 - d / 20, 0, 1);
+    }
+    game.hp = clamp((game.hp ?? 1) + (drain > 0 ? -drain : 0.06) * dt, 0, 1);
+    SFX.setStare(clamp(drain * 4, 0, 1), o.x, o.z);
+    if (game.hp <= 0) zone.pendingKill = { kill: 'whistle', by: { pos: o } };
   },
   check(zone) { const k = zone.pendingKill; zone.pendingKill = null; return k || {}; },
 };
@@ -2692,9 +2976,33 @@ const PROP = (() => {
 const DRESS = { parking: [['car', 2.2], ['cone', 1], ['cart', 0.6]], gas: [['car', 1.6], ['cone', 1]], mart: [['pallet', 2], ['cart', 1], ['wet', 0.8]],
   nordbo: [['pallet', 1.5], ['cart', 1]], burger: [['wet', 1.5], ['cone', 0.3]], subway: [['wet', 1], ['cone', 0.8]], concourse: [['wet', 1], ['cart', 0.8]],
   cinema: [['wet', 1]], club: [['wet', 0.6]], ward: [['wet', 1], ['cart', 0.4]] };
+// anything visible (walls, posts, glass, signs) within r of a body standing at (x, y, z)?
+function solidNear(zone, x, y, z, r) {
+  const o = { x: 0, y: 0, z: 0 };
+  return SOLID.push(zone, x, y + 0.5, z, r, o) || SOLID.push(zone, x, y + 1.2, z, r, o) || SOLID.push(zone, x, y + 1.9, z, r, o);
+}
 function segDist(px, pz, ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, t = clamp(((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz || 1), 0, 1);
   return Math.hypot(px - ax - dx * t, pz - az - dz * t);
+}
+// a clear patch of floor (half sizes hx, hz) on the room's entry level: off the walking lines, the doors and the Killi lanes
+function findSpot(zone, hx, hz, gap = 0.9) {
+  const r = zone.rng, m = zone.meta, oy = zone.oy;
+  const ground = zone.surf.filter(s => !s.axis && Math.abs(s.ya - oy) < 0.05);
+  const ent = { x: zone.ox + m.entry, z: zone.z0 }, lanes = killiLanes(zone).filter(l => !l.y), rad = Math.max(hx, hz);
+  for (let t = 0; t < 80; t++) {
+    const s = ground[(r() * ground.length) | 0]; if (!s) return null;
+    if (s.x1 - s.x0 < 2 * hx + 0.4 || s.z1 - s.z0 < 2 * hz + 0.4) continue;
+    const x = s.x0 + hx + 0.2 + r() * (s.x1 - s.x0 - 2 * hx - 0.4), z = s.z0 + hz + 0.2 + r() * (s.z1 - s.z0 - 2 * hz - 0.4);
+    if (x - hx < zone.x0 + 0.3 || x + hx > zone.x1 - 0.3 || z + hz > zone.z0 - 0.4 || z - hz < zone.exitZ + 0.4) continue;
+    if (zone.cols.some(c => c.y1 > oy + 0.1 && c.y0 < oy + 1.8 && x + hx + 0.6 > c.x0 && x - hx - 0.6 < c.x1 && z + hz + 0.6 > c.z0 && z - hz - 0.6 < c.z1)) continue;
+    if (Math.hypot(x - ent.x, z - ent.z) < rad + 3 || zone.exits.some(e => Math.abs(e.y - oy) < 0.5 && Math.hypot(x - e.x, z - e.z) < rad + 3)) continue;
+    if (zone.exits.some(e => Math.abs(e.y - oy) < 0.5 && segDist(x, z, ent.x, ent.z, e.x, e.z) < rad + gap)) continue;
+    if (lanes.some(l => Math.abs((l.a === 'z' ? x : z) - l.c) < zone.kr + (l.a === 'z' ? hx : hz) + 0.2)) continue;
+    if (solidNear(zone, x, oy, z, rad + 0.3)) continue;
+    return { x, z };
+  }
+  return null;
 }
 function dressZone(zone) {
   const set = DRESS[(zone.kind || '').replace(/\d+$/, '')]; if (!set || !zone.surf) return;
@@ -2719,6 +3027,7 @@ function dressZone(zone) {
       if (Math.hypot(x - ent.x, z - ent.z) < rad + 3 || zone.exits.some(e => Math.abs(e.y - oy) < 0.5 && Math.hypot(x - e.x, z - e.z) < rad + 3)) continue;
       if (zone.exits.some(e => Math.abs(e.y - oy) < 0.5 && segDist(x, z, ent.x, ent.z, e.x, e.z) < rad + 0.9)) continue;
       if (lanes.some(l => Math.abs((l.a === 'z' ? x : z) - l.c) < zone.kr + (l.a === 'z' ? hx : hz) + 0.2)) continue;
+      if (solidNear(zone, x, oy, z, rad + 0.25)) continue;
       p.g.position.set(x, 0, z); p.g.rotation.y = (turn ? Math.PI / 2 : 0) + (r() < 0.5 ? Math.PI : 0) + (r() - 0.5) * 0.08;
       zone.g.add(p.g); zone.props.push(p.g);
       zone.cols.push({ x0: x - hx, x1: x + hx, z0: z - hz, z1: z + hz, y0: oy - 0.5, y1: oy + p.h });
@@ -2752,7 +3061,7 @@ const FOLLOWER = {
     if (f.life <= 0 || d > 40) { this.end(true); return null; }
     const top = CFG.sprint * Math.min(0.97, 0.9 + game.zoneIdx * 0.002);           // just under a sprint
     f.speed = f.t < 1.1 ? 0 : Math.min(top, f.speed + dt * 6);                       // a beat in the doorway, then it runs
-    stepAvoiding(o, dx / d, dz / d, f.speed * dt, 0.3, f.st);
+    stepAvoiding(o, dx / d, dz / d, f.speed * dt, 0.3, f.st); SOLID.body(o, 2.0, zones.indexOf(zoneAt(o.z)), 0.3, false);
     const g = groundAt(o.x, o.z, o.y + 0.6, zones.indexOf(zoneAt(o.z))); o.y = isFinite(g) && Math.abs(g - o.y) < 1.2 ? g : o.y + (P.y - o.y) * Math.min(1, dt * 3);
     f.obj.rotation.y = Math.atan2(dx, dz);
     const run = f.speed / CFG.sprint, ph = f.t * 11;
@@ -2845,7 +3154,7 @@ Hazards.sunflower = {
     if ((o.z - P.z) * Math.sign(lz || -1) < -1) { tx = P.x; tz = P.z; }
     tx = clamp(tx, zone.x0 + 3.2, zone.x1 - 3.2); tz = clamp(tz, zone.exitZ + 2.5, zone.z0 - 3);
     const dx = tx - o.x, dz = tz - o.z, dd = Math.hypot(dx, dz);
-    if (dd > 0.2) stepAvoiding(o, dx / dd, dz / dd, Math.min(dd, (0.42 + Math.min(zone.i, 40) * 0.008) * dt), 0.55, s.st);
+    if (dd > 0.2) { stepAvoiding(o, dx / dd, dz / dd, Math.min(dd, (0.42 + Math.min(zone.i, 40) * 0.008) * dt), 0.55, s.st); SOLID.body(o, 1.6, zone.i, 0.55, false); }
     o.y = zone.oy;
     // every head turns to you
     const look = (f, wx, wz, hy) => { const ax = P.x - wx, az = P.z - wz; f.head.rotation.set(Math.atan2(camera.position.y - (zone.oy + hy), Math.hypot(ax, az)) * -0.6, Math.atan2(ax, az) - s.obj.rotation.y, 0, 'YXZ'); };
@@ -2857,11 +3166,12 @@ Hazards.sunflower = {
       let r = f.rad, x, z;
       for (; r > 0.6; r -= 0.2) {   // pulled in where the ring would stand inside a shelf or a wall
         x = o.x + Math.cos(f.a) * r; z = o.z + Math.sin(f.a) * r;
-        if (x > zone.x0 + 0.3 && x < zone.x1 - 0.3 && !zone.cols.some(c => colBlocks(c, zone.oy) && x > c.x0 - 0.2 && x < c.x1 + 0.2 && z > c.z0 - 0.2 && z < c.z1 + 0.2)) break;
+        if (x > zone.x0 + 0.3 && x < zone.x1 - 0.3 && !zone.cols.some(c => colBlocks(c, zone.oy) && x > c.x0 - 0.2 && x < c.x1 + 0.2 && z > c.z0 - 0.2 && z < c.z1 + 0.2) && !solidNear(zone, x, zone.oy, z, 0.35)) break;
       }
+      f.obj.visible = r > 0.6;   // no room for it here: it isn't drawn standing in a shelf
       f.obj.position.set(x - o.x, 0, z - o.z); f.obj.rotation.z = Math.sin(s.t * 1.7 + f.sway) * 0.05;
       look(f, x, z, f.h);
-      dmin = Math.min(dmin, Math.hypot(P.x - x, P.z - z) - 0.3);
+      if (f.obj.visible) dmin = Math.min(dmin, Math.hypot(P.x - x, P.z - z) - 0.3);
     }
     s.d = dmin;
     if (dmin < 0.25 && Math.abs(P.y - o.y) < 1.5) zone.pendingKill = { kill: 'sunflower', by: { pos: o } };
@@ -2885,6 +3195,7 @@ Hazards.watcher = {
         const x = zone.x0 + 0.8 + zone.rng() * (zone.x1 - zone.x0 - 1.6), z = zone.exitZ + 0.8 + zone.rng() * Math.min(3, zone.len * 0.25);
         const g = groundAt(x, z, zone.oy + 0.5, zone.i); if (!isFinite(g) || Math.abs(g - zone.oy) > 0.3) continue;
         if (zone.cols.some(c => colBlocks(c, g) && x > c.x0 - 0.4 && x < c.x1 + 0.4 && z > c.z0 - 0.4 && z < c.z1 + 0.4)) continue;
+        if (solidNear(zone, x, g, z, 0.4)) continue;
         if (Math.hypot(x - P.x, z - P.z) < 12) continue;
         const obj = humanoid(WATCH_MAT, 2.0 + zone.rng() * 0.3); obj.position.set(x, g, z); scene.add(obj);
         zone.wa = { obj, look: 0 }; break;
@@ -3126,7 +3437,7 @@ const game = {
     NIKI.reset(); GLOW.reset();
     for (const v of DARK.uDark.value) v.set(0, 0, 0, 0);
     DARK.uBlack.value.set(0, 0, 0, 0); SFX.powerOn();
-    DOPA.reset(); FOLLOWER.end(false); TRAP.end(); STARE.style.opacity = 0; SFX.setStare?.(0); this.colaT = 0;
+    DOPA.reset(); FOLLOWER.end(false); CUT.end(false); TRAP.end(); this.hp = 1; STARE.style.opacity = 0; SFX.setStare?.(0); this.colaT = 0;
     MUSIC.setDepth(0); MUSIC.start('run');
     vhsMat.uniforms.uDark.value = 0;
     streamZones();
@@ -3141,7 +3452,10 @@ const game = {
     scene.fog.near = f[1]; scene.fog.far = f[2]; camera.far = Math.max(70, f[2]);
     camera.updateProjectionMatrix();
     SFX.setSpace(m.space || 'store');
-    if (m.safe) { SHOP.enter(zone); MUSIC.start('shop'); } else if (MUSIC.mode === 'shop' || !MUSIC.on) MUSIC.start('run');
+    if (m.safe) {   // whatever was after you stays outside
+      SHOP.enter(zone); MUSIC.start('shop'); FOLLOWER.end(true);
+      if (NIKI.mode !== 'none' && NIKI.mode !== 'gone') { NIKI.mode = 'gone'; NIKI.cool = 60; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; } }
+    } else if (MUSIC.mode === 'shop' || !MUSIC.on) MUSIC.start('run');
     $('zoneNo').textContent = pad4(zone.i);
     $('zoneName').textContent = zone.name;
     if (!zone.visited) { zone.visited = true; toast(zone.name, zone.hint); }
@@ -3151,6 +3465,13 @@ const game = {
     this.t += dt; this.dtNow = dt;
     if (this.dead) { this.updateDeath(dt); return; }
     if (TRAP.on) { TRAP.update(dt); this.updateHUD(); return; }
+    if (CUT.on) {
+      CUT.update(dt); this.updateHUD();
+      const sh = Math.max(0, this.shake || 0) * 0.05; this.shake = Math.max(0, (this.shake || 0) - dt * 2);
+      camera.position.set(this.p.x + (Math.random() - .5) * sh, this.p.y + this.eyeNow + (Math.random() - .5) * sh, this.p.z);
+      camera.rotation.set(this.pitch, this.yaw, 0);
+      return;
+    }
     this.colaT = Math.max(0, (this.colaT || 0) - dt);
     const mv = readMove();
     // crawling: inside a duct, or about to go in / just coming out of one
@@ -3159,6 +3480,7 @@ const game = {
       || (zn1?.meta?.crawl && this.p.z - zn1.z0 < 1.4 && Math.abs(this.p.x - (zn1.ox + zn1.meta.entry)) < 1.8)
       || (this.zoneIdx > 0 && zones[this.zoneIdx - 1]?.meta?.crawl && zones[this.zoneIdx - 1].exitZ - this.p.z < 1.0));
     if (crawl) mv.sprint = false;
+    if (zc?.meta?.crawl && NIKI.mode === 'mad' && this.p.z < zc.z0 - 0.6) { CUT.ventEscape(zc); return; }   // she can't follow you in
     this.eyeNow += ((crawl ? 0.5 : CFG.eye) - this.eyeNow) * Math.min(1, dt * 7);
     const speed = (crawl ? CFG.walk * 0.45 : mv.sprint ? CFG.sprint : CFG.walk) * (this.colaT > 0 ? 1.35 : 1);
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
@@ -3178,6 +3500,7 @@ const game = {
     } else {
       this.p.x += vx * dt; this.collide('x');
       this.p.z += vz * dt; this.collide('z');
+      if (!crawl) { const o = SOLID.body(this.p, this.eyeNow, this.zoneIdx); if (o.y < 0 && this.vy > 0) this.vy = 0; }
     }
     this.speedNow = Math.hypot(this.p.x - ox, this.p.z - oz) / Math.max(dt, 1e-4);
     if (input.jump && this.onGround && !crawl && !this.climbing) { this.vy = CFG.jumpV; this.onGround = false; this.fallFrom = this.p.y; }
@@ -3214,8 +3537,9 @@ const game = {
 
     for (const z of zones) if (z && !z.disposed && z.exitDoors) for (const d of z.exitDoors) {
       const nxt = zones[z.i + 1], ready = nxt && !nxt.disposed && nxt.via === d.k;
-      const near = Math.hypot(this.p.x - d.e.x, this.p.z - d.e.z) < 3.2 && Math.abs(this.p.y - d.e.y) < 1.5;
-      d.open = clamp(d.open + (near && ready ? 2.5 : -1.5) * dt, 0, 1);
+      const near = (Math.hypot(this.p.x - d.e.x, this.p.z - d.e.z) < 3.2 && Math.abs(this.p.y - d.e.y) < 1.5)
+        || [z, zones[z.i + 1]].some(zz => zz && !zz.disposed && zz.killis.some(k => !(k.wait > 0) && !k.rest && Math.hypot(k.obj.position.x - d.e.x, k.obj.position.z - d.e.z) < 4.5));   // and for a Killi coming through
+      d.open = clamp(d.open + (near && ready ? 4 : -1.5) * dt, 0, 1);
       d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); });
     }
     for (const z of zones) if (z && !z.disposed && z.door) {
@@ -3226,19 +3550,20 @@ const game = {
     }
 
     let rumble = 0, shakeK = 0;
+    const safeHere = !!zones[this.zoneIdx]?.meta?.safe;   // NINE LIVES: nothing can hurt you in there
     for (const z of zones) {
       if (!z || z.disposed) continue;
       const active = z.i === this.zoneIdx || z.i === this.zoneIdx + 1;
       for (const h of Object.values(Hazards)) {
         h.update(dt, z, active);
         const res = h.check(z, this.p);
-        if (res.kill) return this.die(res.kill, res.by || (res.kill === 'hands' ? z.hands : null));
+        if (res.kill && !safeHere) return this.die(res.kill, res.by || (res.kill === 'hands' ? z.hands : null));
         rumble = Math.max(rumble, res.rumble || 0); shakeK = Math.max(shakeK, res.shake || 0);
       }
     }
     const nd = NIKI.update(dt);
-    if (nd === 'kill') return this.die('niki');
-    if (FOLLOWER.update(dt) === 'kill') return this.die('follower', { pos: FOLLOWER.f.obj.position });
+    if (nd === 'kill' && !safeHere) return this.die('niki');
+    if (FOLLOWER.update(dt) === 'kill' && !safeHere) return this.die('follower', { pos: FOLLOWER.f.obj.position });
     GLOW.update(dt);
     DOPA.update(dt, this.maxDist); updateTokens(dt); SHOP.update(dt);
     // how tense the music gets: anything close and hunting
@@ -3247,6 +3572,8 @@ const game = {
       zd?.wh ? clamp(1 - Math.hypot(zd.wh.obj.position.x - this.p.x, zd.wh.obj.position.z - this.p.z) / 14, 0, 1) : 0,
       zd?.doll ? 0.6 : 0, zd?.sun ? clamp(1 - zd.sun.d / 9, 0, 0.9) : 0, zd?.handsPlan?.black ? 0.8 : 0, FOLLOWER.f ? clamp(1.2 - FOLLOWER.dist / 25, 0.6, 1.2) : 0));
     if (this.colaT > 0 || this.colaShown) { DOPA.hud(); this.colaShown = this.colaT > 0; }
+    if (!zd?.wh) this.hp = Math.min(1, (this.hp ?? 1) + dt * (safeHere ? 0.5 : 0.06));
+    HPUI.set(this.hp ?? 1);
     // pack the darkness spots of the rooms around the player into the shader uniforms
     let di = 0;
     for (const z of zones) if (z && !z.disposed && z.dark) for (const s of z.dark) if (di < DARK_N) DARK.uDark.value[di++].set(s.x, s.z, s.r, s.w);
@@ -3334,6 +3661,7 @@ const game = {
         D.vy -= CFG.gravity * dt; c.y += D.vy * dt;
         c.x += D.vx * dt; if (collideCircle(c, 0.12, 'x', this.zoneIdx)) { D.vx *= -0.3; D.spin *= 0.5; }   // glances off shelves and walls
         c.z += D.vz * dt; if (collideCircle(c, 0.12, 'z', this.zoneIdx)) { D.vz *= -0.3; D.spin *= 0.5; }
+        { const o = { x: 0, y: 0, z: 0 }; for (let k = this.zoneIdx - 1; k <= this.zoneIdx + 1; k++) if (zones[k] && !zones[k].disposed && SOLID.push(zones[k], c.x, c.y, c.z, 0.14, o)) { c.x += o.x; c.z += o.z; if (o.y) c.y += o.y; o.x = o.y = o.z = 0; D.vx *= 0.5; D.vz *= 0.5; } }
         camera.rotation.z += D.spin * dt; camera.rotation.x += (D.pitch - camera.rotation.x) * Math.min(1, dt * 3);
         if (c.y <= floor) {   // hits the floor: bounce, crack, glitch
           c.y = floor; D.bounced++;
@@ -3420,6 +3748,8 @@ if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right
 let last = performance.now(), idleT = 0, ready = false;
 const prevRot = { yaw: 0, pitch: 0 };
 function frame(now) {
+  const fixed = DEBUG && window.__fixedDt;   // recording (trailers, QA): a fixed step per frame, driven by __step()
+  if (fixed) now = last + window.__fixedDt * 1000;
   const dt = Math.min((now - last) / 1000, 0.05) * (DOPA.slowT > 0 ? 0.35 : 1);
   last = now;
   if (ready) {
@@ -3485,9 +3815,10 @@ function frame(now) {
   copyMat.uniforms.tSrc.value = cur.texture;
   fsPass(copyMat, null);
   tapeIdx = 1 - tapeIdx;
-  requestAnimationFrame(frame);
+  if (!fixed) requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+if (DEBUG) window.__step = (n = 1) => { for (let i = 0; i < n; i++) frame(0); };
 LB.init();
 
 loadAssets((f, label) => {
@@ -3505,7 +3836,7 @@ loadAssets((f, label) => {
     ? 'Open this through a web server (e.g. <code>npx http-server</code> or GitHub Pages) — browsers block file:// assets.'
     : 'Failed to load assets: ' + escapeHTML(err.message || String(err));
 });
-if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER };
+if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT };
 </script>
 </body>
 </html>
