@@ -253,7 +253,7 @@
     <h3>CAMERA</h3>
     <div class="row"><label class="tog"><input type="radio" name="cam" id="optPhone" checked> Phone</label><label class="tog"><input type="radio" name="cam" id="optVhs"> VHS</label></div>
     <div class="row"><label class="tog"><input type="checkbox" id="optBlur" checked> Motion blur</label><label class="tog"><input type="checkbox" id="optRefl" checked> Reflections</label></div>
-    <h3>CONTROLS</h3><p class="keys" id="keysTxt">WASD · Shift run · Space jump · Click to look</p>
+    <h3>CONTROLS</h3><p class="keys" id="keysTxt">WASD · Shift run · Space jump · Click to look · Hold Q to look behind</p>
     <div class="row" id="fsRow" style="display:none"><button class="ghost" id="fsBtn">⛶ Full screen</button><span class="keys" id="fsTip"></span></div></section>
   <div class="dexview" id="dexView"><div class="dvcard"><button class="x">✕</button><img id="dvImg" alt=""><div class="dvtxt"><div class="dvno" id="dvNo"></div><h2 id="dvName"></h2><div class="dvcls" id="dvCls"></div><p id="dvDesc"></p><p class="dvtip" id="dvTip"></p></div></div></div>
 </div>
@@ -1510,7 +1510,8 @@ const MUSIC = {
 /* ============================================================
    INPUT (touch joystick + drag look, keyboard + mouse)
    ============================================================ */
-const input = { mx: 0, my: 0, jump: false, keys: {}, joySprint: false };
+const input = { mx: 0, my: 0, jump: false, keys: {}, joySprint: false, lookBack: false };
+let lastLookTap = 0;
 const joyEl = $('joy'), knob = joyEl.firstElementChild, touchEl = $('touch');
 let joyId = null, joyO = { x: 0, y: 0 }, lookId = null, lookLast = { x: 0, y: 0 };
 const JOY_R = 55;
@@ -1527,6 +1528,8 @@ touchEl.addEventListener('pointerdown', e => {
     knob.style.transform = '';
   } else if (lookId === null) {
     lookId = e.pointerId; lookLast = { x: e.clientX, y: e.clientY };
+    // double tap (and hold) on the look side: look behind you while you keep running; let go to look ahead again
+    const now = performance.now(); if (now - lastLookTap < 320) input.lookBack = true; lastLookTap = now;
   }
   try { touchEl.setPointerCapture(e.pointerId); } catch { }
 });
@@ -1538,14 +1541,14 @@ touchEl.addEventListener('pointermove', e => {
     knob.style.transform = `translate(${dx}px,${dy}px)`;
     input.mx = dx / JOY_R; input.my = -dy / JOY_R;
     input.joySprint = m > JOY_R * 0.95;
-  } else if (e.pointerId === lookId) {
+  } else if (e.pointerId === lookId && !input.lookBack) {
     game.look(e.clientX - lookLast.x, e.clientY - lookLast.y, CFG.lookSens);
     lookLast = { x: e.clientX, y: e.clientY };
   }
 });
 function endPointer(e) {
   if (e.pointerId === joyId) { joyId = null; input.mx = input.my = 0; input.joySprint = false; joyEl.style.display = 'none'; }
-  if (e.pointerId === lookId) lookId = null;
+  if (e.pointerId === lookId) { lookId = null; input.lookBack = false; }
 }
 touchEl.addEventListener('pointerup', endPointer);
 touchEl.addEventListener('pointercancel', endPointer);
@@ -1560,8 +1563,9 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Space') { input.jump = true; if (game.running) e.preventDefault(); }
   if (e.code === 'KeyF') GLOW.use();
   if (e.code === 'KeyC') GLOW.drink();
+  if (e.code === 'KeyQ') input.lookBack = true;
 });
-window.addEventListener('keyup', e => { input.keys[e.code] = false; });
+window.addEventListener('keyup', e => { input.keys[e.code] = false; if (e.code === 'KeyQ') input.lookBack = false; });
 window.addEventListener('blur', () => { input.keys = {}; });
 
 function readMove() {
@@ -1700,7 +1704,7 @@ function addPanorama(zone, x, z, rotY) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(60, 48, 24), new THREE.MeshBasicMaterial({ map: ASSET.tex['outside.jpg'], side: THREE.BackSide, fog: false, depthTest: false, depthWrite: false }));
   m.rotation.y = rotY; m.renderOrder = -10; m.frustumCulled = false;
   m.material.color.setScalar(1.15);
-  zone.g.add(m); PANOS.add(m);
+  zone.g.add(m); PANOS.add(m); m.userData.zone = zone;
 }
 function addWindowGlass(zone, x, z0, len, h, ry) {
   const g = new THREE.Mesh(GEO.plane, DYN.windowGlass);
@@ -3598,8 +3602,8 @@ const PROP = (() => {
     },
     wet() {   // CAUTION / WET FLOOR A-frame
       const g = new THREE.Group();
-      for (const s of [-1, 1]) { const b = box(g, M.yellow, 0.3, 0.62, 0.015, 0, 0.3, s * 0.08); b.rotation.x = s * 0.26; }
-      const lab = box(g, M.black, 0.2, 0.05, 0.02, 0, 0.42, 0.165); lab.rotation.x = 0.26;
+      for (const s of [-1, 1]) { const b = box(g, M.yellow, 0.3, 0.62, 0.015, 0, 0.3, s * 0.08); b.rotation.x = -s * 0.26; }   // the two boards meet at the top
+      const lab = box(g, M.black, 0.2, 0.05, 0.02, 0, 0.42, 0.06); lab.rotation.x = -0.26;
       return { g, hx: 0.25, hz: 0.25, h: 0.7 };
     },
     cone() {
@@ -4067,16 +4071,27 @@ const SHOP = {
    ============================================================ */
 const LB = {
   key: 'ieori.lb.v1',
-  endpoint: window.IEORI_LB_ENDPOINT || null,
+  // shared board for every player (web and the Claude link): a small JSON object on a free public store
+  endpoint: window.IEORI_LB_ENDPOINT || 'https://api.restful-api.dev/objects/ff808181a09d98f701a12522eaa13473',
   cache: [],
   listeners: new Set(),
   bc: 'BroadcastChannel' in window ? new BroadcastChannel('ieori-lb') : null,
   readLocal() { try { return JSON.parse(localStorage.getItem(this.key)) || []; } catch { return []; } },
   writeLocal(a) { try { localStorage.setItem(this.key, JSON.stringify(a.slice(0, 200))); } catch { } },
+  online: false,
+  merge(...lists) {   // one board: every run once (name + time), best first, the top 100 kept
+    const seen = new Map();
+    for (const l of lists) for (const e of l || []) if (e && typeof e.name === 'string' && isFinite(e.dist)) seen.set(e.name + '|' + e.t, { name: String(e.name).slice(0, 16), dist: +e.dist, zones: +e.zones || 0, cause: String(e.cause || '').slice(0, 40), t: +e.t || 0 });
+    return [...seen.values()].sort((a, b) => b.dist - a.dist).slice(0, 100);
+  },
+  async remote() {
+    const r = await fetch(this.endpoint, { cache: 'no-store' }); if (!r.ok) throw new Error('lb ' + r.status);
+    const j = await r.json(); return Array.isArray(j) ? j : (j?.data?.lb || []);
+  },
   async refresh() {
     let list = this.readLocal();
     if (this.endpoint) {
-      try { const r = await fetch(this.endpoint, { cache: 'no-store' }); if (r.ok) list = await r.json(); } catch { }
+      try { list = this.merge(list, await this.remote()); this.online = true; } catch { this.online = false; }
     }
     this.cache = Array.isArray(list) ? list : [];
     this.listeners.forEach(f => f(this.cache));
@@ -4084,8 +4099,9 @@ const LB = {
   },
   async submit(entry) {
     const local = this.readLocal(); local.push(entry); local.sort((a, b) => b.dist - a.dist); this.writeLocal(local);
-    if (this.endpoint) {
-      try { await fetch(this.endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(entry) }); } catch { }
+    if (this.endpoint) {   // read, add this run, write back (the board is small; a lost race only drops a run from the shared copy)
+      try { const all = this.merge(await this.remote(), [entry]);
+        await fetch(this.endpoint, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'everyspace-lb', data: { lb: all } }) }); } catch { }
     }
     this.bc?.postMessage('update');
     return this.refresh();
@@ -4100,7 +4116,8 @@ const LB = {
   init() {
     if (this.bc) this.bc.onmessage = () => this.refresh();
     window.addEventListener('storage', e => { if (e.key === this.key) this.refresh(); });
-    setInterval(() => this.refresh(), this.endpoint ? 5000 : 15000);
+    // live: every 15 s while the board is on screen (menu, death screen), every minute otherwise
+    let last = 0; setInterval(() => { const vis = !game.running && !document.hidden; if (performance.now() - last > (vis ? 15000 : 60000)) { last = performance.now(); this.refresh(); } }, 3000);
     this.refresh();
   },
 };
@@ -4111,7 +4128,7 @@ function renderLB() {
     ? rows.map((e, i) => `<tr class="${e.t === lastEntryT ? 'me' : ''}"><td>${i + 1}</td><td>${escapeHTML(e.name)}</td><td class="n">${Math.floor(e.dist)}m</td><td class="n">${e.zones} zones</td></tr>`).join('')
     : '<tr><td></td><td style="color:var(--muted)">No runs yet</td></tr>';
   $('lbMenu').innerHTML = html; $('lbDead').innerHTML = html;
-  $('lbSrc').textContent = LB.endpoint ? 'Global · live' : 'This device · live';
+  $('lbSrc').textContent = LB.online ? 'Global · live' : 'This device (offline)';
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('sel', b.dataset.tab === lbTab));
 }
 document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { lbTab = b.dataset.tab; renderLB(); }));
@@ -4362,7 +4379,9 @@ const game = {
     const swayPitch = (Math.sin(t * 1.1 + 2) * 0.6 + Math.sin(t * 2.9) * 0.25) * 0.005;
     const sh = this.shake * 0.06;
     camera.position.set(this.p.x + cy * bobX + (Math.random() - .5) * sh, this.p.y + this.eyeNow + bobY * (this.eyeNow < 1 ? 0.4 : 1) + (Math.random() - .5) * sh, this.p.z - sy * bobX);
-    camera.rotation.set(this.pitch + swayPitch, this.yaw + swayYaw, moving ? Math.sin(this.bob * 0.5) * 0.008 : 0);
+    this.backT = clamp((this.backT || 0) + (input.lookBack && !this.dead ? dt : -dt) * 5, 0, 1);   // a quick turn of the head
+    const back = this.backT * this.backT * (3 - 2 * this.backT);
+    camera.rotation.set((this.pitch + swayPitch) * (1 - back * 0.7), this.yaw + swayYaw + back * Math.PI, moving ? Math.sin(this.bob * 0.5) * 0.008 : 0);
     this.updateHUD();
   },
   // which floor / room is the player in (footstep colour + reverb)
@@ -4493,7 +4512,7 @@ $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
 $('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('menu').classList.add('on'); showBest(); MUSIC.start('lobby'); });
 $('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
-if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right: look';
+if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right: look · Double-tap and hold: look behind';
 
 /* ============================================================
    LOOP
@@ -4544,7 +4563,7 @@ function frame(now) {
   game.expNow += ((game.expTarget || 1) - game.expNow) * Math.min(1, dt * 1.2);
   u.uExposure.value = CFG.exposure * game.expNow * (1 + game.iso * 0.8) * (1 + Math.sin(now * 0.031) * 0.006 + (Math.random() < 0.004 ? -0.05 : 0));
 
-  for (const m of PANOS) if (m.parent?.parent) m.position.set(camera.position.x, 1.6, camera.position.z); else PANOS.delete(m);
+  for (const m of PANOS) if (m.parent?.parent) { m.position.set(camera.position.x, 1.6, camera.position.z); m.visible = !game.running || m.userData.zone === zones[game.zoneIdx]; } else PANOS.delete(m);
   if (OPT.refl) {
     reflCam.fov = camera.fov; reflCam.aspect = camera.aspect; reflCam.near = camera.near; reflCam.far = camera.far;
     reflCam.updateProjectionMatrix();

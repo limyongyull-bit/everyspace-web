@@ -9715,6 +9715,14 @@
      -3.6
     ],
     [
+     -9.5,
+     9.5,
+     -20.3,
+     -20.0,
+     -3.6,
+     0.0
+    ],
+    [
      -2.35,
      -1.65,
      -28.35,
@@ -9869,8 +9877,8 @@
    ],
    "lm": "subway2_lm.jpg",
    "glb": "subway2.glb",
-   "faces": 4614,
-   "medianIrradiance": 0.062
+   "faces": 4620,
+   "medianIrradiance": 0.054
   },
   "site": {
    "type": "room",
