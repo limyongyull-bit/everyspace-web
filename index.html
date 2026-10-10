@@ -131,6 +131,74 @@
   #loadBar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin: 10px 0 4px; }
   #loadBar i { display: block; height: 100%; width: 0; background: var(--teal); transition: width .2s; }
   #loadTxt { font-size: 12px; color: var(--muted); min-height: 1.4em; margin-bottom: 8px; }
+
+  /* intro: the logo comes up out of the dark, then the lobby */
+  #intro { position: fixed; inset: 0; z-index: 50; background: #050505; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    transition: opacity .9s ease; cursor: pointer; }
+  #intro img { width: min(78vw, 760px); opacity: 0; filter: blur(14px); transform: scale(1.04); animation: logoIn 2.4s cubic-bezier(.2,.7,.1,1) .3s forwards, flick 2.4s steps(1) .3s; }
+  #intro .isub { color: #8f8a80; font: 700 13px/1 "Barlow Condensed", sans-serif; letter-spacing: .9em; opacity: 0; animation: fadeIn 1.2s ease 1.6s forwards; padding-left: .9em; }
+  #intro .iload { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255,255,255,.06); }
+  #intro .iload i { display: block; height: 100%; width: 0; background: #e8e2d6; transition: width .3s; }
+  #intro.out { opacity: 0; pointer-events: none; }
+  @keyframes logoIn { 0% { opacity: 0; filter: blur(14px); transform: scale(1.04); } 60% { opacity: .9; filter: blur(1px); } 100% { opacity: 1; filter: blur(0); transform: scale(1); } }
+  @keyframes fadeIn { to { opacity: 1; } }
+  @keyframes flick { 0% { visibility: visible; } 22% { visibility: hidden; } 25% { visibility: visible; } 41% { visibility: hidden; } 43% { visibility: visible; } }
+  /* the lobby: the place itself behind, a column of type on the left */
+  #menu { background: linear-gradient(90deg, rgba(5,5,5,.86) 0%, rgba(5,5,5,.55) 38%, rgba(5,5,5,0) 70%); backdrop-filter: none; -webkit-backdrop-filter: none;
+    justify-content: flex-start; align-items: stretch; padding: 0; }
+  .lobby { --ink: #f2f0ea; --muted: #8f8a80; --line: rgba(255,255,255,.14); display: flex; flex-direction: column; color: var(--ink);
+    padding: max(44px, env(safe-area-inset-top)) 28px max(28px, env(safe-area-inset-bottom)) max(36px, env(safe-area-inset-left)); width: min(460px, 100%); }
+  .lobby .logo img { width: min(360px, 78vw); }
+  .lobby .sub { margin: 10px 0 0; }
+  .mm { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: auto 0 28px; padding-top: 40px; }
+  .mmi { font: 700 26px/1.25 "Barlow Condensed", sans-serif; letter-spacing: .16em; color: rgba(242,240,234,.72); background: none; border: 0; padding: 4px 0; cursor: pointer;
+    position: relative; text-align: left; transition: color .2s, transform .2s; }
+  .mmi::before { content: ""; position: absolute; left: -22px; top: 50%; width: 10px; height: 2px; background: #ff4a3a; transform: scaleX(0); transform-origin: left; transition: transform .2s; }
+  .mmi:hover, .mmi:focus-visible { color: #fff; transform: translateX(6px); outline: none; }
+  .mmi:hover::before, .mmi:focus-visible::before { transform: scaleX(1); }
+  .mmi.play { font-size: 44px; color: #fff; letter-spacing: .2em; }
+  .mmi:disabled { opacity: .35; cursor: default; transform: none; }
+  .lfoot { display: flex; flex-direction: column; gap: 4px; font: 400 12px/1.4 "Space Mono", ui-monospace, monospace; color: var(--muted); }
+  #bestTag:empty { display: none; }
+  .lobby #loadBar { margin: 4px 0 0; width: 180px; height: 2px; }
+  .lobby #loadTxt { margin: 0; min-height: 0; }
+  /* side panels */
+  .panel { --ink: #f2f0ea; --muted: #8f8a80; --line: rgba(255,255,255,.12); position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100%); z-index: 5;
+    background: rgba(10,10,10,.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: var(--ink); border-left: 1px solid var(--line);
+    padding: max(22px, env(safe-area-inset-top)) 22px 22px; overflow-y: auto; transform: translateX(104%); transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+  .panel.on { transform: none; }
+  .panel header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .panel h2 { margin: 0; font: 700 22px/1 "Barlow Condensed", sans-serif; letter-spacing: .2em; }
+  .panel .x, .dvcard .x { background: none; border: 1px solid var(--line, rgba(255,255,255,.14)); color: #f2f0ea; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 14px; }
+  .panel input[type=text] { width: 100%; box-sizing: border-box; }
+  /* the field guide */
+  .dex { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .dexc { position: relative; aspect-ratio: 4 / 5; border-radius: 10px; overflow: hidden; cursor: pointer; background: #111; border: 1px solid var(--line); padding: 0; text-align: left; }
+  .dexc img { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(.85) contrast(1.05); transition: transform .4s; }
+  .dexc:hover img { transform: scale(1.04); }
+  .dexc span { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 10px 9px; background: linear-gradient(transparent, rgba(0,0,0,.85));
+    font: 700 16px/1 "Barlow Condensed", sans-serif; letter-spacing: .1em; color: #fff; }
+  .dexc small { position: absolute; top: 8px; left: 10px; font: 400 10px/1 "Space Mono", monospace; color: rgba(255,255,255,.7); }
+  .dexc.locked img { filter: brightness(.12) blur(6px); }
+  .dexview { position: fixed; inset: 0; z-index: 8; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.8); padding: 16px; }
+  .dexview.on { display: flex; }
+  .dvcard { position: relative; width: min(820px, 100%); max-height: 100%; overflow-y: auto; background: #0c0c0c; border: 1px solid rgba(255,255,255,.12); border-radius: 14px;
+    display: grid; grid-template-columns: 1.1fr 1fr; color: #f2f0ea; }
+  .dvcard img { width: 100%; height: 100%; min-height: 300px; object-fit: cover; display: block; border-radius: 14px 0 0 14px; }
+  .dvcard .x { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.4); }
+  .dvtxt { padding: 26px 24px; }
+  .dvno { font: 400 11px/1 "Space Mono", monospace; color: #8f8a80; letter-spacing: .1em; }
+  .dvtxt h2 { margin: 8px 0 4px; font: 700 34px/1 "Barlow Condensed", sans-serif; letter-spacing: .08em; }
+  .dvcls { font: 700 12px/1 "Barlow Condensed", sans-serif; letter-spacing: .25em; color: #ff5a4a; margin-bottom: 14px; }
+  .dvtxt p { font-size: 14px; line-height: 1.6; color: #cfc9bd; }
+  .dvtip { border-top: 1px solid rgba(255,255,255,.12); padding-top: 12px; color: #f2f0ea !important; }
+  @media (max-width: 640px) {
+    #menu { background: linear-gradient(0deg, rgba(5,5,5,.9) 0%, rgba(5,5,5,.5) 45%, rgba(5,5,5,.2) 100%); }
+    .lobby { width: 100%; padding-left: 26px; }
+    .mmi.play { font-size: 40px; }
+    .dvcard { grid-template-columns: 1fr; }
+    .dvcard img { border-radius: 14px 14px 0 0; min-height: 0; aspect-ratio: 4 / 3; height: auto; }
+  }
 </style>
 <script type="importmap">
 { "imports": {
@@ -157,34 +225,31 @@
 <button id="useBtn">LIGHT</button>
 <button id="colaBtn">COLA</button>
 
+<div id="intro"><img src="assets/ui/logo.png" alt="EVERY SPACE"><div class="isub">I E O R I</div><div class="iload"><i id="introBar"></i></div></div>
 <div class="overlay on" id="menu">
-  <div class="card">
+  <div class="lobby">
     <h1 class="logo"><img src="assets/ui/logo.png" alt="EVERY SPACE" width="1984" height="257"></h1>
     <div class="sub">IEORI</div>
-    <div id="loadBar"><i></i></div>
-    <div id="loadTxt">Loading…</div>
-    <div class="row">
-      <input type="text" id="nameIn" maxlength="12" placeholder="Name" autocomplete="off">
-      <button class="main" id="startBtn" disabled>ENTER</button>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <label class="tog"><input type="radio" name="cam" id="optPhone" checked> Phone</label>
-      <label class="tog"><input type="radio" name="cam" id="optVhs"> VHS</label>
-      <label class="tog"><input type="checkbox" id="optBlur" checked> Motion blur</label>
-      <label class="tog"><input type="checkbox" id="optRefl" checked> Reflections</label>
-    </div>
-    <p class="keys" id="keysTxt">WASD · Shift run · Space jump · Click to look</p>
-    <div class="row" id="fsRow" style="display:none"><button class="ghost" id="fsBtn">⛶ Full screen</button><span class="keys" id="fsTip"></span></div>
-    <h3>LEADERBOARD</h3>
-    <div class="row" style="margin-bottom:6px">
-      <button class="ghost sel" data-tab="dist">Distance</button>
-      <button class="ghost" data-tab="zones">Zones</button>
-    </div>
-    <table class="lb" id="lbMenu"></table>
-    <div class="lbsrc" id="lbSrc"></div>
-    <h3>ENTITIES</h3>
-    <div class="dex" id="dex"></div>
+    <nav class="mm">
+      <button class="mmi play" id="startBtn" disabled>PLAY</button>
+      <button class="mmi" data-panel="pGuide">FIELD GUIDE</button>
+      <button class="mmi" data-panel="pBoard">LEADERBOARD</button>
+      <button class="mmi" data-panel="pSet">SETTINGS</button>
+    </nav>
+    <div class="lfoot"><span id="bestTag"></span><span id="loadTxt">Loading…</span><div id="loadBar"><i></i></div></div>
   </div>
+  <section class="panel" id="pGuide"><header><h2>FIELD GUIDE</h2><button class="x">✕</button></header><div class="dex" id="dex"></div></section>
+  <section class="panel" id="pBoard"><header><h2>LEADERBOARD</h2><button class="x">✕</button></header>
+    <div class="row" style="margin-bottom:10px"><button class="ghost sel" data-tab="dist">Distance</button><button class="ghost" data-tab="zones">Zones</button></div>
+    <table class="lb" id="lbMenu"></table><div class="lbsrc" id="lbSrc"></div></section>
+  <section class="panel" id="pSet"><header><h2>SETTINGS</h2><button class="x">✕</button></header>
+    <h3>NAME</h3><input type="text" id="nameIn" maxlength="12" placeholder="Name" autocomplete="off">
+    <h3>CAMERA</h3>
+    <div class="row"><label class="tog"><input type="radio" name="cam" id="optPhone" checked> Phone</label><label class="tog"><input type="radio" name="cam" id="optVhs"> VHS</label></div>
+    <div class="row"><label class="tog"><input type="checkbox" id="optBlur" checked> Motion blur</label><label class="tog"><input type="checkbox" id="optRefl" checked> Reflections</label></div>
+    <h3>CONTROLS</h3><p class="keys" id="keysTxt">WASD · Shift run · Space jump · Click to look</p>
+    <div class="row" id="fsRow" style="display:none"><button class="ghost" id="fsBtn">⛶ Full screen</button><span class="keys" id="fsTip"></span></div></section>
+  <div class="dexview" id="dexView"><div class="dvcard"><button class="x">✕</button><img id="dvImg" alt=""><div class="dvtxt"><div class="dvno" id="dvNo"></div><h2 id="dvName"></h2><div class="dvcls" id="dvCls"></div><p id="dvDesc"></p><p class="dvtip" id="dvTip"></p></div></div></div>
 </div>
 
 <div class="overlay" id="dead">
@@ -267,14 +332,15 @@ const CRACK = {
 
 // Creature roster. `live` = implemented. New hazards register in `Hazards`.
 const DEX = [
-  { id: 'killi', name: 'KILLI', live: true, desc: 'You hear the horn first. Then it comes through the wall.' },
-  { id: 'hands', name: 'THE HANDS', live: true, desc: 'It puts the lights out. Stay in the light.' },
-  { id: 'matryoshka', name: 'MATRYOSHKA', live: true, desc: 'Rock to break free.' },
-  { id: 'extra', name: 'THE EXTRA', live: true, desc: "Don't stare." },
-  { id: 'niki', name: 'NIKI', live: true, desc: "Stay close to her. Don't run unless you can keep running." },
-  { id: 'whistle', name: 'THE WHISTLE', live: true, desc: 'Stay off the marks. Keep your distance. Don\'t let it fill your view.' },
-  { id: 'follower', name: 'THE FOLLOWER', live: true, desc: "Don't stop." },
-  { id: 'sunflower', name: 'THE SUNFLOWERS', live: true, desc: 'Find another way.' },
+  { id: 'killi', name: 'KILLI', live: true, cls: 'ROLLING HEAD', desc: 'A black head the size of a car door, rolling end over end down long rooms. Its eyes are open now. They follow you even as it turns.', tip: 'A horn, then a rumble. It only ever comes from in front of you. Step out of its line.' },
+  { id: 'hands', name: 'THE HANDS', live: true, cls: 'LIGHT EATER', desc: 'The tubes over you stutter and die. In the dark that is left, hands come up out of the floor.', tip: 'Five seconds. Get back into the light.' },
+  { id: 'matryoshka', name: 'MATRYOSHKA', live: true, cls: 'NESTING DOLL', desc: 'Black lacquer, a painted face, a waddle. If it reaches you it closes over you.', tip: 'Rock left and right to split it open. It comes back one doll smaller.' },
+  { id: 'extra', name: 'THE EXTRA', live: true, cls: 'BACKGROUND FIGURE', desc: 'Someone standing in the room who should not be there. It only moves while you are not looking.', tip: "Don't stare at it." },
+  { id: 'niki', name: 'NIKI', live: true, cls: 'COMPANION', desc: 'She walks up to you and wants to stay close. Sometimes she gives you a glow stick. Run from her and she becomes something else.', tip: "Stay close. Don't run unless you can keep running. She can't follow you into a vent." },
+  { id: 'whistle', name: 'THE WHISTLE', live: true, cls: 'SIGNAL', desc: 'Dead snakes wound into a trunk, megaphones growing out of it. When it beeps, the floor is marked; three seconds later it comes up out of the mark.', tip: 'Stay off the marks. Keep your distance. Watch the SIGNAL bar.' },
+  { id: 'follower', name: 'THE FOLLOWER', live: true, cls: 'PURSUER', desc: 'Pale, thin, bare feet slapping the tiles. It steps out of the door behind you and runs, just slower than you.', tip: "Don't stop. It gives up eventually." },
+  { id: 'sunflower', name: 'THE SUNFLOWERS', live: true, cls: 'OBSTRUCTION', desc: 'A tall black sunflower with a ring of small ones, drifting into the way. Every head turns to follow you.', tip: "Don't touch them. Find another way." },
+  { id: 'watcher', name: 'THE WATCHER', live: true, cls: 'OBSERVER', desc: 'A dark figure at the far end of the room, watching you come.', tip: 'Harmless, as far as anyone knows. It is gone when you get close.' },
 ];
 const CAUSES = { killi: 'Crushed by Killi', hands: 'Taken by The Hands', niki: 'Caught by Mad Niki', fall: 'Fell', matryoshka: 'Sealed in the Matryoshka', extra: 'You stared at The Extra', whistle: 'Found by The Whistle', follower: 'Caught by The Follower', sunflower: 'Touched The Sunflowers' };
 
@@ -1278,7 +1344,7 @@ const MUSIC = {
     // bass from tier 1 (and always in the shop)
     if ((shop || tier >= 1) && (st === 0 || st === 7 || st === 10)) this.bass(t, this.hz(song.roots[bar] + (st === 10 ? 7 : 0)), beat * (st === 0 ? 1.6 : 0.7), shop ? 0.16 : 0.2);
     // music box from tier 2: sparse notes from the scale, more of them with danger
-    if (!shop && tier >= 2 && (st % 4 === 0 || (dg > 0.4 && st % 2 === 0)) && Math.random() < 0.55 + dg * 0.3) this.bell(t, this.hz(song.scale[(Math.random() * song.scale.length) | 0]), 0.09);
+    if (!shop && tier >= 2 && (st % 4 === 0 || (dg > 0.4 && st % 2 === 0)) && Math.random() < 0.55 + dg * 0.3) this.ep(t, this.hz(song.scale[(Math.random() * song.scale.length) | 0] - 12), 0.11, 1.6, 1);
     // tier 4+: distorted 808 slides and a choir pad
     if (!shop && tier >= 4 && (st === 0 || st === 8)) this.e808(t, this.hz(song.roots[bar] - 12), beat * 1.8);
     if (!shop && tier >= 4 && st === 0 && bar % 2 === 0) this.choir(t, song.chords[bar], beat * 7.5);
@@ -1286,6 +1352,7 @@ const MUSIC = {
   },
   env(g, t, a, peak, d) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0008, t + a + d); },
   keys(t, notes, dur, v) {
+    if (this.mode !== 'shop') { for (const m of notes) this.ep(t + Math.random() * 0.025, this.hz(m - 12), v / notes.length * 2.2, dur, 0.35); return; }
     const ctx = SFX.ctx, f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1900; f.connect(this.duck);
     const trem = ctx.createGain(); trem.connect(f); const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 4.2; lg.gain.value = 0.25; lfo.connect(lg); lg.connect(trem.gain); lfo.start(t); lfo.stop(t + dur + 0.2);
     for (const m of notes) for (const det of [-7, 7]) {
@@ -1303,6 +1370,32 @@ const MUSIC = {
   bass(t, f, dur, v) { const ctx = SFX.ctx, o = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
     o.frequency.value = f; o2.type = 'sawtooth'; o2.frequency.value = f; lp.type = 'lowpass'; lp.frequency.value = 280; o.connect(g); o2.connect(lp); lp.connect(g); g.connect(this.duck);
     this.env(g, t, 0.01, v, dur); o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1); },
+  // a worn electric piano (Rhodes-ish FM tine) through a tired tape deck: soft-clipped, crushed a little, muffled,
+  // and pulled flat now and then like a stretched cassette
+  epCurve: null, crushCurve: null,
+  ep(t, f, v, dur, bark = 1) {
+    const ctx = SFX.ctx;
+    if (!this.epCurve) {
+      this.epCurve = new Float32Array(512); this.crushCurve = new Float32Array(512);
+      for (let i = 0; i < 512; i++) { const x = i / 255.5 - 1; this.epCurve[i] = Math.tanh(x * 2.2) / Math.tanh(2.2); this.crushCurve[i] = Math.round(x * 24) / 24; }
+    }
+    const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), tine = ctx.createOscillator(), tg = ctx.createGain();
+    car.frequency.value = f; mod.frequency.value = f; tine.frequency.value = f * 13.9;
+    const drift = (Math.random() < 0.18 ? -1 : 0) * (12 + Math.random() * 25);      // the tape drags: a note sags flat
+    car.detune.setValueAtTime(0, t); car.detune.linearRampToValueAtTime(drift, t + dur * 0.8);
+    this.wowG.connect(car.detune); this.wowG.connect(mod.detune);
+    mg.gain.setValueAtTime(f * 2.4 * bark, t); mg.gain.exponentialRampToValueAtTime(f * 0.25, t + 0.35);   // the bark of the attack, then round
+    tg.gain.setValueAtTime(f * 0.5 * bark, t); tg.gain.exponentialRampToValueAtTime(1, t + 0.06);
+    mod.connect(mg); mg.connect(car.frequency); tine.connect(tg); tg.connect(car.frequency);
+    const sat = ctx.createWaveShaper(); sat.curve = this.epCurve;
+    const crush = ctx.createWaveShaper(); crush.curve = this.crushCurve;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1350; lp.Q.value = 0.4;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
+    const g = ctx.createGain();
+    car.connect(sat); sat.connect(crush); crush.connect(lp); lp.connect(hp); hp.connect(g); g.connect(this.duck); g.connect(SFX.verb);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.006); g.gain.exponentialRampToValueAtTime(v * 0.35, t + 0.4); g.gain.exponentialRampToValueAtTime(0.0006, t + dur);
+    for (const o of [car, mod, tine]) { o.start(t); o.stop(t + dur + 0.05); }
+  },
   bell(t, f, v) { const ctx = SFX.ctx; for (const [m, a, d] of [[1, 1, 1.4], [2.76, 0.35, 0.6], [5.4, 0.12, 0.3]]) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f * m; this.wowG.connect(o.detune);
     o.connect(g); g.connect(this.duck); g.connect(SFX.verb); this.env(g, t, 0.003, v * a, d); o.start(t); o.stop(t + d + 0.1); } },
   e808(t, f, dur) { const ctx = SFX.ctx, o = ctx.createOscillator(), sh = ctx.createWaveShaper(), g = ctx.createGain(), c = new Float32Array(256);
@@ -2956,7 +3049,7 @@ const HPUI = (() => {
   el.innerHTML = '<div style="font:700 11px/1 \'Space Mono\',monospace;letter-spacing:.2em;color:#ff5a4a;margin-bottom:5px">SIGNAL</div><div style="width:180px;height:5px;background:rgba(255,255,255,.15)"><div id="hpFill" style="height:100%;width:100%;background:#ff3a2a"></div></div>';
   Object.assign(el.style, { position: 'fixed', top: '64px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', zIndex: 3, pointerEvents: 'none', opacity: 0, transition: 'opacity .3s' });
   document.body.appendChild(el);
-  return { set(v) { el.style.opacity = v < 0.999 ? 1 : 0; el.querySelector('#hpFill').style.width = (v * 100).toFixed(1) + '%'; } };
+  return { set(v) { el.style.opacity = v < 0.999 && game.running && !game.dead ? 1 : 0; el.querySelector('#hpFill').style.width = (v * 100).toFixed(1) + '%'; } };
 })();
 Hazards.whistle = {
   update(dt, zone, active) {
@@ -2976,7 +3069,7 @@ Hazards.whistle = {
     if (!here) { SFX.setStare(0); return; }
     // the beep: the megaphones call, the ground lights up where it will be deadly
     if ((w.beepT -= dt) <= 0) {
-      w.beepT = Math.max(1.8, 3.4 - zone.i * 0.03) * (0.85 + Math.random() * 0.3);
+      w.beepT = Math.max(5.2, 6.6 - zone.i * 0.02) * (0.9 + Math.random() * 0.2);
       SFX.beep(o.x, o.y + w.H, o.z, 6); w.led.visible = true; w.ledT = 0.12;
       const ex = zone.exits.reduce((a, e) => Math.abs(e.y - P.y) < 0.6 && Math.hypot(e.x - P.x, e.z - P.z) < Math.hypot(a.x - P.x, a.z - P.z) ? e : a, zone.exits[0]);
       const n = 2 + (Math.random() < Math.min(0.2 + zone.i * 0.02, 0.7) ? 1 : 0);
@@ -2989,26 +3082,26 @@ Hazards.whistle = {
         if (w.list.some(m => Math.hypot(m.x - x, m.z - z) < 2.2)) continue;
         const ring = new THREE.Mesh(WHISTLE.RING, WHISTLE.markRing.clone()), fill = new THREE.Mesh(WHISTLE.DISC, WHISTLE.markFill.clone());
         ring.position.set(x, g + 0.02, z); fill.position.set(x, g + 0.015, z); w.marks.add(ring, fill);
-        w.list.push({ x, z, y: g, t: 0, ring, fill }); if (k === 0) { w.next = { x, z, y: g }; w.rise = -1; } k++;
+        const mk = { x, z, y: g, t: 0, ring, fill }; w.list.push(mk); if (k === 0) { w.next = mk; w.rise = -1; } k++;
         SFX.beep(x, g + 0.2, z, 8);
       }
     }
     if ((w.ledT -= dt) <= 0) w.led.visible = false;
     // sink (rise = -1) until it is under the floor, jump to the new mark, come up out of it (rise = +1)
     w.up = clamp(w.up + w.rise * dt * (w.rise > 0 ? 1.4 : 2.2), 0, 1);
-    if (w.rise < 0 && w.up <= 0 && w.next) { o.set(w.next.x, w.next.y, w.next.z); w.next = null; w.rise = 1; SFX.knock(o.x, o.z, 0.5); }
+    if (w.rise <= 0 && w.up <= 0 && w.next && w.next.t >= 3.0) { o.set(w.next.x, w.next.y, w.next.z); w.next = null; w.rise = 1; SFX.knock(o.x, o.z, 0.5); game.shake = Math.max(game.shake, 0.25); }
     w.obj.position.set(o.x, o.y - (1 - w.up) * (w.H + 0.4), o.z);
     w.obj.visible = w.up > 0.01;
     for (const m of w.list) {
       m.t += dt;
-      const warn = m.t < 0.8, live = !warn && m.t < 4.0, s = warn ? 0.35 + m.t * 0.8 : 1;
+      const warn = m.t < 3.0, live = !warn && m.t < 5.6, s = warn ? 0.35 + Math.min(1, m.t / 2.6) * 0.65 : 1;
       m.ring.scale.setScalar(s); m.fill.scale.setScalar(s);
-      m.ring.material.opacity = warn ? (Math.sin(m.t * 30) > 0 ? 0.9 : 0.3) : live ? 0.9 : Math.max(0, 0.9 - (m.t - 4) * 2.2);
-      m.fill.material.opacity = warn ? 0.08 : live ? 0.28 + Math.sin(m.t * 9) * 0.08 : Math.max(0, 0.28 - (m.t - 4) * 0.7);
+      m.ring.material.opacity = warn ? (Math.sin(m.t * (8 + m.t * 8)) > 0 ? 0.9 : 0.25) : live ? 0.9 : Math.max(0, 0.9 - (m.t - 5.6) * 2.2);
+      m.fill.material.opacity = warn ? 0.06 : live ? 0.28 + Math.sin(m.t * 9) * 0.08 : Math.max(0, 0.28 - (m.t - 5.6) * 0.7);
       if (live && Math.hypot(P.x - m.x, P.z - m.z) < 0.95 && Math.abs(P.y - m.y) < 0.6) zone.pendingKill = { kill: 'whistle', by: { pos: o } };
     }
-    for (const m of w.list.filter(m => m.t > 4.4)) { w.marks.remove(m.ring, m.fill); m.ring.material.dispose(); m.fill.material.dispose(); }
-    w.list = w.list.filter(m => m.t <= 4.4);
+    for (const m of w.list.filter(m => m.t > 6.0 && m !== w.next)) { w.marks.remove(m.ring, m.fill); m.ring.material.dispose(); m.fill.material.dispose(); }
+    w.list = w.list.filter(m => m.t <= 6.0 || m === w.next);
     // the drain: proximity, and how much of the screen the tower fills (worst at about half)
     const d = Math.hypot(P.x - o.x, P.z - o.z);
     if (w.up > 0.4 && d < 0.75 && Math.abs(P.y - o.y) < 1.5) zone.pendingKill = { kill: 'whistle', by: { pos: o } };   // touching it
@@ -3537,7 +3630,23 @@ function toast(title, body = '', warn = false) {
   el.classList.add('on');
   toastTimer = 3.4;
 }
-$('dex').innerHTML = DEX.map(d => `<div class="${d.live ? 'live' : ''}"><b>${d.name}</b>${d.live ? d.desc : '???'}</div>`).join('');
+$('dex').innerHTML = DEX.map((d, k) => `<button class="dexc" data-k="${k}"><img src="assets/dex/${d.id}.jpg" alt="" loading="lazy"><small>E-${String(k + 1).padStart(2, '0')}</small><span>${d.name}</span></button>`).join('');
+document.querySelectorAll('.dexc').forEach(c => c.addEventListener('click', () => {
+  const d = DEX[+c.dataset.k]; $('dvImg').src = `assets/dex/${d.id}.jpg`; $('dvNo').textContent = 'E-' + String(+c.dataset.k + 1).padStart(2, '0');
+  $('dvName').textContent = d.name; $('dvCls').textContent = d.cls; $('dvDesc').textContent = d.desc; $('dvTip').textContent = d.tip; $('dexView').classList.add('on');
+}));
+$('dexView').addEventListener('click', e => { if (e.target.id === 'dexView' || e.target.classList.contains('x')) $('dexView').classList.remove('on'); });
+document.querySelectorAll('[data-panel]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === b.dataset.panel && !p.classList.contains('on')));
+}));
+document.querySelectorAll('.panel .x').forEach(b => b.addEventListener('click', () => b.closest('.panel').classList.remove('on')));
+// the intro: logo out of the dark; it lifts once it has played and the assets are in (tap to skip)
+const INTRO = { t0: performance.now(), done: false,
+  out() { if (this.done) return; this.done = true; $('intro').classList.add('out'); setTimeout(() => $('intro').remove(), 1000); } };
+$('intro').addEventListener('click', () => INTRO.out());
+setTimeout(() => { if (ready) INTRO.out(); }, 3400);
+function showBest() { const b = +store.get('ieori.best', '0') || 0; $('bestTag').textContent = b ? `BEST  ${Math.round(b)} m` : ''; }
+showBest();
 const MONTHS = ['JAN.', 'FEB.', 'MAR.', 'APR.', 'MAY', 'JUN.', 'JUL.', 'AUG.', 'SEP.', 'OCT.', 'NOV.', 'DEC.'];
 const today = new Date();
 $('date').textContent = `${MONTHS[today.getMonth()]} ${today.getDate()} 1996`;
@@ -3856,6 +3965,7 @@ if (isTouch && !standalone) {
     $('fsTip').textContent = /iP(hone|ad|od)/.test(navigator.userAgent) ? 'Full screen: Share → Add to Home Screen, then open it from there.' : 'Full screen: browser menu → Add to Home screen.'; }
 }
 function start() {
+  document.querySelectorAll('.panel.on').forEach(p => p.classList.remove('on')); $('dexView').classList.remove('on');
   if (isTouch) goFullscreen();
   if (!ready) return;
   SFX.init();
@@ -3870,7 +3980,7 @@ function start() {
 }
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
-$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('menu').classList.add('on'); });
+$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('menu').classList.add('on'); showBest(); });
 $('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
 if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right: look';
 
@@ -3955,6 +4065,7 @@ LB.init();
 
 loadAssets((f, label) => {
   $('loadBar').firstElementChild.style.width = Math.round(f * 100) + '%';
+  const ib = document.getElementById('introBar'); if (ib) ib.style.width = Math.round(f * 100) + '%';
   $('loadTxt').textContent = `Loading… ${label}`;
 }).then(() => {
   ready = true;
@@ -3962,13 +4073,14 @@ loadAssets((f, label) => {
   streamRest();
   $('loadTxt').textContent = ASSET.meta.quick ? 'Ready (preview assets)' : 'Ready';
   $('startBtn').disabled = false;
+  if (performance.now() - INTRO.t0 > 3400) INTRO.out();
 }).catch(err => {
   console.error(err);
   $('loadTxt').innerHTML = location.protocol === 'file:'
     ? 'Open this through a web server (e.g. <code>npx http-server</code> or GitHub Pages) — browsers block file:// assets.'
     : 'Failed to load assets: ' + escapeHTML(err.message || String(err));
 });
-if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT };
+if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT };
 </script>
 </body>
 </html>
