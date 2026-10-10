@@ -1830,11 +1830,12 @@ function buildRoom(zone, kind) {
   // that never arrives); uneasy: one or two heads, long gaps; active: the old cadence. Never in the first 8 s.
   // difficulty climbs with depth: past room 10 most rooms are 'active' and the heads come faster and in packs
   const D = clamp((zone.i - 1) / 14, 0, 1);
-  const mr = zone.rng(), calmP = Math.max(0.05, 0.22 - 0.2 * D), activeP = Math.min(0.85, 0.3 + 0.55 * D);
+  const mr = zone.rng(), calmP = Math.max(0.03, 0.1 - 0.1 * D), activeP = Math.min(0.85, 0.4 + 0.45 * D);
   zone.mood = zone.i <= 1 ? 'uneasy' : mr < calmP ? 'calm' : mr > 1 - activeP ? 'active' : 'uneasy';
-  zone.killiT = (5 + zone.rng() * 8) * (1 - 0.45 * D);
+  zone.killiT = (1.2 + zone.rng() * 2.2) * (1 - 0.3 * D);   // a room takes 4-8 s to cross: the first head has to come while you're in it
   zone.killiLeft = zone.mood === 'calm' ? 0 : zone.mood === 'uneasy' ? 2 + (zone.rng() < 0.5 + 0.5 * D ? 1 : 0) : Infinity;
   if (zone.mood === 'calm' && zone.rng() < 0.6) zone.fakeHornT = 10 + zone.rng() * 25;
+  zone.killiCap = true;   // trimmed once the room's eerie is known (Hazards.killi)
 }
 function createZone(i, z0, opts = {}) {
   const zone = {
@@ -2172,10 +2173,15 @@ function frontLanes(zone) {
   const kr = zone.kr, L = [];
   if (zone.len >= 18) for (const l of killiLanes(zone)) {
     if (l.a !== 'z' || (l.from && !l.from.includes(-1)) || l.y) continue;
+    // how far it can roll in from the far door before something stands in the way: the whole room, or a long
+    // enough run (12 m+) that it stops against whatever is there, like a head stopping against a wall
     const r = kr * 0.75, o = { x: 0, y: 0, z: 0 };
-    let clear = !zone.cols.some(c => colBlocks(c, zone.oy, kr * 2) && c.x1 > l.c - r && c.x0 < l.c + r && c.z1 > zone.exitZ + 0.3 && c.z0 < zone.z0 - 0.3);
-    for (let z = zone.exitZ + 0.5; clear && z < zone.z0 - 0.5; z += 0.8) if (SOLID.push(zone, l.c, zone.oy + kr, z, r, o) || SOLID.push(zone, l.c, zone.oy + kr * 0.45, z, r, o)) clear = false;
-    if (clear) L.push({ ...l, from: [-1] });
+    let end = zone.z0 - 0.3;
+    for (const c of zone.cols) if (colBlocks(c, zone.oy, kr * 2) && c.x1 > l.c - r && c.x0 < l.c + r && c.z1 > zone.exitZ + 0.3 && c.z0 < end) end = c.z0;
+    for (let z = zone.exitZ + 0.5; z < end; z += 0.8) if (SOLID.push(zone, l.c, zone.oy + kr, z, r, o) || SOLID.push(zone, l.c, zone.oy + kr * 0.45, z, r, o)) { end = z - 0.4; break; }
+    const run = end - zone.exitZ;
+    if (run >= zone.len - 0.8) L.push({ ...l, from: [-1] });
+    else if (run >= 12) L.push({ ...l, from: [-1], run });
   }
   return (zone.frontLanes = L);
 }
@@ -2186,7 +2192,7 @@ function spawnKilli(zone, p) {
   // a lane with two heads already resting in it is full (a third pile would start to block the doors)
   const inLane = l => zone.killis.filter(k => k.wall && k.lane === l).length;
   const lanes = frontLanes(zone).filter(l => inLane(l) < 2);
-  if (!lanes.length) return;
+  if (!lanes.length) return false;
   // mostly the passage you are in or next to; sometimes one further off, so you see it go by
   // and mostly from in front of you (where you can see it), seldom through the door behind you
   const wts = lanes.map(l => (Math.exp(-Math.abs((l.a === 'x' ? p.z : p.x) - l.c) / 3) + 0.08) * (l.a === 'z' && l.from?.length === 1 && l.from[0] === 1 ? 0.25 : 1));
@@ -2201,10 +2207,10 @@ function spawnKilli(zone, p) {
   let s0, span;
   if (axis === 'x') { s0 = dir > 0 ? zone.x0 - kr : zone.x1 + kr; span = zone.x1 - zone.x0 + kr * 2 + 3; }
   else { s0 = dir > 0 ? zone.exitZ - kr : zone.z0 + kr; span = zone.len + kr * 2 + 3; }
-  // never through a shut door into a room that isn't there yet
-  if (axis === 'z' && dir > 0 && zone.exitDoors?.some(d => Math.abs(d.e.x - lane.c) < 1.2 && !(zones[zone.i + 1] && !zones[zone.i + 1].disposed && zones[zone.i + 1].via === d.k))) return;
-  const farClosed = !!(lane.from && !lane.from.includes(dir));      // no opening in the far wall: it stops against it
-  if (farClosed) { span -= 3 + kr * 2; n = Math.min(n, 2 - inLane(lane)); }
+  // a door it comes through bangs open ahead of it (the room behind may not be built yet: it rolls out of the haze)
+  const farClosed = !!(lane.from && !lane.from.includes(dir)) || !!lane.run;      // no opening in the far wall (or something in the way): it stops against it
+  if (lane.run) { span = lane.run - kr; n = Math.min(n, 2 - inLane(lane)); }
+  else if (farClosed) { span -= 3 + kr * 2; n = Math.min(n, 2 - inLane(lane)); }
   const lead = KILLI_LEAD[0] + r() * (KILLI_LEAD[1] - KILLI_LEAD[0]);
   let back = 0;
   for (let k = 0; k < n; k++) {
@@ -2222,14 +2228,16 @@ const Hazards = {
   killi: {
     update(dt, zone, active) {
       if (active && zone.meta && zone.meta.axes.length && zone.i === game.zoneIdx && frontLanes(zone).length) {
-        // Niki close by or the power cut going: nothing else comes until it is over (plus a quiet stretch)
-        if (zone.handsPlan?.phase === 'dark' || zone.handsPlan?.phase === 'flicker' || (NIKI.mode !== 'none' && NIKI.mode !== 'gone')) zone.killiT = Math.max(zone.killiT, 20);
+        // MAD NIKI after you or the power cut going: nothing else comes until it is over (plus a short breath)
+        if (zone.handsPlan?.phase === 'dark' || zone.handsPlan?.phase === 'flicker' || NIKI.mode === 'mad' || CUT.on) zone.killiT = Math.max(zone.killiT, 4);   // one chase at a time
         if (zone.fakeHornT !== undefined && (zone.fakeHornT -= dt) <= 0) { SFX.horn(0.25 + zone.rng() * 0.1, false); zone.fakeHornT = undefined; }
+        if (zone.killiCap) { zone.killiCap = false; const e = eerieFor(zone); if (e && e !== 'watcher') zone.killiLeft = Math.min(zone.killiLeft, 1 + (zone.rng() < 0.5 ? 1 : 0)); }
         zone.killiT -= dt;
         if (zone.killiT <= 0 && zone.killiLeft > 0) {
-          spawnKilli(zone, game.p); zone.killiLeft--;
+          if (spawnKilli(zone, game.p) === false) { zone.killiT = 0.5; return; }   // its door isn't open yet: try again in a moment
+          zone.killiLeft--;
           const pace = Math.max(0.35, 1 - zone.i * 0.045);
-          zone.killiT = zone.mood === 'active' ? (5 + zone.rng() * 6) * pace : (10 + zone.rng() * 14) * pace;
+          zone.killiT = zone.mood === 'active' ? (3.5 + zone.rng() * 3) * pace : (6 + zone.rng() * 5) * pace;
         }
       }
       zone.killis = zone.killis.filter(k => { const alive = k.update(dt); if (!alive) k.dispose(); return alive; });
@@ -2244,7 +2252,7 @@ const Hazards = {
           continue;
         }
         if (d < k.r + CFG.radius - 0.05 && p.y - k.obj.position.y < k.r * 2 && p.y > k.obj.position.y - 0.6) return { kill: 'killi', by: k };
-        if (d < k.r + 1.5 && !k.near) { k.near = true; zone.killiT = Math.max(zone.killiT, 20 + zone.rng() * 10); }   // a near miss buys a quiet stretch
+        if (d < k.r + 1.5 && !k.near) { k.near = true; zone.killiT = Math.max(zone.killiT, 6 + zone.rng() * 4); }   // a near miss buys a quiet stretch
         if (k.near && !k.paid && d > k.r + 2.5 && Math.abs(p.y - k.obj.position.y) < 2) { k.paid = true; DOPA.nearMiss(); }
         best = Math.max(best, clamp(1 - d / 30, 0, 1) ** 2);
       }
@@ -2543,7 +2551,7 @@ const NIKI = {
     const g = groundAt(this.pos.x, this.pos.z, this.pos.y + 0.1);
     if (isFinite(g)) this.pos.y = g;   // up and down stairs with you (she does not drop off ledges: she has no reason to)
   },
-  reset() { this.mode = 'none'; this.cool = 25; this.giveT = 12; this.sprintT = 0; if (this.obj) { this.obj.visible = false; this.mad.visible = false; } },
+  reset() { this.mode = 'none'; this.cool = 12; this.giveT = 12; this.sprintT = 0; if (this.obj) { this.obj.visible = false; this.mad.visible = false; } },
   spawn(zone) {
     this.build(); if (!this.obj) return;
     this.mode = 'walk'; this.pos.set(zone.exitX, zone.oy || 0, zone.exitZ + 2.5); this.morph = 0; this.sprintT = 0; this.wp = null; this.yaw = undefined;
@@ -2558,7 +2566,7 @@ const NIKI = {
       if (this.shadow) this.shadow.visible = false;
       this.cool -= dt;
       const z = zones[game.zoneIdx];
-      if (z && z.nikiRoll === undefined) z.nikiRoll = z.rng() < 0.35;
+      if (z && z.nikiRoll === undefined) z.nikiRoll = z.rng() < 0.5;
       if (this.cool <= 0 && z && z.meta && !z.meta.crawl && !z.meta.safe && z.i >= 2 && (window.__forceNiki || z.nikiRoll)) this.spawn(z);
       return;
     }
@@ -2581,7 +2589,7 @@ const NIKI = {
       if (d < 1.0 && this.morph >= 1 && !zones[game.zoneIdx]?.meta?.crawl) return 'kill';
     } else if (this.mode === 'tired') {
       this.tiredT += dt; this.morph = Math.max(0, this.morph - dt * 1.2);
-      if (this.tiredT > 14) { this.mode = 'gone'; this.cool = 70; this.obj.visible = this.mad.visible = false; return; }
+      if (this.tiredT > 14) { this.mode = 'gone'; this.cool = 35; this.obj.visible = this.mad.visible = false; return; }
     }
     if (speed > 0 && d > 0.9) this.walk(dx / d, dz / d, speed * dt, this.mode === 'mad' ? 0.45 : 0.32);
     // pose: walk cycle on the separate limbs; MAD NIKI is 1.5x taller and lopes
@@ -2677,7 +2685,7 @@ const CUT = {
     if (!this.on) return;
     this.on = false; this.shrieked = false; if (NIKI.mad) NIKI.mad.rotation.set(0, 0, 0);
     for (const e of this.el || []) e.style.height = '0vh';
-    NIKI.mode = 'gone'; NIKI.cool = 70; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; }
+    NIKI.mode = 'gone'; NIKI.cool = 35; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; }
     if (ok) { game.yaw = this.yaw0; game.pitch = this.pitch0; DOPA.reward(3, 'ESCAPED'); toast('LOST HER', '', false); }
   },
 };
@@ -2822,10 +2830,12 @@ function eerieFor(zone) {
   if (zone.eerie !== undefined) return zone.eerie;
   let e = null;
   if (DEBUG && window.__forceEerie) e = window.__forceEerie;
-  else if (zone.i >= 3 && zone.meta && !zone.meta.crawl && !zone.meta.safe && !zones[zone.i - 1]?.eerie) {
-    if (zone.rng() < Math.min(0.2 + zone.i * 0.015, 0.55)) {
-      const opts = [['hands', 1.5], ['whistle', zone.i >= 3 ? (zone.len >= 16 ? 1.3 : 0.4) : 0], ['matryoshka', zone.i >= 4 ? 1 : 0], ['extra', zone.i >= 5 ? 1 : 0], ['follower', zone.i >= 6 ? 1.2 : 0],
-        ['sunflower', zone.i >= 4 && zone.meta.x1 - zone.meta.x0 >= 10 && zone.len >= 14 ? 1.1 : 0]];
+  else if (zone.i >= 2 && zone.meta && !zone.meta.crawl && !zone.meta.safe) {
+    // something in most rooms: rooms too short for Killi nearly always get one of these, the long ones often too
+    const prev = zones[zone.i - 1]?.eerie, pChance = frontLanes(zone).length ? Math.min(0.4 + zone.i * 0.025, 0.7) : 0.85;
+    if (zone.rng() < pChance) {
+      const opts = [['hands', 1.4], ['whistle', zone.len >= 16 ? 1.3 : 0.4], ['matryoshka', 1], ['extra', zone.i >= 3 ? 1 : 0], ['follower', zone.i >= 3 ? 1.4 : 0],
+        ['sunflower', zone.i >= 3 && zone.meta.x1 - zone.meta.x0 >= 10 && zone.len >= 14 ? 1.1 : 0]].map(([k, w]) => [k, k === prev ? 0 : w]);   // never the same one twice running
       let r = zone.rng() * opts.reduce((s, o) => s + o[1], 0);
       for (const [k, w] of opts) { r -= w; if (r <= 0) { e = k; break; } }
     }
@@ -3754,7 +3764,7 @@ const game = {
     SFX.setSpace(m.space || 'store');
     if (m.safe) {   // whatever was after you stays outside
       SHOP.enter(zone); MUSIC.start('shop'); FOLLOWER.end(true);
-      if (NIKI.mode !== 'none' && NIKI.mode !== 'gone') { NIKI.mode = 'gone'; NIKI.cool = 60; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; } }
+      if (NIKI.mode !== 'none' && NIKI.mode !== 'gone') { NIKI.mode = 'gone'; NIKI.cool = 30; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; } }
     } else if (MUSIC.mode === 'shop' || !MUSIC.on) MUSIC.start('run');
     $('zoneNo').textContent = pad4(zone.i);
     $('zoneName').textContent = zone.name;
@@ -3837,9 +3847,9 @@ const game = {
 
     for (const z of zones) if (z && !z.disposed && z.exitDoors) for (const d of z.exitDoors) {
       const nxt = zones[z.i + 1], ready = nxt && !nxt.disposed && nxt.via === d.k;
-      const near = (Math.hypot(this.p.x - d.e.x, this.p.z - d.e.z) < 3.2 && Math.abs(this.p.y - d.e.y) < 1.5)
-        || [z, zones[z.i + 1]].some(zz => zz && !zz.disposed && zz.killis.some(k => !(k.wait > 0) && !k.rest && Math.hypot(k.obj.position.x - d.e.x, k.obj.position.z - d.e.z) < 4.5));   // and for a Killi coming through
-      d.open = clamp(d.open + (near && ready ? 4 : -1.5) * dt, 0, 1);
+      const near = Math.hypot(this.p.x - d.e.x, this.p.z - d.e.z) < 3.2 && Math.abs(this.p.y - d.e.y) < 1.5;
+      const killi = [z, zones[z.i + 1]].some(zz => zz && !zz.disposed && zz.killis.some(k => !k.rest && (k.wait > 0 ? k.wait < 0.7 : true) && Math.hypot(k.obj.position.x - d.e.x, k.obj.position.z - d.e.z) < 4.5));   // and for a Killi coming through
+      d.open = clamp(d.open + ((near && ready) || killi ? (killi ? 7 : 4) : -1.5) * dt, 0, 1);
       d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); });
     }
     for (const z of zones) if (z && !z.disposed && z.door) {
@@ -3853,7 +3863,7 @@ const game = {
     const safeHere = !!zones[this.zoneIdx]?.meta?.safe;   // NINE LIVES: nothing can hurt you in there
     for (const z of zones) {
       if (!z || z.disposed) continue;
-      const active = z.i === this.zoneIdx || z.i === this.zoneIdx + 1;
+      const active = z.i === this.zoneIdx || (z.i === this.zoneIdx + 1 && !zones[this.zoneIdx]?.eerie);
       for (const h of Object.values(Hazards)) {
         h.update(dt, z, active);
         const res = h.check(z, this.p);
