@@ -1,0 +1,112 @@
+[
+ {
+  "id": "hello1",
+  "kind": "hello",
+  "text": "Hi! Hehe... you're new here, right?"
+ },
+ {
+  "id": "hello2",
+  "kind": "hello",
+  "text": "Oh! Hi hi! I was waiting for you."
+ },
+ {
+  "id": "hello3",
+  "kind": "hello",
+  "text": "Hehe. Found you."
+ },
+ {
+  "id": "chat1",
+  "kind": "chat",
+  "text": "Stay close to me, okay? It's safer."
+ },
+ {
+  "id": "chat2",
+  "kind": "chat",
+  "text": "Do you like it here? I do. Mostly."
+ },
+ {
+  "id": "chat3",
+  "kind": "chat",
+  "text": "Hehe, your footsteps are so loud."
+ },
+ {
+  "id": "chat4",
+  "kind": "chat",
+  "text": "I used to work in the mart. I think."
+ },
+ {
+  "id": "chat5",
+  "kind": "chat",
+  "text": "Don't look at the big heads. They hate that. Hehe."
+ },
+ {
+  "id": "chat6",
+  "kind": "chat",
+  "text": "Have you seen the exit? Me neither. Hehe."
+ },
+ {
+  "id": "chat7",
+  "kind": "chat",
+  "text": "Wanna hear a secret? ...Never mind."
+ },
+ {
+  "id": "chat8",
+  "kind": "chat",
+  "text": "You're my favorite. Don't tell the others."
+ },
+ {
+  "id": "chat9",
+  "kind": "chat",
+  "text": "Hey... hey. Are you listening to me?"
+ },
+ {
+  "id": "chat10",
+  "kind": "chat",
+  "text": "This store never closes. Isn't that nice?"
+ },
+ {
+  "id": "chat11",
+  "kind": "chat",
+  "text": "Shh. Did you hear the horn?"
+ },
+ {
+  "id": "giggle1",
+  "kind": "giggle",
+  "text": "Hehehe!"
+ },
+ {
+  "id": "giggle2",
+  "kind": "giggle",
+  "text": "Hihi."
+ },
+ {
+  "id": "giggle3",
+  "kind": "giggle",
+  "text": "Hehe... hehe."
+ },
+ {
+  "id": "give1",
+  "kind": "give",
+  "text": "Here! Take this. It's really bright."
+ },
+ {
+  "id": "give2",
+  "kind": "give",
+  "text": "For you! Don't lose it, okay?"
+ },
+ {
+  "id": "leave1",
+  "kind": "leave",
+  "text": "Why are you leaving me?"
+ },
+ {
+  "id": "leave2",
+  "kind": "leave",
+  "text": "Hey. Where are you going?"
+ },
+ {
+  "id": "tired1",
+  "kind": "tired",
+  "text": "I'm... so tired..."
+ }
+]
