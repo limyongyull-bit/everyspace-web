@@ -140,6 +140,12 @@
   #intro .iload { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255,255,255,.06); }
   #intro .iload i { display: block; height: 100%; width: 0; background: #e8e2d6; transition: width .3s; }
   #intro.out { opacity: 0; pointer-events: none; }
+  #intro.wait img, #intro.wait .isub { animation-play-state: paused; }
+  #intro .igate { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 14px; transition: opacity .5s; pointer-events: none; }
+  #intro .igate b { color: #e8e2d6; font: 700 15px/1 "Barlow Condensed", sans-serif; letter-spacing: .6em; padding-left: .6em; animation: gatePulse 2.2s ease-in-out infinite; }
+  #intro .igate span { color: #6f6a62; font: 700 10px/1 "Barlow Condensed", sans-serif; letter-spacing: .45em; padding-left: .45em; }
+  #intro:not(.wait) .igate { opacity: 0; }
+  @keyframes gatePulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
   @keyframes logoIn { 0% { opacity: 0; filter: blur(14px); transform: scale(1.04); } 60% { opacity: .9; filter: blur(1px); } 100% { opacity: 1; filter: blur(0); transform: scale(1); } }
   @keyframes fadeIn { to { opacity: 1; } }
   @keyframes flick { 0% { visibility: visible; } 22% { visibility: hidden; } 25% { visibility: visible; } 41% { visibility: hidden; } 43% { visibility: visible; } }
@@ -225,7 +231,7 @@
 <button id="useBtn">LIGHT</button>
 <button id="colaBtn">COLA</button>
 
-<div id="intro"><img src="assets/ui/logo.png" alt="EVERY SPACE"><div class="isub">I E O R I</div><div class="iload"><i id="introBar"></i></div></div>
+<div id="intro" class="wait"><div class="igate"><b id="gateTxt">CLICK TO ENTER</b><span>SOUND ON · HEADPHONES RECOMMENDED</span></div><img src="assets/ui/logo.png" alt="EVERY SPACE"><div class="isub">I E O R I</div><div class="iload"><i id="introBar"></i></div></div>
 <div class="overlay on" id="menu">
   <div class="lobby">
     <h1 class="logo"><img src="assets/ui/logo.png" alt="EVERY SPACE" width="1984" height="257"></h1>
@@ -871,6 +877,7 @@ const SFX = {
     if (this.ctx) { this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { }
     const ctx = this.ctx = new AC();
     this.master = ctx.createGain(); this.master.gain.value = 0.8; this.master.connect(ctx.destination);
     // fluorescent hum
@@ -1305,7 +1312,12 @@ const MUSIC = {
   start(mode = 'run') {
     if (!SFX.ctx) return; this.init();
     this.mode = mode; this.on = true; this.step = 0; this.next = SFX.ctx.currentTime + 0.1;
-    this.out.gain.setTargetAtTime(mode === 'shop' ? 0.75 : 0.62, SFX.ctx.currentTime, 0.6);
+    const t = SFX.ctx.currentTime;
+    this.out.gain.cancelScheduledValues(t); this.out.gain.setTargetAtTime(mode === 'shop' ? 0.75 : mode === 'lobby' ? 1.4 : 0.62, t, 0.6);
+    this.lp.frequency.cancelScheduledValues(t); this.lp.frequency.setTargetAtTime(mode === 'lobby' ? 1800 : mode === 'shop' ? 2200 : 1400, t, 0.3);
+    this.wowG.gain.setTargetAtTime(mode === 'lobby' ? 16 : 9, t, 0.5);
+    if (mode !== 'run') this.drone.gain.setTargetAtTime(0, t, 0.3);
+    if (mode === 'lobby') SFX.hum.gain.setTargetAtTime(0.006, t, 0.5);   // the lights are quieter out here; powerOn puts them back for a run
     if (!this.timer) this.timer = setInterval(() => this.tick(), 30);
   },
   stop(tapeStop = false) {
@@ -1316,7 +1328,7 @@ const MUSIC = {
   },
   setDepth(i) { this.depth = i; },
   setDanger(v) { this.danger += (clamp(v, 0, 1) - this.danger) * 0.05; },
-  bpm() { return this.mode === 'shop' ? 72 : Math.min(136, 76 + Math.floor(this.depth / 10) * 5 + this.danger * 10); },
+  bpm() { return this.mode === 'lobby' ? 66 : this.mode === 'shop' ? 72 : Math.min(136, 76 + Math.floor(this.depth / 10) * 5 + this.danger * 10); },
   // a short rising stinger (close calls, milestones)
   sting() {
     if (!this.out) return; const ctx = SFX.ctx, t = ctx.currentTime;
@@ -1329,6 +1341,7 @@ const MUSIC = {
     while (this.next < ctx.currentTime + 0.15) { this.play(this.step, this.next); this.step++; const sw = (this.step % 2 ? 0.14 : -0.14); this.next += 60 / this.bpm() / 4 * (1 + sw); }
   },
   play(s, t) {
+    if (this.mode === 'lobby') return this.playLobby(s, t);
     const shop = this.mode === 'shop';
     const song = shop ? this.LOUNGE : this.SONGS[Math.floor(this.depth / 100) % this.SONGS.length];
     const bar = Math.floor(s / 16) % 4, st = s % 16, tier = shop ? 0 : Math.floor(this.depth / 10), dg = this.danger;
@@ -1349,6 +1362,43 @@ const MUSIC = {
     if (!shop && tier >= 4 && (st === 0 || st === 8)) this.e808(t, this.hz(song.roots[bar] - 12), beat * 1.8);
     if (!shop && tier >= 4 && st === 0 && bar % 2 === 0) this.choir(t, song.chords[bar], beat * 7.5);
     if (shop) { const n = song.lead[bar][st]; if (n) this.chip(t, this.hz(n), beat * 0.22); }
+  },
+  // the lobby: a slow, sliding-down progression of major sevenths on the worn piano: warm, but every chord a step lower than it should be
+  LOBBY: { chords: [[53, 57, 60, 64, 67], [52, 55, 59, 62], [51, 55, 58, 62, 69], [50, 53, 57, 60, 64]], roots: [41, 40, 39, 38], scale: [65, 67, 69, 71, 72, 74, 76] },
+  playLobby(s, t) {
+    const L = this.LOBBY, bar = Math.floor(s / 16) % 4, st = s % 16, beat = 60 / this.bpm();
+    if (st === 0) { for (const m of L.chords[bar]) this.ep(t + Math.random() * 0.03, this.hz(m), 0.075, beat * 3.8, 0.45); this.bass(t, this.hz(L.roots[bar]), beat * 2.6, 0.13); }
+    if (st === 10 && Math.random() < 0.6) for (const m of L.chords[bar].slice(1)) this.ep(t + Math.random() * 0.03, this.hz(m), 0.035, beat * 1.8, 0.3);
+    if (s >= 64) {   // a soft, dragging beat after the first pass
+      if (st === 0 || (st === 11 && bar % 2)) this.kick(t, 0.36);
+      if (st === 8) this.snare(t, 0.12, true);
+      if (st % 4 === 2) this.hat(t, 0.024, false);
+    }
+    // a half-remembered melody, never quite the same twice
+    if ((st === 4 || st === 12 || (st === 6 && bar === 3)) && Math.random() < 0.5) this.ep(t, this.hz(L.scale[(Math.random() * L.scale.length) | 0]), 0.13, beat * 2.5, 0.6);
+    if (s % 128 === 120) this.chime(t);   // the store PA, a little out of tune
+  },
+  chime(t) { [76, 72, 79].forEach((m, k) => this.bell(t + k * 0.42, this.hz(m) * 0.985, 0.09)); },
+  // the logo sting: tape spinning up, the lights catching (timed to the logo's flicker), then one dusty chord and a low swell
+  intro() {
+    if (!SFX.ctx) return; this.init(); const ctx = SFX.ctx, t = ctx.currentTime + 0.05, M = SFX.master;
+    this.out.gain.cancelScheduledValues(t); this.out.gain.setValueAtTime(0.8, t); this.lp.frequency.setValueAtTime(1900, t);
+    const n = ctx.createBufferSource(), nf = ctx.createBiquadFilter(), ng = ctx.createGain(); n.buffer = SFX.white; n.loop = true;
+    nf.type = 'lowpass'; nf.frequency.setValueAtTime(250, t); nf.frequency.exponentialRampToValueAtTime(3200, t + 1.5);
+    ng.gain.setValueAtTime(0, t); ng.gain.linearRampToValueAtTime(0.07, t + 1.45); ng.gain.linearRampToValueAtTime(0, t + 1.6);
+    n.connect(nf); nf.connect(ng); ng.connect(M); n.start(t); n.stop(t + 1.7);
+    for (const [a, d] of [[0.83, 0.07], [1.28, 0.05], [1.55, 0.03]]) {   // the tube catching
+      const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'square'; o.frequency.value = 100;
+      f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.8; o.connect(f); f.connect(g); g.connect(M);
+      g.gain.setValueAtTime(0, t + a); g.gain.linearRampToValueAtTime(0.09, t + a + 0.004); g.gain.setValueAtTime(0.09, t + a + d); g.gain.linearRampToValueAtTime(0, t + a + d + 0.01);
+      o.start(t + a); o.stop(t + a + d + 0.03);
+    }
+    const c = t + 1.6;
+    for (const m of [45, 52, 59, 60, 64]) this.ep(c + Math.random() * 0.03, this.hz(m), 0.075, 4.6, 0.8);
+    this.bell(c, this.hz(88), 0.03); this.bell(c + 0.45, this.hz(88) * 0.99, 0.014);
+    const sub = ctx.createOscillator(), sg = ctx.createGain(); sub.frequency.setValueAtTime(52, c); sub.frequency.exponentialRampToValueAtTime(44, c + 3);
+    sub.connect(sg); sg.connect(M); sg.gain.setValueAtTime(0, c); sg.gain.linearRampToValueAtTime(0.28, c + 0.08); sg.gain.exponentialRampToValueAtTime(0.0008, c + 3.2);
+    sub.start(c); sub.stop(c + 3.3);
   },
   env(g, t, a, peak, d) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0008, t + a + d); },
   keys(t, notes, dur, v) {
@@ -3641,10 +3691,19 @@ document.querySelectorAll('[data-panel]').forEach(b => b.addEventListener('click
 }));
 document.querySelectorAll('.panel .x').forEach(b => b.addEventListener('click', () => b.closest('.panel').classList.remove('on')));
 // the intro: logo out of the dark; it lifts once it has played and the assets are in (tap to skip)
-const INTRO = { t0: performance.now(), done: false,
-  out() { if (this.done) return; this.done = true; $('intro').classList.add('out'); setTimeout(() => $('intro').remove(), 1000); } };
-$('intro').addEventListener('click', () => INTRO.out());
-setTimeout(() => { if (ready) INTRO.out(); }, 3400);
+// browsers keep sound off until the page is touched, so the intro waits for one tap: that tap is what lets the logo arrive with its sound
+const INTRO = { t0: performance.now(), done: false, begun: false,
+  begin(silent) {
+    if (this.begun) return; this.begun = true; this.t0 = performance.now(); $('intro').classList.remove('wait');
+    if (!silent) { SFX.init(); MUSIC.intro(); setTimeout(() => { if (!game.running && !MUSIC.on) MUSIC.start('lobby'); }, 3300); }
+    setTimeout(() => { if (ready) this.out(); }, 3400);
+  },
+  out() { if (this.done || !this.begun) return; this.done = true; $('intro').classList.add('out'); setTimeout(() => $('intro').remove(), 1000);
+    if (SFX.ctx && !game.running && !MUSIC.on) MUSIC.start('lobby'); } };
+if (isTouch) $('gateTxt').textContent = 'TAP TO ENTER';
+$('intro').addEventListener('click', () => INTRO.begun ? (performance.now() - INTRO.t0 > 600 && INTRO.out()) : INTRO.begin());
+window.addEventListener('keydown', () => { if (!INTRO.begun) INTRO.begin(); else if (performance.now() - INTRO.t0 > 600) INTRO.out(); });
+if (DEBUG) INTRO.begin(true);
 function showBest() { const b = +store.get('ieori.best', '0') || 0; $('bestTag').textContent = b ? `BEST  ${Math.round(b)} m` : ''; }
 showBest();
 const MONTHS = ['JAN.', 'FEB.', 'MAR.', 'APR.', 'MAY', 'JUN.', 'JUL.', 'AUG.', 'SEP.', 'OCT.', 'NOV.', 'DEC.'];
@@ -3667,7 +3726,7 @@ const game = {
     this.yaw -= dx * s;
     this.pitch = clamp(this.pitch - dy * s, -1.35, 1.35);
   },
-  reset() {
+  reset(menu) {
     zones.forEach(z => z && !z.disposed && disposeZone(z));
     zones = [];
     this.seed = (Math.random() * 1e9) | 0;
@@ -3679,7 +3738,7 @@ const game = {
     for (const v of DARK.uDark.value) v.set(0, 0, 0, 0);
     DARK.uBlack.value.set(0, 0, 0, 0); SFX.powerOn();
     DOPA.reset(); FOLLOWER.end(false); CUT.end(false); TRAP.end(); HANDSUI.set(null); this.seenRooms = new Set(); this.lastVariant = {}; this.hp = 1; STARE.style.opacity = 0; SFX.setStare?.(0); this.colaT = 0;
-    MUSIC.setDepth(0); MUSIC.start('run');
+    MUSIC.setDepth(0); if (!menu) MUSIC.start('run');
     vhsMat.uniforms.uDark.value = 0;
     streamZones();
   },
@@ -3980,7 +4039,7 @@ function start() {
 }
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
-$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('menu').classList.add('on'); showBest(); });
+$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('menu').classList.add('on'); showBest(); MUSIC.start('lobby'); });
 $('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
 if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right: look';
 
@@ -4069,11 +4128,11 @@ loadAssets((f, label) => {
   $('loadTxt').textContent = `Loading… ${label}`;
 }).then(() => {
   ready = true;
-  game.reset();
+  game.reset(true);
   streamRest();
   $('loadTxt').textContent = ASSET.meta.quick ? 'Ready (preview assets)' : 'Ready';
   $('startBtn').disabled = false;
-  if (performance.now() - INTRO.t0 > 3400) INTRO.out();
+  if (INTRO.begun && performance.now() - INTRO.t0 > 3400) INTRO.out();
 }).catch(err => {
   console.error(err);
   $('loadTxt').innerHTML = location.protocol === 'file:'
