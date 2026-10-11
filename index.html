@@ -4646,7 +4646,7 @@ const game = {
       this.running = false;
       document.body.classList.remove('playing'); $('hud').classList.remove('on');
       const n = Object.keys(RECORDS.got).length, all = Object.keys(RECORDS.defs).length;
-      $('deathCause').innerHTML = `■ STOP<small style="display:block;font-size:.5em;letter-spacing:.18em;opacity:.75;margin-top:10px">END OF TAPE 01 · ${n}/${all} RECORDED</small>`;
+      $('deathCause').innerHTML = `■ STOP<small style="display:block;font-size:.5em;letter-spacing:.18em;opacity:.75;margin:10px 0 22px">END OF TAPE 01 · ${n}/${all} RECORDED</small>`;
       $('againBtn').textContent = 'PLAY AGAIN';
       $('dead').classList.add('on'); $('dead').inert = false; setTimeout(() => $('againBtn').focus(), 50);
     }
