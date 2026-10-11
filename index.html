@@ -2142,6 +2142,7 @@ const LIFT = (() => {
     window.addEventListener('keydown', e => { if (L?.inside && /^Digit[1-9]$/.test(e.code)) LIFT.go(+e.code.slice(5) - 1); });
   }
   return {
+    get car() { return L; },   // QA
     build(zone) {
       const m = zone.meta.lift, ox = zone.ox, oz = zone.z0, g = new THREE.Group();
       const X0 = ox + m.x0, X1 = ox + m.x1, Z0 = oz + m.z0, Z1 = oz + m.z1, W = X1 - X0, D = Z1 - Z0, cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2, H = 2.6;
@@ -2282,7 +2283,7 @@ function streamZones() {
   const anyRoom = (ASSET.meta.rooms || []).some(n => ASSET.proto[n]);
   if (!zones[0]) zones[0] = createZone(0, 4);
   for (let i = 1; i <= cur + 1; i++) {
-    if (!EXP && i > TAPE.length) break;   // the tape ends
+    if (!EXP && (i > TAPE.length || !ASSET.proto[TAPE[i - 1]])) break;   // the tape ends / that room is still downloading (its door stays shut)
     const prev = zones[i - 1]; if (!prev || !anyRoom) break;
     // which exit of the previous room: a room with one exit builds its next room at once; with several, the next room
     // is built behind the door you walk up to (and rebuilt if you change your mind)
@@ -2888,8 +2889,10 @@ Hazards.tape = {
       else if (NIKI.mode === 'close' || NIKI.mode === 'walk') zone.killiLeft = Math.min(zone.killiLeft, 1);
     }
     if (zone.madT !== undefined && (zone.madT -= dt) <= 0) {
+      const ex = zone.ox + (zone.meta.entry || 0), ez = zone.z0 - 0.8;   // just inside the door you came through
+      if (Math.hypot(p.x - ex, p.z - ez) < 5) { zone.madT = 0.5; return; }   // never on top of you
       zone.madT = undefined;
-      NIKI.spawn(zone); NIKI.pos.set(zone.ox + (zone.meta.entry || 0), zone.oy || 0, zone.z0 + 1.2);
+      NIKI.spawn(zone); NIKI.pos.set(ex, zone.oy || 0, ez);
       NIKI.greeted = true; NIKI.mode = 'mad'; NIKI.morph = 0; NIKI.sprintT = 0; SFX.madNiki(NIKI.pos.x, NIKI.pos.z); game.shake = 1; RECORDS.add('n_mad');
     }
     if (sc.end && p.z < zone.exitZ + 1.5) game.endTape();
