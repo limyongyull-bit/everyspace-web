@@ -17,7 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
   html:not(.exp) [data-exp] { display: none !important; }
-  .recs { display: flex; flex-direction: column; gap: 14px; } .recs .grp h3 { margin: 6px 0 6px; } .recs .rec { font: 400 15px/1.45 Inter, sans-serif; color: var(--ink); padding: 8px 0; border-top: 1px solid var(--line); } .recs .rec small { display: block; color: var(--muted); font: 600 12px/1.3 "Space Mono", monospace; margin-bottom: 2px; } .recs .none { color: var(--muted); font: 400 14px/1.5 Inter, sans-serif; }
+  .recs { display: flex; flex-direction: column; gap: 14px; } .recs .grp h3 { margin: 6px 0 6px; } .recs .rec { font: 400 15px/1.45 Inter, sans-serif; color: var(--ink); padding: 8px 0; border-top: 1px solid var(--line); } .recs .rec small { display: block; color: var(--muted); font: 600 12px/1.3 "Space Mono", monospace; margin-bottom: 2px; } .recs .none { color: var(--muted); font: 400 14px/1.5 Inter, sans-serif; } .recs button.tape { display: block; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer; } .recs button.tape:hover, .recs button.tape:focus-visible { color: #fff; outline: none; }
   .cred { font: 400 15px/1.6 Inter, sans-serif; color: var(--ink); } .cred b { letter-spacing: .12em; }
   @font-face { font-family: "Inter"; font-weight: 500; src: url(assets/fonts/Inter-500.ttf) format("truetype"); font-display: swap; }
   @font-face { font-family: "Inter"; font-weight: 700; src: url(assets/fonts/Inter-700.ttf) format("truetype"); font-display: swap; }
@@ -175,6 +175,7 @@
   .mmi::before { content: ""; position: absolute; left: -22px; top: 50%; width: 10px; height: 2px; background: #ff4a3a; transform: scaleX(0); transform-origin: left; transition: transform .2s; }
   .mmi:hover, .mmi:focus-visible { color: #fff; transform: translateX(6px); outline: none; }
   .mmi:hover::before, .mmi:focus-visible::before { transform: scaleX(1); }
+  .mmi[hidden] { display: none; }
   .mmi.play { font-size: 44px; color: #fff; letter-spacing: .2em; }
   .mmi:disabled { opacity: .35; cursor: default; transform: none; }
   .lfoot { display: flex; flex-direction: column; gap: 4px; font: 400 12px/1.4 "Space Mono", ui-monospace, monospace; color: var(--muted); }
@@ -218,6 +219,51 @@
     .dvcard { grid-template-columns: 1fr; }
     .dvcard img { border-radius: 14px 14px 0 0; min-height: 0; aspect-ratio: 4 / 3; height: auto; }
   }
+  /* CINE: recovered footage */
+  #cine { position: fixed; inset: 0; z-index: 9; display: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; color: #e9e7df; outline: none; }
+  #cine.on { display: block; }
+  #cine .cv { position: absolute; display: none; font: 700 clamp(12px, 2.1vw, 17px)/1.25 "Space Mono", monospace; letter-spacing: .08em; text-shadow: 0 0 4px #000, 0 0 1px #000; }
+  #cine.cctv .cv, #cine.stills .cv { display: block; }
+  #cine #cvImg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; filter: contrast(1.05) saturate(.85); }
+  #cine.stills #cvImg { display: block; }
+  #cine .news { display: none; } #cine.newsing .news { display: block; }
+  #cine .nbug { position: absolute; top: calc(16px + env(safe-area-inset-top)); right: calc(18px + env(safe-area-inset-right)); font: 800 18px/1 Rubik, sans-serif; letter-spacing: .04em; background: rgba(10,20,60,.85); padding: 6px 9px; border-radius: 3px; }
+  #cine .nbug b { color: #ffcf3a; } #cine .nbug i { font: 700 11px 'Barlow Condensed', sans-serif; letter-spacing: .2em; color: #ff4a3a; margin-left: 6px; font-style: normal; }
+  #cine .nlow { position: absolute; left: calc(18px + env(safe-area-inset-left)); right: calc(18px + env(safe-area-inset-right)); bottom: calc(46px + env(safe-area-inset-bottom)); max-width: 720px; }
+  #cine .nlow b { display: block; background: #b3121b; color: #fff; font: 800 clamp(15px, 2.6vw, 24px)/1.2 Rubik, sans-serif; padding: 6px 12px; text-transform: uppercase; }
+  #cine .nlow span { display: block; background: rgba(245,245,240,.94); color: #111; font: 600 clamp(12px, 1.9vw, 16px)/1.3 Inter, sans-serif; padding: 5px 12px; }
+  #cine .ntick { position: absolute; left: 0; right: 0; bottom: env(safe-area-inset-bottom); height: 30px; background: rgba(8,12,30,.9); overflow: hidden; font: 600 14px/30px Inter, sans-serif; white-space: nowrap; }
+  #cine .ntick span { display: inline-block; padding-left: 100%; animation: tick 28s linear infinite; }
+  @keyframes tick { to { transform: translateX(-100%); } }
+  #cine.newsing .cv.bl { bottom: calc(38px + env(safe-area-inset-bottom)); }
+  #cine.newsing .cv.tr, #cine.newsing .csub { bottom: calc(118px + env(safe-area-inset-bottom)); } #cine.newsing .cv.tr { display: none; }
+  #cine .cv.tl { top: calc(16px + env(safe-area-inset-top)); left: calc(18px + env(safe-area-inset-left)); }
+  #cine .cv.tr { top: calc(16px + env(safe-area-inset-top)); right: calc(18px + env(safe-area-inset-right)); }
+  #cine .cv.bl { bottom: calc(16px + env(safe-area-inset-bottom)); left: calc(18px + env(safe-area-inset-left)); }
+  #cine .cv.mark { bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); opacity: 0; font-size: 11px; letter-spacing: .3em; }
+  #cine .cv.mark.on { opacity: .75; }
+  #cine .rec { color: #ff3b30; animation: recblink 1.2s steps(1) infinite; }
+  @keyframes recblink { 50% { opacity: 0; } }
+  #cine .cbar { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .5s ease; }
+  #cine .cbar.t { top: 0; } #cine .cbar.b { bottom: 0; }
+  #cine.cam .cbar { height: 11vh; }
+  #cine .ctext { position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%); text-align: center; font: 500 clamp(17px, 3vw, 26px)/1.55 Inter, sans-serif; color: #ecebe6; }
+  #cine.card .ctext { font: 700 clamp(22px, 5vw, 48px)/1.3 "Barlow Condensed", sans-serif; letter-spacing: .22em; }
+  #cine .ctext small { display: block; margin-top: 14px; font: 600 clamp(11px, 1.8vw, 14px)/1.4 "Barlow Condensed", sans-serif; letter-spacing: .3em; opacity: .7; }
+  #cine .csub { position: absolute; left: 50%; bottom: calc(13vh + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: 86vw; text-align: center;
+    font: 500 clamp(15px, 2.4vw, 20px)/1.4 Inter, sans-serif; background: rgba(0,0,0,.5); padding: 5px 12px; border-radius: 6px; }
+  #cine .csub:empty { display: none; }
+  #cine .cskip { position: absolute; right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px;
+    opacity: 0; transition: opacity .3s; font: 700 13px "Barlow Condensed", sans-serif; letter-spacing: .18em; }
+  #cine .cskip.on { opacity: .9; }
+  #cine .cskip i { width: 26px; height: 26px; border-radius: 50%; background: conic-gradient(#fff calc(var(--f, 0) * 360deg), rgba(255,255,255,.22) 0); }
+  #cine .ccont { display: none; position: absolute; left: 50%; bottom: 18vh; transform: translateX(-50%); font: 700 16px "Barlow Condensed", sans-serif; letter-spacing: .3em; opacity: .85; }
+  #cine.wait .ccont { display: block; }
+  body.cine #hud, body.cine #touch, body.cine #joy, body.cine #jumpBtn, body.cine #toast, body.cine #subs, body.cine #liftUI { visibility: hidden !important; }
+  /* the walker's own thoughts: a plain white line, lower than hers */
+  #mono { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 4; pointer-events: none; max-width: 86vw; text-align: center;
+    font: italic 500 clamp(15px, 2.3vw, 19px)/1.4 Inter, sans-serif; color: #f2f1ec; text-shadow: 0 1px 6px #000; opacity: 0; transition: opacity .6s; }
+  #mono.on { opacity: .95; }
 </style>
 <script>
 // BOOT GUARD: runs before the game module. If WebGL is missing, the engine can't be fetched, an asset fails or loading
@@ -290,7 +336,9 @@ window.BOOT = (() => {
     <h1 class="logo"><img src="assets/ui/logo.png" alt="EVERY SPACE" width="1984" height="257"></h1>
     <div class="sub">TAPE 01 · RECOVERED BY IEORI</div>
     <nav class="mm">
-      <button class="mmi play" id="startBtn" disabled>PLAY</button>
+      <button class="mmi play" id="contBtn" hidden></button>
+      <button class="mmi play" id="startBtn" disabled>STORY</button>
+      <button class="mmi" id="endlessBtn" disabled>ENDLESS</button>
       <button class="mmi" data-panel="pGuide">RECORDS</button>
       <button class="mmi" data-panel="pBoard" data-exp>LEADERBOARD</button>
       <button class="mmi" data-panel="pSet">SETTINGS</button>
@@ -379,20 +427,28 @@ const VOICE = {
   },
 };
 // EPISODES: a recording uses at most two entities and a fixed run of spaces. Everything else stays in the code, unassigned,
-// for later tapes. ?exp brings back the old endless mode with every entity, the shop, tokens and the leaderboard.
+// for later tapes. Two modes, picked on the menu: STORY (a fixed run of spaces, scripted) and ENDLESS (rooms picked at
+// random, every entity, harder as you go). ?exp is for development: it forces ENDLESS and brings back the shop, tokens,
+// the leaderboard and the VHS look, which stay hidden otherwise.
 const EXP = new URLSearchParams(location.search).has('exp');
+const ENDLESS = () => EXP || game.mode === 'endless';
 const EPISODE = { id: 1, title: 'TAPE 01', entities: ['killi', 'niki'] };
-const ENTITY_ON = id => EXP || EPISODE.entities.includes(id);
-// the spaces of TAPE 01 after the entrance, in order, and what happens in each (index = zone number)
-const TAPE = ['mart', 'duct', 'concourse', 'aquarium', 'lift', 'ward', 'mart3'];
-const SCRIPT = {
-  1: { music: 0, horn: 11 },                          // a bright empty shop: nothing, one horn far off
-  2: { music: 0, rumble: true },                      // the vent: something rolling inside the walls
-  3: { music: 10, niki: true, killiFar: 9 },          // the hall: Niki finds you; one head crosses far away
-  4: { music: 10 },                                   // the aquarium: the two of you, and quiet
-  5: { music: 20 },                                   // the lift: does she get in?
-  6: { music: 40, killi: 2, killiT: 7 },              // the ward: Killi (or, if you left her, Niki)
-  7: { music: 0, end: true },                         // the shop again, not quite the same
+const ENTITY_ON = id => ENDLESS() || EPISODE.entities.includes(id);
+// STORY runs (assets/story/story.json): the spaces after the entrance, in order, split into chapters, and what happens in
+// each (script key = place in the run, 1 = first room). ?story plays the chapter story in development; otherwise TAPE 01.
+const RUN_ID = new URLSearchParams(location.search).has('story') ? 'story' : 'tape01';
+let RUN = { rooms: [], chapters: [], script: {} };
+const runRoom = i => RUN.rooms[game.runOff + i - 1];
+const SC = i => (i === 0 && game.runOff) ? {} : RUN.script[game.runOff + i] || {};   // a continued run starts in the entrance, not in the run
+const chapterAt = i => { let c = 0; RUN.chapters.forEach((ch, k) => { if (game.runOff + i - 1 >= ch.start) c = k; }); return c; };
+// what this device remembers of the story: the chapter reached, cutscenes seen, later her trust (never shown as a number)
+const SAVE = {
+  key: 'ieori.story.v1',
+  _d: null,
+  get d() { if (!this._d) try { this._d = JSON.parse(store.get(this.key, '{}')) || {}; } catch { this._d = {}; } return this._d; },   // read on first use (store is defined further down)
+  run() { return (this.d.runs ||= {})[RUN_ID] ||= { chapter: 0 }; },
+  put() { store.set(this.key, JSON.stringify(this.d)); },
+  reach(c) { const r = this.run(); if (c > r.chapter) { r.chapter = c; this.put(); } },
 };
 if (EXP) document.documentElement.classList.add('exp');
 const CFG = {
@@ -402,7 +458,6 @@ const CFG = {
   fisheye: 0.24, exposure: 1.15, maxRenderH: 540,
   deathHold: 2.4,   // seconds the dropped phone keeps recording before the death screen
 };
-if (!EXP) { CFG.walk = 3.2; CFG.sprint = 5.8; }   // the tape is walked, not raced
 const DEBUG = new URLSearchParams(location.search).has('debug');
 // cracked lens after the phone hits the floor: fracture lines from one impact point, drawn once per death
 const CRACK = {
@@ -927,6 +982,22 @@ async function warmCreatures() {
   for (const src of [ASSET.niki, ASSET.madniki]) if (src) src.traverse(o => { if (o.isMesh) g.add(new THREE.Mesh(o.geometry, o.material)); });
   await warmUp(g);
 }
+// download queued rooms one at a time (a room joins the run once it is in)
+async function pumpRooms() {
+  if (ASSET.pumping) return; ASSET.pumping = true;
+  while (ASSET.pending && ASSET.pending.length) {
+    const n = ASSET.pending.shift();
+    if (!ASSET.proto[n]) try { await loadModule(n); } catch (e) { console.warn('room failed', n, e); }
+    if (game.running) streamZones();
+  }
+  ASSET.pumping = false;
+}
+// ENDLESS uses every room: queue the ones the story did not need (smallest first; it starts with what is already here)
+function wantAllRooms() {
+  const m = ASSET.meta?.modules; if (!m) return;
+  const rest = Object.keys(m).filter(n => !ASSET.proto[n] && !ASSET.pending.includes(n)).sort((a, b) => (m[a].bytes || 0) - (m[b].bytes || 0));
+  ASSET.pending.push(...rest); if (ASSET.warmed) pumpRooms();
+}
 async function streamRest() {
   const first = Object.keys(ASSET.proto);
   try {
@@ -942,14 +1013,11 @@ async function streamRest() {
     prepNikiMaterials(n.scene, 0.22); prepNikiMaterials(m.scene, 0.7);
     ASSET.niki = n.scene; ASSET.madniki = m.scene;
   } catch (e) { console.warn('eeries failed', e); }
-  while (ASSET.pending && ASSET.pending.length) {
-    const n = ASSET.pending.shift();
-    try { await loadModule(n); } catch (e) { console.warn('room failed', n, e); }
-    if (game.running) streamZones();
-  }
+  await pumpRooms();
   // then, quietly: creature shaders, every room's shaders / textures / solid grids
   try { await warmCreatures(); } catch (e) { console.warn(e); }
   for (const n of [...first, ...Object.keys(ASSET.proto).filter(n => !first.includes(n))]) { await idle(); SOLID.grid(n); await warmUp(ASSET.proto[n].clone()); }
+  ASSET.warmed = true; pumpRooms();   // anything queued meanwhile (ENDLESS picked early)
 }
 async function loadAssets(onProgress) {
   const res = await fetch(ASSETS + 'modules.json', { cache: 'no-cache' });
@@ -975,9 +1043,10 @@ async function loadAssets(onProgress) {
     }
   } catch (e) { console.warn('scans unavailable', e); ASSET.scan = null; }
   // only the entrance (and one small room) is needed to start; everything else streams in while you walk
-  const first = !EXP ? ['lobby', TAPE[0]] : modNames.includes('cinema') ? ['lobby', ...['cinema', 'nordbo'].filter(n => modNames.includes(n))] : ['lobby', ...modNames.filter(n => n !== 'lobby' && n !== 'duct').sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0)).slice(0, 1)];
+  try { const sr = await fetch(ASSETS + 'story/story.json', { cache: 'no-cache' }); if (sr.ok) RUN = (await sr.json())[RUN_ID] || RUN; } catch (e) { console.warn('story', e); }
+  const first = !EXP ? ['lobby', RUN.rooms[0]].filter(Boolean) : modNames.includes('cinema') ? ['lobby', ...['cinema', 'nordbo'].filter(n => modNames.includes(n))] : ['lobby', ...modNames.filter(n => n !== 'lobby' && n !== 'duct').sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0)).slice(0, 1)];
   await Promise.all(first.map(n => loadModule(n).then(() => { tick(n); tick(n); })));
-  ASSET.pending = !EXP ? TAPE.filter(n => !first.includes(n) && modNames.includes(n)) : modNames.filter(n => !first.includes(n)).sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0));
+  ASSET.pending = !EXP ? [...new Set(RUN.rooms)].filter(n => !first.includes(n) && modNames.includes(n)) : modNames.filter(n => !first.includes(n)).sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0));
   // room signs are drawn into canvases when a room is built: make sure their faces are loaded first
   await Promise.all(['700 20px Inter', '800 20px Rubik', '400 20px "Archivo Black"', '700 20px "Space Mono"', '700 20px "Barlow Condensed"']
     .map(f => document.fonts.load(f).catch(() => null)));
@@ -1871,7 +1940,7 @@ const ROOM_WEIGHT = { mart: 1, club: 1, subway: 1.1, burger: 1, parking: 1, gas:
 const roomAllowed = (n, i) => !(n === 'site' && i < 5) && !(n === 'site2' && i < 10);
 function pickRoom(i, k = 0, from = null) {
   if (DEBUG && window.__forceRooms?.length) return window.__forceRooms.shift();   // screenshot scripts pin the order
-  if (!EXP) return TAPE[i - 1] ?? null;
+  if (!ENDLESS()) return runRoom(i) ?? null;
   const avail = (ASSET.meta.rooms || []).filter(n => ASSET.proto[n]);
   if (i >= 4 && avail.includes('shop') && !zones.slice(Math.max(0, i - 6), i).some(z => z?.kind === 'shop') && mulberry32(game.seed * 17 + i * 3)() < 0.05) return 'shop';
   const fresh = ['aquarium', 'lift', 'subway2'].filter(n => avail.includes(n));   // the newest spaces come first
@@ -1933,7 +2002,7 @@ function buildRoom(zone, kind) {
   // exits: doors in the far wall, at any height; each one leads somewhere else (picked now, so its sign can say where)
   const ex = m.exits || [{ x: m.exit, y: 0 }];
   zone.exits = ex.map((e, k) => ({ x: zone.ox + e.x, y: zone.oy + e.y, z: zone.exitZ, w: e.w || 1.9, label: e.label || null,
-    next: EXP && e.next && ASSET.proto[e.next] ? e.next : pickRoom(zone.i + 1, k, kind) }));   // a lift floor says where it goes
+    next: ENDLESS() && e.next && ASSET.proto[e.next] ? e.next : pickRoom(zone.i + 1, k, kind) }));   // a lift floor says where it goes
   zone.exitX = zone.exits[0].x;
   zone.x0 = zone.ox + m.x0; zone.x1 = zone.ox + m.x1; zone.h = m.h;
   zone.name = m.name; zone.type = m.kind === 'duct' ? 'duct' : 'room';
@@ -1955,12 +2024,7 @@ function buildRoom(zone, kind) {
       const nm = e.label || ASSET.meta.modules[e.next]?.name || 'EXIT';
       const sg = addPlane(zone.g, signMat({ t: nm, bg: '#141414', fg: '#e8e4d8', face: 'BarlowCondensed-700', w: 1.9, h: 0.3, glow: 0.8 }), 1.9, 0.3, e.x, y + 0.36, z + 0.002);
       sg.renderOrder = 1;
-      const leaves = [-1, 1].map(sd => { const d = new THREE.Mesh(GEO.box, DYN.exitDoor); d.scale.set(e.w / 2, 2.3, 0.06);
-        d.position.set(e.x + sd * e.w / 4, ly + 1.15, zone.exitZ + 0.16); zone.g.add(d); return d; });
-      // a shut door is a door: it blocks until it opens (zone.g sits at the room's height, the collider is in world y)
-      const col = { x0: e.x - e.w / 2, x1: e.x + e.w / 2, z0: zone.exitZ + 0.08, z1: zone.exitZ + 0.24, y0: zone.oy + ly, y1: zone.oy + ly + 2.3, door: true };
-      zone.cols.push(col);
-      zone.exitDoors.push({ k, e, leaves, open: 0, col, cy1: col.y1 });
+      addExitDoor(zone, k, ly);
     }
   });
   if (m.panorama) addPanorama(zone, zone.ox + m.panorama[0], zone.z0 + m.panorama[1], Math.PI * 1.1);
@@ -1985,7 +2049,7 @@ function buildRoom(zone, kind) {
   zone.killiLeft = zone.mood === 'calm' ? 0 : zone.mood === 'uneasy' ? 2 + (zone.rng() < 0.5 + 0.5 * D ? 1 : 0) : Infinity;
   if (zone.mood === 'calm' && zone.rng() < 0.6) zone.fakeHornT = 10 + zone.rng() * 25;
   zone.killiCap = true;   // trimmed once the room's eerie is known (Hazards.killi)
-  if (!EXP) { const sc = SCRIPT[zone.i] || {}; zone.mood = sc.killi ? 'uneasy' : 'calm'; zone.killiLeft = sc.killi || 0; zone.killiT = sc.killiT ?? 1e9; zone.fakeHornT = undefined; zone.killiCap = false; }
+  if (!ENDLESS()) applyScript(zone);
 }
 // signs never sit on top of each other or over an exit's number / name board: one that would is slid along its wall to
 // the nearest clear spot (or dropped if there is none)
@@ -2283,7 +2347,7 @@ function streamZones() {
   const anyRoom = (ASSET.meta.rooms || []).some(n => ASSET.proto[n]);
   if (!zones[0]) zones[0] = createZone(0, 4);
   for (let i = 1; i <= cur + 1; i++) {
-    if (!EXP && (i > TAPE.length || !ASSET.proto[TAPE[i - 1]])) break;   // the tape ends / that room is still downloading (its door stays shut)
+    if (!ENDLESS() && (game.runOff + i > RUN.rooms.length || !ASSET.proto[runRoom(i)])) break;   // the tape ends / that room is still downloading (its door stays shut)
     const prev = zones[i - 1]; if (!prev || !anyRoom) break;
     // which exit of the previous room: a room with one exit builds its next room at once; with several, the next room
     // is built behind the door you walk up to (and rebuilt if you change your mind)
@@ -2535,6 +2599,7 @@ class Killi {
     return this.left > 0;
   }
   blocked() {
+    if (this.noCol) return false;   // footage: staged heads pass through set dressing
     const p = this.obj.position, r = this.r * 0.72, y = p.y, z = this.zone;
     if (z.cols.some(c => colBlocks(c, y, this.r * 2) && p.x + r > c.x0 && p.x - r < c.x1 && p.z + r > c.z0 && p.z - r < c.z1)) return true;
     const o = { x: 0, y: 0, z: 0 };
@@ -2600,15 +2665,40 @@ function frontLanes(zone) {
     if (run >= zone.len - 0.8) L.push({ ...l, from: [-1] });
     else if (run >= 12) L.push({ ...l, from: [-1], run });
   }
+  // the story's rooms where the far door is blocked (a car park full of cars): clear lines down the room, the heads
+  // starting just inside the far wall (the wall goes dark first), a few metres apart
+  if (!L.length && !ENDLESS() && zone.len >= 18) {
+    const from = zone.exitZ + kr + 0.6;
+    for (let c = zone.x0 + kr + 1; c <= zone.x1 - kr - 1 && L.length < 4; c += 0.75) {
+      const run = laneRunZ(zone, c, from);
+      if (run >= 14 && !L.some(o => Math.abs(o.c - c) < 4)) L.push({ a: 'z', c, from: [-1], run: run - 0.4, start: from });
+    }
+  }
   return (zone.frontLanes = L);
 }
 const OUTSIDE = 0;    // a Killi rolls in at the room's own door / wall opening, so you see it coming
 const KILLI_LEAD = [2.4, 3.2];   // horn and rumble, the doorway going black, then it rolls out of the dark
+// a story room's scripted Killi (also re-applied when you retry the room)
+function applyScript(zone) {
+  const sc = SC(zone.i); zone.mood = sc.killi ? 'uneasy' : 'calm'; zone.killiLeft = sc.killi || 0; zone.killiT = sc.killiT ?? 1e9; zone.fakeHornT = undefined; zone.killiCap = false;
+  zone.tapeT = 0; zone.hornDone = zone.farDone = zone.wardSet = false; zone.madT = undefined;
+}
+// a pair of doors across exit k of a room: shut until you walk up to it and the room behind is there
+function addExitDoor(zone, k, ly = (zone.exits[k].y - (zone.oy || 0)), mat = DYN.exitDoor) {
+  const e = zone.exits[k];
+  const leaves = [-1, 1].map(sd => { const d = new THREE.Mesh(GEO.box, mat); d.scale.set(e.w / 2, 2.3, 0.06);
+    d.position.set(e.x + sd * e.w / 4, ly + 1.15, zone.exitZ + 0.16); zone.g.add(d); return d; });
+  // a shut door is a door: it blocks until it opens (zone.g sits at the room's height, the collider is in world y)
+  const col = { x0: e.x - e.w / 2, x1: e.x + e.w / 2, z0: zone.exitZ + 0.08, z1: zone.exitZ + 0.24, y0: zone.oy + ly, y1: zone.oy + ly + 2.3, door: true };
+  zone.cols.push(col);
+  const d = { k, e, leaves, open: 0, col, cy1: col.y1 }; (zone.exitDoors ||= []).push(d);
+  return d;
+}
 function spawnKilli(zone, p) {
   const r = zone.rng, depth = zone.i;
   // a lane with two heads already resting in it is full (a third pile would start to block the doors)
   const inLane = l => zone.killis.filter(k => k.wall && k.lane === l).length;
-  const lanes = frontLanes(zone).filter(l => inLane(l) < 2);
+  const lanes = frontLanes(zone).filter(l => inLane(l) < 2 && !(l.start !== undefined && Math.abs(p.x - l.c) < zone.kr + 2.5 && Math.abs(p.z - l.start) < 6));   // never starts on top of you at the exit
   if (!lanes.length) return false;
   // mostly the passage you are in or next to; sometimes one further off, so you see it go by
   // and mostly from in front of you (where you can see it), seldom through the door behind you
@@ -2619,11 +2709,11 @@ function spawnKilli(zone, p) {
   // +1: travels toward +x / +z; a cross aisle open on one side only is entered from that side
   const dir = lane.from && lane.from.length === 1 ? -lane.from[0] : axis === 'z' ? (r() < 0.8 ? 1 : -1) : r() < 0.5 ? 1 : -1;
   const speed = Math.min(6.5 + tierOf(depth) * 1.1, 11) * (0.9 + r() * 0.25);
-  let n = !EXP ? 1 : 1 + (r() < Math.min(0.12 + depth * 0.04, depth > 10 ? 0.7 : 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);   // one head at a time on the tape
+  let n = !ENDLESS() ? 1 : 1 + (r() < Math.min(0.12 + depth * 0.04, depth > 10 ? 0.7 : 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);   // one head at a time on the tape
   const kr = zone.kr;
   let s0, span;
   if (axis === 'x') { s0 = dir > 0 ? zone.x0 - kr : zone.x1 + kr; span = zone.x1 - zone.x0 + kr * 2 + 3; }
-  else { s0 = dir > 0 ? zone.exitZ - kr : zone.z0 + kr; span = zone.len + kr * 2 + 3; }
+  else { s0 = dir > 0 ? (lane.start ?? zone.exitZ - kr) : zone.z0 + kr; span = zone.len + kr * 2 + 3; }
   // a door it comes through bangs open ahead of it (the room behind may not be built yet: it rolls out of the haze)
   const farClosed = !!(lane.from && !lane.from.includes(dir)) || !!lane.run;      // no opening in the far wall (or something in the way): it stops against it
   if (lane.run) { span = lane.run - kr; n = Math.min(n, 2 - inLane(lane)); }
@@ -2661,7 +2751,7 @@ const Hazards = {
           if (spawnKilli(zone, game.p) === false) { zone.killiT = 0.5; return; }   // its door isn't open yet: try again in a moment
           zone.killiLeft--;
           const pace = Math.max(0.35, 1 - zone.i * 0.045);
-          zone.killiT = zone.mood === 'active' ? (3.5 + zone.rng() * 3) * pace : (6 + zone.rng() * 5) * pace;
+          zone.killiT = (!ENDLESS() && SC(zone.i).gap) || (zone.mood === 'active' ? (3.5 + zone.rng() * 3) * pace : (6 + zone.rng() * 5) * pace);   // a story wave keeps its own spacing
         }
       }
       zone.killis = zone.killis.filter(k => { const alive = k.update(dt); if (!alive) k.dispose(); return alive; });
@@ -2854,11 +2944,40 @@ const HANDSUI = (() => {
   document.body.appendChild(el);
   return { set(t) { if (t == null) { el.style.opacity = 0; return; } el.style.opacity = 1; el.innerHTML = `GET TO THE LIGHT<br><span style="font-size:64px;color:#ff4a3a">${Math.ceil(t)}</span>`; } };
 })();
+/* the black door that stands where the way out was: matte black leaves, a lit number above */
+const DOOR0001 = {
+  mat: null,
+  skin(zone, d) {
+    this.mat ||= new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.55, metalness: 0.1 });
+    for (const l of d.leaves) l.material = this.mat;
+    const sign = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ map: canvasTex(512, 160, (g, w, h) => {
+      g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, w, h); g.fillStyle = '#e8e2d0'; g.font = `700 ${h * 0.62}px "Space Mono", monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('0001', w / 2, h * 0.54);
+    }), toneMapped: false }));
+    const ly = d.leaves[0].position.y - 1.15;   // zone.g is already at the room's height
+    sign.scale.set(1.0, 0.36, 1); sign.position.set(d.e.x, ly + Math.min(2.78, (zone.h || 3) - 0.24), zone.exitZ + 0.345); sign.renderOrder = 2; zone.g.add(sign);   // over the room number
+  },
+};
 /* TAPE 01 staging: the fixed events of the episode (nothing here in the endless build) */
 Hazards.tape = {
   update(dt, zone, active) {
-    if (EXP || !active || zone.i !== game.zoneIdx || game.dead || game.ended) return;
-    const sc = SCRIPT[zone.i] || {}, p = game.p, t = (zone.tapeT = (zone.tapeT || 0) + dt);
+    if (ENDLESS() || !active || zone.i !== game.zoneIdx || game.dead || game.ended) return;
+    const sc = SC(zone.i), p = game.p, t = (zone.tapeT = (zone.tapeT || 0) + dt);
+    // words, the store's announcements, the door behind you, the black door
+    const said = (zone.said ||= new Set()), prog = (zone.z0 - p.z) / (zone.len || 1);
+    (sc.say || []).forEach(([tt, text], k) => { if (t >= tt && !said.has('s' + k)) { said.add('s' + k); MONO.say(text); } });
+    (sc.sayAt || []).forEach(([f, text], k) => { if (prog >= f && !said.has('z' + k)) { said.add('z' + k); MONO.say(text); } });
+    (sc.cine || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('c' + k) && !CINE.on) { said.add('c' + k); CINE.play(id); } });
+    (sc.pa || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('p' + k)) { said.add('p' + k); VO.play(id, 0.85); } });
+    if (sc.lockBehind && !zone.lockedBehind && p.z < zone.z0 - 2.5) {   // the way you came in no longer opens
+      const pz = zones[zone.i - 1];
+      if (pz && !pz.disposed) { if (!pz.exitDoors?.length) addExitDoor(pz, 0); for (const d of pz.exitDoors) d.locked = true; }
+      zone.lockedBehind = true;
+    }
+    if (sc.door0001) {
+      if (!zone.d0001) { zone.d0001 = true; if (!zone.exitDoors?.length) addExitDoor(zone, 0); DOOR0001.skin(zone, zone.exitDoors[0]); }
+      const d = zone.exitDoors?.[0];
+      if (d && !zone.d0001Played && Math.hypot(p.x - d.e.x, p.z - d.e.z) < 5.5 && Math.abs(p.y - d.e.y) < 2) { zone.d0001Played = true; CINE.play('prologue_door'); }
+    }
     // the mart: only a horn, somewhere far off, once
     if (sc.horn && !zone.hornDone && t > sc.horn) { zone.hornDone = true; SFX.horn(0.22, false); RECORDS.add('k_horn'); }
     // the concourse: one goes by in a far aisle, well away from you, and keeps going
@@ -2883,7 +3002,7 @@ Hazards.tape = {
       }
     }
     // the ward: if she was left on another floor, she is the one who comes. With her beside you, only one Killi
-    if (zone.i === 6 && !zone.wardSet) {
+    if (sc.ward && !zone.wardSet) {
       zone.wardSet = true;
       if (game.nikiLeft) { zone.killiLeft = 0; zone.madT = 7; }
       else if (NIKI.mode === 'close' || NIKI.mode === 'walk') zone.killiLeft = Math.min(zone.killiLeft, 1);
@@ -2895,10 +3014,13 @@ Hazards.tape = {
       NIKI.spawn(zone); NIKI.pos.set(ex, zone.oy || 0, ez);
       NIKI.greeted = true; NIKI.mode = 'mad'; NIKI.morph = 0; NIKI.sprintT = 0; SFX.madNiki(NIKI.pos.x, NIKI.pos.z); game.shake = 1; RECORDS.add('n_mad');
     }
-    if (sc.end && p.z < zone.exitZ + 1.5) game.endTape();
+    if (sc.end && p.z < zone.exitZ + 1.5 && !zone.endPlayed) {   // the chapter's last footage, then the tape stops
+      zone.endPlayed = true; const ch = RUN.chapters[chapterAt(zone.i)];
+      if (ch?.end && CINES[ch.end]) CINE.play(ch.end, { onEnd: () => game.endTape(), free: true }); else game.endTape();
+    }
   },
   check(zone, p) {
-    if (EXP || zone.i !== game.zoneIdx || !SCRIPT[zone.i]?.rumble) return {};
+    if (ENDLESS() || zone.i !== game.zoneIdx || !SC(zone.i).rumble) return {};
     return { rumble: 0.12 + 0.08 * Math.sin(game.t * 0.7) ** 2 };   // the duct hums: something heavy, somewhere in the building
   },
 };
@@ -3048,8 +3170,8 @@ const NIKI = {
       if (this.shadow) this.shadow.visible = false;
       this.cool -= dt;
       const z = zones[game.zoneIdx];
-      if (z && z.nikiRoll === undefined) z.nikiRoll = !EXP ? !!SCRIPT[z.i]?.niki && !game.metNiki : !z.meta?.noeerie && z.rng() < 0.5;
-      if ((this.cool <= 0 || (!EXP && z?.nikiRoll)) && z && z.meta && !z.meta.crawl && !z.meta.safe && z.i >= 2 && (window.__forceNiki || z.nikiRoll)) this.spawn(z);
+      if (z && z.nikiRoll === undefined) z.nikiRoll = !ENDLESS() ? !!SC(z.i).niki && !game.metNiki : !z.meta?.noeerie && z.rng() < 0.5;
+      if ((this.cool <= 0 || (!ENDLESS() && z?.nikiRoll)) && z && z.meta && !z.meta.crawl && !z.meta.safe && z.i >= 2 && (window.__forceNiki || z.nikiRoll)) this.spawn(z);
       return;
     }
     const dx = p.x - this.pos.x, dz = p.z - this.pos.z, d = Math.hypot(dx, dz) || 1;
@@ -3060,10 +3182,10 @@ const NIKI = {
     } else if (this.mode === 'close') {
       speed = d > 1.5 ? Math.min(4.3, (d - 1.5) * 3) : 0;
       // she talks to you while you walk together: little lines, giggles
-      if ((EXP || game.speedNow < CFG.walk * 0.8) && (this.chatT -= dt) <= 0) { this.chatT = 7 + Math.random() * 7; if (VOICE.say(Math.random() < 0.35 ? 'giggle' : 'chat', this.pos.x, this.pos.z)) RECORDS.add('n_talk'); }
+      if ((ENDLESS() || game.speedNow < CFG.walk * 0.8) && (this.chatT -= dt) <= 0) { this.chatT = 7 + Math.random() * 7; if (VOICE.say(Math.random() < 0.35 ? 'giggle' : 'chat', this.pos.x, this.pos.z)) RECORDS.add('n_talk'); }
       if (d > 4.6 && !this.warned) { this.warned = true; if (VOICE.say('leave', this.pos.x, this.pos.z, true)) RECORDS.add('n_leave'); }
       // left on another floor (the lift went without her): she stays there
-      if (!EXP && Math.abs(p.y - this.pos.y) > 3 && (this.leftT = (this.leftT || 0) + dt) > 1.5) { this.leftT = 0; VOICE.say('leave', this.pos.x, this.pos.z, true); this.mode = 'gone'; this.cool = 1e9; this.obj.visible = false; game.nikiLeft = true; RECORDS.add('n_left'); return; }
+      if (!ENDLESS() && Math.abs(p.y - this.pos.y) > 3 && (this.leftT = (this.leftT || 0) + dt) > 1.5) { this.leftT = 0; VOICE.say('leave', this.pos.x, this.pos.z, true); this.mode = 'gone'; this.cool = 1e9; this.obj.visible = false; game.nikiLeft = true; RECORDS.add('n_left'); return; }
       if (d < 3.5) this.warned = false;
       if (d > 6.0) { this.mode = 'mad'; this.morph = 0; this.sprintT = 0; SFX.madNiki(this.pos.x, this.pos.z); game.shake = 1; vhsMat.uniforms.uGlitch.value = 1.2;
         if (EXP) toast('MAD NIKI', "Don't stop running.", true); RECORDS.add('n_mad'); }
@@ -3072,7 +3194,7 @@ const NIKI = {
     } else if (this.mode === 'mad') {
       this.morph = Math.min(1, this.morph + dt * 1.6);
       if (this.morph >= 1 && (this.shriekT = (this.shriekT ?? 2) - dt) <= 0) { this.shriekT = 2.2 + Math.random() * 2.5; SFX.shriek(this.pos.x, this.pos.z); }
-      speed = this.morph < 1 ? 0 : !EXP ? 5.3 : Math.min(6.75, 6.45 + tierOf(game.zoneIdx) * 0.1);
+      speed = this.morph < 1 ? 0 : !ENDLESS() ? 5.3 : Math.min(6.75, 6.45 + tierOf(game.zoneIdx) * 0.1);
       this.sprintT = game.speedNow > CFG.sprint * 0.85 ? this.sprintT + dt : 0;
       if (this.sprintT >= 10) { this.mode = 'tired'; this.tiredT = 0; SFX.nikiTired(this.pos.x, this.pos.z); setTimeout(() => VOICE.say('tired', this.pos.x, this.pos.z, true), 900); RECORDS.add('n_tired'); toast('NIKI', 'She is exhausted.', false); }
       if (d < 1.0 && this.morph >= 1 && !zones[game.zoneIdx]?.meta?.crawl) return 'kill';
@@ -3323,7 +3445,7 @@ function updateTokens(dt) {
 const tierOf = i => Math.floor(Math.max(0, i) / 5);
 function eerieFor(zone) {
   if (zone.eerie !== undefined) return zone.eerie;
-  if (!EXP && !(DEBUG && window.__forceEerie)) return (zone.eerie = null);   // this tape is Killi and Niki only
+  if (!ENDLESS() && !(DEBUG && window.__forceEerie)) return (zone.eerie = null);   // this tape is Killi and Niki only
   let e = null;
   if (DEBUG && window.__forceEerie) e = window.__forceEerie;
   else if (zone.i >= 2 && zone.meta && !zone.meta.crawl && !zone.meta.safe && !zone.meta.noeerie) {
@@ -4299,6 +4421,194 @@ document.querySelectorAll('.dexc').forEach(c => c.addEventListener('click', () =
   $('dvName').textContent = d.name; $('dvCls').textContent = d.cls; $('dvDesc').textContent = d.desc; $('dvTip').textContent = d.tip; $('dexView').classList.add('on');
 }));
 $('dexView').addEventListener('click', e => { if (e.target.id === 'dexView' || e.target.classList.contains('x')) $('dexView').classList.remove('on'); });
+/* ---------- CINE: recovered footage between the walking. A cutscene is a list of shots:
+   'cctv'  a fixed camera in a room of this run (room-local coordinates), a low frame rate, the tape look, a time stamp, the mark
+   'cam'   the phone camera moved for you (keyframes), letterboxed
+   'black' nothing to see: words and sound
+   'card'  a title on black
+   The game waits underneath. First viewing: hold to skip (so nothing important goes by accident); after that a tap skips.
+   Every cutscene seen is kept under RECORDS and can be played again. ---------- */
+const CINES = {};
+const CINE = {
+  on: false, vhs: null, hold: false, el: null, actors: [], killis: [],
+  ui() {
+    if (this.el) return;
+    const d = this.el = document.createElement('div'); d.id = 'cine'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Recording'); d.tabIndex = -1;
+    d.innerHTML = `<img id="cvImg" alt=""><div class="cbar t"></div><div class="cbar b"></div>
+      <div class="news" id="cvNews"><div class="nbug">KN<b>24</b> <i>LIVE</i></div><div class="nlow"><b id="cvHead"></b><span id="cvDek"></span></div><div class="ntick"><span id="cvTick"></span></div></div>
+      <div class="cv tl" id="cvCam"></div><div class="cv tr"><span class="rec">● REC</span> <span id="cvStamp"></span></div>
+      <div class="cv bl" id="cvSpace"></div><div class="cv mark" id="cvMark" aria-hidden="true">◫ IEORI</div>
+      <div class="ctext" id="cvText"></div><div class="csub" id="cvSub"></div>
+      <div class="cskip" id="cvSkip"><i></i><span></span></div><div class="ccont" id="cvCont">CLICK TO CONTINUE</div>`;
+    document.body.appendChild(d);
+    const press = e => {
+      if (!this.on) return;
+      if (e.type === 'keydown') { if (!['Space', 'Enter', 'Escape'].includes(e.code) || e.repeat) return; e.preventDefault(); e.stopPropagation(); }
+      if (this.waitClick) { this.finish(); return; }
+      this.showSkip();
+      if (this.seen) { this.skip(); return; }
+      this.holding = true; this.holdT = 0;
+    };
+    const release = () => { this.holding = false; this.holdT = 0; this.ring(0); };
+    d.addEventListener('pointerdown', e => { e.preventDefault(); press(e); });
+    d.addEventListener('pointerup', release); d.addEventListener('pointercancel', release); d.addEventListener('pointerleave', release);
+    d.addEventListener('contextmenu', e => e.preventDefault());
+    window.addEventListener('keydown', e => { if (this.on) press(e); }, true);
+    window.addEventListener('keyup', e => { if (this.on && ['Space', 'Enter', 'Escape'].includes(e.code)) release(); }, true);
+  },
+  ring(f) { const s = $('cvSkip'); s.style.setProperty('--f', f); },
+  showSkip() { const s = $('cvSkip'); s.querySelector('span').textContent = this.seen ? (isTouch ? 'TAP TO SKIP' : 'PRESS TO SKIP') : (isTouch ? 'HOLD TO SKIP' : 'HOLD SPACE TO SKIP'); s.classList.add('on'); this.skipShownT = 2.5; },
+  play(id, { onEnd, replay = false, free = false } = {}) {
+    const def = CINES[id]; if (!def) { onEnd?.(); return; }
+    this.ui();
+    Object.assign(this, { def, id, onEnd, replay, free, si: -1, on: true, zoneBack: game.zoneIdx, seen: !!SAVE.d.seen?.[id], waitClick: false, holding: false, holdT: 0, wasRunning: game.running });
+    document.body.classList.add('cine'); this.el.classList.add('on'); this.el.className = 'on';
+    if (document.pointerLockElement) document.exitPointerLock();
+    input.keys = {}; input.mx = input.my = 0; input.jump = false; input.joySprint = false; input.lookBack = false;
+    if (def.music === false) MUSIC.stop(true);
+    SFX.setRumble?.(0);
+    this.next();
+    setTimeout(() => this.el.focus(), 30);
+  },
+  clear() {
+    for (const a of this.actors) a.obj.parent?.remove(a.obj); this.actors = [];
+    for (const k of this.killis) k.dispose(); this.killis = [];
+    $('cvText').textContent = ''; $('cvSub').textContent = ''; this.subT = 0;
+  },
+  next() {
+    this.clear();
+    if (++this.si >= this.def.shots.length) return this.end();
+    const sh = this.shot = this.def.shots[this.si];
+    this.t = 0; this.acc = 1; this.fired = new Set(); this.zone = null; this.vhs = null; this.hold = false;
+    this.el.className = 'on ' + sh.kind + (sh.news ? ' newsing' : '') + (sh.frames ? ' stills' : '');
+    const u = vhsMat.uniforms; u.uDark.value = sh.kind === 'black' || sh.kind === 'card' || (sh.frames && sh.run === undefined) ? 1 : 0;
+    if (sh.news) { $('cvHead').textContent = sh.news.head || ''; $('cvDek').textContent = sh.news.dek || ''; $('cvTick').textContent = sh.news.tick || ''; }
+    if (sh.frames) { this.frame = -1; this.vhs = 1; }
+    this.voiced = new Set();
+    $('cvCam').textContent = sh.cam_no || ''; $('cvSpace').textContent = sh.space || ''; $('cvMark').classList.remove('on');
+    if (sh.kind === 'card') $('cvText').innerHTML = sh.html || '';
+    if ((sh.kind === 'cctv' || sh.kind === 'cam') && sh.run !== undefined) {   // a recovered clip (frames) has no room
+      const z = zones[sh.run - game.runOff];
+      if (!z || z.disposed) { console.warn('cine: room not built', sh.run); return this.next(); }
+      this.zone = z; game.zoneIdx = z.i; game.roomLook(z, true);
+      if (sh.kind === 'cctv') this.vhs = 1;
+      for (const a of sh.actors || []) this.addActor(a);
+    }
+    sh.start?.(this.ctx());
+  },
+  // what a shot's events can do
+  ctx() {
+    const z = this.zone, C = this;
+    return {
+      zone: z, t: this.t,
+      at: (x, y, zz) => new THREE.Vector3(z.ox + x, (z.oy || 0) + y, z.z0 + zz),
+      killi(x, zz, dx, dz, speed, r = z?.kr || 1, travel = 60, wait = 0) { const k = new Killi(z, z.ox + x, z.z0 + zz, dx, dz, speed, r, travel); k.wait = wait; k.noCol = true; k.obj.visible = wait <= 0; C.killis.push(k); return k; },
+      horn: (v = 0.6) => SFX.horn(v, false),
+      sub: (text, dur = 3) => { $('cvSub').textContent = text; C.subT = dur; },
+      text: (html) => { $('cvText').innerHTML = html; },
+      mark: () => { $('cvMark').classList.add('on'); setTimeout(() => $('cvMark').classList.remove('on'), 180); },
+      sfx: (name, ...a) => SFX[name]?.(...a),
+      actor: id => C.actors.find(a => a.id === id),
+    };
+  },
+  addActor(a) {
+    const z = this.zone;
+    if (a.type === 'figure') {
+      CINE.PERSON ||= addDarkness(new THREE.MeshStandardMaterial({ color: a.color ?? 0x4a5058, roughness: 0.85, metalness: 0, envMap: envTex, envMapIntensity: 0.5 }));
+      const obj = humanoid(CINE.PERSON, a.h || 1.74); scene.add(obj);
+      const path = a.path.map(([x, zz]) => new THREE.Vector3(z.ox + x, z.oy || 0, z.z0 + zz));
+      obj.position.copy(path[0]);
+      this.actors.push({ ...a, obj, path, seg: 0, ph: 0, wait: a.wait || 0 });
+    }
+  },
+  updateActors(dt) {
+    for (const a of this.actors) {
+      if (a.type !== 'figure') continue;
+      if ((a.wait -= dt) > 0) continue;
+      const tgt = a.path[a.seg + 1]; let moving = false;
+      if (tgt) {
+        const d = tgt.clone().sub(a.obj.position); d.y = 0; const l = d.length(), st = (a.speed || 1.2) * dt;
+        if (l <= st) { a.obj.position.copy(tgt); a.seg++; if (a.vanish && a.seg >= a.path.length - 1) a.obj.visible = false; } else { a.obj.position.addScaledVector(d, st / l); moving = true; }
+        if (l > 0.01) a.obj.rotation.y = Math.atan2(d.x, d.z);
+      }
+      if (a.face !== undefined && !moving) a.obj.rotation.y = a.face;
+      a.ph += dt * (moving ? 7 * (a.speed || 1.2) / 1.2 : 0);
+      const sw = moving ? Math.sin(a.ph) * 0.45 : 0, U = a.obj.userData;
+      U.legs?.forEach((l, i) => l.rotation.x = i ? -sw : sw); U.arms?.forEach((m, i) => m.rotation.x = i ? sw * 0.7 : -sw * 0.7);
+    }
+  },
+  update(dt) {
+    if (this.waitClick) { this.hold = false; return; }
+    const sh = this.shot; if (!sh) return;
+    this.t += dt;
+    if (this.holding && (this.holdT += dt) >= 1.2) { this.skip(); return; }
+    if (this.holding) this.ring(this.holdT / 1.2);
+    if (this.skipShownT !== undefined && (this.skipShownT -= dt) <= 0) { $('cvSkip').classList.remove('on'); this.skipShownT = undefined; }
+    if (this.subT > 0 && (this.subT -= dt) <= 0) $('cvSub').textContent = '';
+    const C = this.ctx();
+    for (const [k, ev] of (sh.at || []).entries()) if (!this.fired.has(k) && this.t >= ev[0]) { this.fired.add(k); ev[1](C); }
+    for (const [k, [t, id]] of (sh.voice || []).entries()) if (!this.voiced.has(k) && this.t >= t) { this.voiced.add(k); const d = VO.play(id); if (d && VO.text(id)) C.sub(VO.text(id), d + 0.4); }
+    if (sh.frames) {   // a recovered clip: numbered stills at a few frames a second
+      const F = sh.frames, f = Math.min(F.n - 1, Math.floor(this.t * (F.fps || 2)));
+      if (f !== this.frame) { this.frame = f; $('cvImg').src = `${ASSETS}${F.src}${String(f).padStart(2, '0')}.jpg`; }
+      const s0 = sh.clock || 0, s1 = Math.floor(s0 + this.t);
+      $('cvStamp').textContent = `${sh.date || ''} ${String(Math.floor(s1 / 3600) % 24).padStart(2, '0')}:${String(Math.floor(s1 / 60) % 60).padStart(2, '0')}:${String(s1 % 60).padStart(2, '0')}`;
+    }
+    for (const [t, text, dur] of sh.lines || []) if (this.t >= t && this.t < t + (dur || 3)) { if ($('cvText').textContent !== text) $('cvText').textContent = text; }
+    if (sh.lines && !sh.lines.some(([t, , dur]) => this.t >= t && this.t < t + (dur || 3))) $('cvText').textContent = '';
+    sh.tick?.(C, dt);
+    if (this.zone) {
+      this.updateActors(dt);
+      this.killis = this.killis.filter(k => { const alive = k.update(dt); if (!alive) k.dispose(); return alive; });
+      let c = sh.cam;
+      if (sh.kind === 'cam' && sh.keys) {   // [t, x, y, z, yaw, pitch] keyframes, eased
+        const K = sh.keys; let i = 0; while (i < K.length - 2 && this.t > K[i + 1][0]) i++;
+        const a = K[i], b = K[Math.min(i + 1, K.length - 1)], f = b[0] > a[0] ? clamp((this.t - a[0]) / (b[0] - a[0]), 0, 1) : 1, e = f * f * (3 - 2 * f);
+        c = a.slice(1).map((v, j) => v + (b[j + 1] - v) * e);
+      }
+      const z = this.zone;
+      camera.position.set(z.ox + c[0], (z.oy || 0) + c[1], z.z0 + c[2]); camera.rotation.set(c[4] || 0, c[3] || 0, 0);
+      if (sh.kind === 'cctv') {
+        const s0 = sh.clock || 0, s1 = Math.floor(s0 + this.t), hh = String(Math.floor(s1 / 3600) % 24).padStart(2, '0'), mm = String(Math.floor(s1 / 60) % 60).padStart(2, '0'), ss = String(s1 % 60).padStart(2, '0');
+        $('cvStamp').textContent = `${sh.date || ''} ${hh}:${mm}:${ss}`;
+        this.acc += dt; this.hold = this.acc < 1 / (sh.fps || 6); if (!this.hold) this.acc = 0;   // a low frame rate: the picture only changes a few times a second
+        if (Math.random() < dt * 0.25) vhsMat.uniforms.uGlitch.value = Math.max(vhsMat.uniforms.uGlitch.value, 0.4);
+      }
+    }
+    if (this.t >= sh.dur) this.next();
+  },
+  skip() { this.holding = false; this.ring(0); this.si = this.def.shots.length; this.next(); },
+  end() {
+    this.clear(); this.shot = null; this.vhs = null; this.hold = false; vhsMat.uniforms.uDark.value = 0;
+    (SAVE.d.seen ||= {})[this.id] = Date.now(); SAVE.put();
+    if (game.zoneIdx !== this.zoneBack && zones[this.zoneBack]) { game.zoneIdx = this.zoneBack; game.roomLook(zones[this.zoneBack], true); }
+    if (!isTouch && this.wasRunning && !this.replay && !this.free && !document.pointerLockElement) { this.waitClick = true; this.el.className = 'on wait'; return; }
+    this.finish();
+  },
+  finish() {
+    if (!this.el) return;
+    this.on = false; this.waitClick = false; this.el.className = ''; document.body.classList.remove('cine');
+    if (!isTouch && game.running && !this.replay && !this.free) canvas.requestPointerLock?.();
+    const f = this.onEnd; this.onEnd = null; f?.();
+  },
+};
+/* ---------- VO: the other voices of the story (the TV news, the store's announcements), not placed in the room ---------- */
+const VO = {
+  meta: null, bufs: {}, loading: null,
+  load() {
+    if (this.loading || !SFX.ctx) return this.loading;
+    return (this.loading = fetch(ASSETS + 'voice/story_lines.json').then(r => r.json()).then(m => { this.meta = m;
+      return Promise.all(m.map(l => fetch(ASSETS + `voice/${l.id}.mp3`).then(r => r.arrayBuffer()).then(a => SFX.ctx.decodeAudioData(a)).then(b => { this.bufs[l.id] = b; }).catch(() => { })));
+    }).catch(e => console.warn('vo', e)));
+  },
+  text(id) { return this.meta?.find(l => l.id === id)?.text; },
+  play(id, vol = 1) {
+    const b = this.bufs[id]; if (!b || !SFX.ctx) { this.load(); return 0; }
+    const src = SFX.ctx.createBufferSource(), g = SFX.ctx.createGain(); src.buffer = b; g.gain.value = vol;
+    src.connect(g); g.connect(SFX.master); if (SFX.verb && id.startsWith('pa')) g.connect(SFX.verb); src.start();
+    return b.duration;
+  },
+};
 /* ---------- RECOVERED RECORDS: what this tape's camera actually caught. Nothing is written in advance: a line appears
    the first time you see, hear or live through the thing it describes, and stays (this device). ---------- */
 const RECORDS = {
@@ -4339,7 +4649,33 @@ function renderRecords() {
     return `<div class="grp"><h3>${rows.length ? title : '? ? ?'}</h3>` + (rows.length ? rows.map(([id, t], k) => `<div class="rec"><small>LOG ${String(k + 1).padStart(2, '0')}</small>${escapeHTML(RECORDS.defs[id][1])}</div>`).join('') : '<div class="none">Nothing recorded.</div>') + '</div>';
   }).join('');
   if (!n) el.insertAdjacentHTML('afterbegin', '<div class="none">The tape is blank. Whatever the camera catches will be kept here.</div>');
+  // the footage already seen: play it again
+  const seen = Object.keys(SAVE.d.seen || {}).filter(id => CINES[id]).sort((a, b) => SAVE.d.seen[a] - SAVE.d.seen[b]);
+  if (seen.length) el.insertAdjacentHTML('beforeend', `<div class="grp"><h3>TAPES</h3>` + seen.map((id, k) =>
+    `<button class="rec tape" data-cine="${id}"><small>TAPE ${String(k + 1).padStart(2, '0')}</small>${escapeHTML(CINES[id].title || id)}</button>`).join('') + '</div>');
+  el.querySelectorAll('[data-cine]').forEach(b => b.addEventListener('click', () => replayCine(b.dataset.cine)));
 }
+// play seen footage again from the menu: build the room it was filmed in (run index of its first room), then back to the menu
+function replayCine(id) {
+  const def = CINES[id]; if (!def || !ready) return;
+  panelOpener = null; setPanel(null);
+  const run = def.shots.find(sh => sh.run !== undefined)?.run;
+  game.mode = 'story'; game.runOff = run ? run - 1 : 0; game.reset(true);
+  $('menu').classList.remove('on'); $('menu').inert = true;
+  CINE.play(id, { replay: true, onEnd: () => {
+    game.runOff = 0; game.reset(true); $('menu').classList.add('on'); $('menu').inert = false; MUSIC.start('lobby'); showContinue();
+    setTimeout(() => $('startBtn').focus(), 30);
+  } });
+}
+// the walker's thoughts: a few plain words, rarely
+const MONO = {
+  el: null, timer: 0,
+  say(text, dur = 3.4) {
+    if (!this.el) { this.el = Object.assign(document.createElement('div'), { id: 'mono' }); this.el.setAttribute('aria-live', 'polite'); document.body.appendChild(this.el); }
+    this.el.textContent = text; this.el.classList.add('on');
+    clearTimeout(this.timer); this.timer = setTimeout(() => this.el.classList.remove('on'), dur * 1000);
+  },
+};
 // panels: a closed one is hidden from screen readers and the keyboard; Esc closes; focus returns to the button that opened it
 let panelOpener = null;
 function setPanel(id) {
@@ -4374,6 +4710,14 @@ const MONTHS = ['JAN.', 'FEB.', 'MAR.', 'APR.', 'MAY', 'JUN.', 'JUL.', 'AUG.', '
 const today = new Date();
 $('date').textContent = `${MONTHS[today.getMonth()]} ${today.getDate()} 1996`;
 function updateClock(t) {
+  if (game.mode === 'story' && !EXP) {   // the story is now, on your own phone: no signal, only the time going on
+    const n = new Date(), h = n.getHours();
+    $('clock').textContent = `${h < 12 ? 'AM' : 'PM'} ${h % 12 || 12}:${String(n.getMinutes()).padStart(2, '0')}:${String(n.getSeconds()).padStart(2, '0')}`;
+    $('date').textContent = `${MONTHS[n.getMonth()]} ${n.getDate()} ${n.getFullYear()}`;
+    $('osdBR').firstElementChild.textContent = 'NO SERVICE';
+    return;
+  }
+  $('osdBR').firstElementChild.textContent = 'SP'; $('date').textContent = `${MONTHS[today.getMonth()]} ${today.getDate()} 1996`;
   const s = Math.floor(3 * 3600 + 7 * 60 + t);
   $('clock').textContent = `AM ${Math.floor(s / 3600) % 12 || 12}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
@@ -4384,7 +4728,7 @@ function updateClock(t) {
 const game = {
   running: false, dead: false, seed: 1, t: 0,
   p: new THREE.Vector3(), vy: 0, yaw: 0, pitch: 0, onGround: true,
-  zoneIdx: 0, maxDist: 0, cleared: 0, shake: 0, bob: 0, deathT: 0, cause: '', speedNow: 0, iso: 0, expNow: 1, expTarget: 1,
+  mode: 'story', runOff: 0, zoneIdx: 0, maxDist: 0, cleared: 0, shake: 0, bob: 0, deathT: 0, cause: '', speedNow: 0, iso: 0, expNow: 1, expTarget: 1,
   eyeNow: CFG.eye, darkTarget: 0, fogTarget: new THREE.Color(CFG.fogColor),
   look(dx, dy, s) {
     this.yaw -= dx * s;
@@ -4396,6 +4740,7 @@ const game = {
     this.seed = (Math.random() * 1e9) | 0;
     this.p.set(0, 0, 0); this.vy = 0; this.yaw = 0; this.pitch = 0; this.t = 0;
     this.zoneIdx = 0; this.maxDist = 0; this.cleared = 0; this.shake = 0; this.deathT = 0; this.dead = false; this.iso = 0;
+    CFG.walk = ENDLESS() ? 4.0 : 3.2; CFG.sprint = ENDLESS() ? 6.8 : 5.8;   // the story is walked, not raced
     this.ended = false; this.endT = 0; this.metNiki = false; this.nikiLeft = false; $('againBtn').textContent = 'TRY AGAIN';
     CRACK.hide();
     this.eyeNow = CFG.eye; this.darkTarget = 0;
@@ -4407,16 +4752,20 @@ const game = {
     vhsMat.uniforms.uDark.value = 0;
     streamZones();
   },
-  enterZone(zone) {
-    if (!zone) return;
-    // every room has its own haze (an airport isn't hazy at 40 m, a parking deck swallows light) and exposure
+  // every room has its own haze (an airport isn't hazy at 40 m, a parking deck swallows light), exposure and acoustics
+  roomLook(zone, now = false) {
     const m = zone.meta || {}, f = m.fog || ROOM_FOG[m.kind] || [CFG.fogColor, CFG.fogNear, CFG.fogFar];
     game.expTarget = m.exposure ?? 1;
     game.darkTarget = m.dark ?? 0;
-    game.fogTarget.set(f[0]);
+    game.fogTarget.set(f[0]); if (now) { scene.fog.color.set(f[0]); game.expNow = game.expTarget; game.iso = game.darkTarget; }
     scene.fog.near = f[1]; scene.fog.far = f[2]; camera.far = Math.max(70, f[2]);
     camera.updateProjectionMatrix();
     SFX.setSpace(m.space || 'store');
+  },
+  enterZone(zone) {
+    if (!zone) return;
+    const m = zone.meta || {};
+    this.roomLook(zone);
     if (m.safe) {   // whatever was after you stays outside
       SHOP.enter(zone); MUSIC.start('shop'); FOLLOWER.end(true);
       if (NIKI.mode !== 'none' && NIKI.mode !== 'gone') { NIKI.mode = 'gone'; NIKI.cool = 30; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; } }
@@ -4425,9 +4774,13 @@ const game = {
     if (EXP && zone.i >= 5 && zone.i % 5 === 0 && !zone.tierShown) { zone.tierShown = true; toast(`LEVEL ${tierOf(zone.i) + 1}`, 'Faster. More of them.', true); SFX.milestone?.(); }
     $('zoneName').textContent = zone.name;
     if (!zone.visited) { zone.visited = true; toast(zone.name, zone.hint);
-      if (!EXP) { const rec = { 1: 's_door', 3: 's_vent', 7: 's_back' }[zone.i]; if (rec) setTimeout(() => RECORDS.add(rec), 2500); }
+      if (!ENDLESS()) {
+        const rec = SC(zone.i).rec; if (rec) setTimeout(() => RECORDS.add(rec), 2500); SAVE.reach(chapterAt(zone.i));
+        const ch = zone.i > 0 && RUN.chapters.find(c => c.start === game.runOff + zone.i - 1);   // walking into a new chapter
+        if (ch && !(game.cined ||= {})[ch.id]) { game.cined[ch.id] = 1; if (ch.open && CINES[ch.open]) CINE.play(ch.open); }
+      }
     }
-    if (!EXP && !m.safe && MUSIC.setDepth) MUSIC.setDepth(SCRIPT[zone.i]?.music ?? 0);
+    if (!ENDLESS() && !m.safe && MUSIC.setDepth) MUSIC.setDepth(SC(zone.i).music ?? 0);
   },
   collide(axis) { return collideCircle(this.p, CFG.radius, axis, this.zoneIdx, this.eyeNow + 0.1); },
   update(dt) {
@@ -4511,7 +4864,7 @@ const game = {
       const nxt = zones[z.i + 1], ready = nxt && !nxt.disposed && nxt.via === d.k;
       const near = Math.hypot(this.p.x - d.e.x, this.p.z - d.e.z) < 3.2 && Math.abs(this.p.y - d.e.y) < 1.5;
       const killi = [z, zones[z.i + 1]].some(zz => zz && !zz.disposed && zz.killis.some(k => !k.rest && (k.wait > 0 ? k.wait < 0.7 : true) && Math.hypot(k.obj.position.x - d.e.x, k.obj.position.z - d.e.z) < 4.5));   // and for a Killi coming through
-      d.open = clamp(d.open + ((near && ready) || killi ? (killi ? 7 : 4) : -1.5) * dt, 0, 1);
+      d.open = clamp(d.open + ((near && ready && !d.locked) || killi ? (killi ? 7 : 4) : -1.5) * dt, 0, 1);
       d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); });
       if (d.col) d.col.y1 = d.open > 0.55 ? d.col.y0 - 10 : d.cy1;   // open: no longer in the way
     }
@@ -4646,10 +4999,29 @@ const game = {
       this.running = false;
       document.body.classList.remove('playing'); $('hud').classList.remove('on');
       const n = Object.keys(RECORDS.got).length, all = Object.keys(RECORDS.defs).length;
-      $('deathCause').innerHTML = `■ STOP<small style="display:block;font-size:.5em;letter-spacing:.18em;opacity:.75;margin:10px 0 22px">END OF TAPE 01 · ${n}/${all} RECORDED</small>`;
+      $('deathCause').innerHTML = `■ STOP<small style="display:block;font-size:.5em;letter-spacing:.18em;opacity:.75;margin:10px 0 22px">END OF ${RUN.chapters[chapterAt(this.zoneIdx)]?.title || 'TAPE'} · ${n}/${all} RECORDED</small>`;
       $('againBtn').textContent = 'PLAY AGAIN';
       $('dead').classList.add('on'); $('dead').inert = false; setTimeout(() => $('againBtn').focus(), 50);
     }
+  },
+  // the story's retry: stand up again at the door of this room; what was after you in it starts over
+  respawn() {
+    const z = zones[this.zoneIdx]; if (!z || z.disposed) return start();
+    this.dead = false; this.deathT = 0; this.drop = null; this.cause = ''; CRACK.hide();
+    vhsMat.uniforms.uDark.value = 0; vhsMat.uniforms.uGlitch.value = 0;
+    for (const zz of [z, zones[this.zoneIdx + 1]]) if (zz && !zz.disposed) {
+      for (const k of zz.killis) k.dispose(); zz.killis = [];
+      for (const v of zz.veils || []) { zz.g.remove(v.veil); v.veil.material.dispose(); } zz.veils = []; zz.dark = [];
+      applyScript(zz);
+    }
+    if (NIKI.mode === 'mad' || NIKI.mode === 'tired') { NIKI.mode = 'gone'; NIKI.cool = 1e9; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; } }
+    FOLLOWER.end(false); CUT.end(false); TRAP.end(); HANDSUI.set(null); this.hp = 1;
+    this.p.set(z.ox + (z.meta.entry || 0), z.oy || 0, z.z0 - 1.2); this.vy = 0; this.yaw = 0; this.pitch = 0; this.shake = 0;
+    camera.rotation.set(0, 0, 0);
+    $('dead').classList.remove('on'); $('dead').inert = true; $('hud').classList.add('on'); document.body.classList.add('playing');
+    MUSIC.start('run'); MUSIC.setDepth(SC(z.i).music ?? 0);
+    this.running = true;
+    if (!isTouch) canvas.requestPointerLock?.();
   },
   updateDeath(dt) {
     this.deathT += dt;
@@ -4721,7 +5093,9 @@ if (isTouch && !standalone) {
   else { $('fsBtn').style.display = 'none';
     $('fsTip').textContent = /iP(hone|ad|od)/.test(navigator.userAgent) ? 'Full screen: Share → Add to Home Screen, then open it from there.' : 'Full screen: browser menu → Add to Home screen.'; }
 }
-function start() {
+function start(mode = game.mode, off = 0) {
+  if (typeof mode !== 'string') { mode = game.mode; off = game.runOff; }   // called from a click handler: the same run again
+  game.mode = mode; game.runOff = mode === 'story' ? off : 0; if (ENDLESS()) wantAllRooms();
   panelOpener = null; setPanel(null); $('dexView').classList.remove('on');
   if (isTouch) goFullscreen();
   if (!ready) return;
@@ -4733,11 +5107,24 @@ function start() {
   game.reset();
   game.enterZone(zones[0]);
   game.running = true;
+  if (game.mode === 'story' && !EXP) {   // a chapter opens with its footage
+    VO.load(); game.cined = {};
+    const ch = RUN.chapters.find(c => c.start === game.runOff);
+    if (ch) { game.cined[ch.id] = 1; if (ch.open && CINES[ch.open]) { CINE.play(ch.open); return; } }
+  }
   if (!isTouch) canvas.requestPointerLock?.();
 }
-$('startBtn').addEventListener('click', start);
-$('againBtn').addEventListener('click', start);
-$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('dead').inert = true; $('menu').classList.add('on'); $('menu').inert = false; showBest(); MUSIC.start('lobby'); });
+$('startBtn').addEventListener('click', () => start('story'));
+$('endlessBtn').addEventListener('click', () => start('endless'));
+// TRY AGAIN in the story: back to the door of the room you died in (the rooms behind you stay as they were)
+$('againBtn').addEventListener('click', () => game.mode === 'story' && !game.ended && game.cause && !EXP ? game.respawn() : start());
+// CONTINUE: the story from the start of the last chapter reached on this device
+function showContinue() {
+  const c = SAVE.run().chapter, ch = RUN.chapters[c], b = $('contBtn');
+  b.hidden = !(c > 0 && ch); if (ch) b.textContent = 'CONTINUE · ' + ch.title;
+}
+$('contBtn').addEventListener('click', () => { const ch = RUN.chapters[SAVE.run().chapter]; start('story', ch ? ch.start : 0); });
+$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('dead').inert = true; $('menu').classList.add('on'); $('menu').inert = false; showBest(); showContinue(); MUSIC.start('lobby'); });
 $('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
 if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right: look · Double-tap and hold: look behind';
 
@@ -4752,7 +5139,8 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05) * (DOPA.slowT > 0 ? 0.35 : 1);
   last = now;
   if (ready) {
-    if (game.running) game.update(dt);
+    if (CINE.on) CINE.update(dt);
+    else if (game.running) game.update(dt);
     else if (!game.dead) {
       // menu backdrop: slow drift through the store
       idleT += dt;
@@ -4776,8 +5164,8 @@ function frame(now) {
 
   const u = vhsMat.uniforms;
   u.uTime.value = (now * 0.001) % 1000;
-  if (game.running) SFX.listen(camera);
-  u.uVhs.value = OPT.vhs ? 1 : 0;
+  if (game.running || CINE.on) SFX.listen(camera);
+  u.uVhs.value = CINE.vhs ?? (OPT.vhs ? 1 : 0);
   u.uGlitch.value = Math.max(0, u.uGlitch.value - dt * 1.5);
   // fluorescent mains flicker + the odd ballast dip
   u.uISO.value = game.iso;
@@ -4790,6 +5178,7 @@ function frame(now) {
   game.expNow += ((game.expTarget || 1) - game.expNow) * Math.min(1, dt * 1.2);
   u.uExposure.value = CFG.exposure * game.expNow * (1 + game.iso * 0.8) * (1 + Math.sin(now * 0.031) * 0.006 + (Math.random() < 0.004 ? -0.05 : 0));
 
+  if (CINE.hold) { if (!fixed) requestAnimationFrame(frame); return; }   // CCTV: hold the last picture between its few frames a second
   for (const m of PANOS) if (m.parent?.parent) { m.position.set(camera.position.x, 1.6, camera.position.z); m.visible = !game.running || m.userData.zone === zones[game.zoneIdx]; } else PANOS.delete(m);
   if (OPT.refl) {
     reflCam.fov = camera.fov; reflCam.aspect = camera.aspect; reflCam.near = camera.near; reflCam.far = camera.far;
@@ -4825,16 +5214,84 @@ loadAssets((f, label) => {
   const ib = document.getElementById('introBar'); if (ib) ib.style.width = Math.round(f * 100) + '%';
   $('loadTxt').textContent = `Loading… ${label}`; BOOT.progress(label);
 }).then(() => {
-  ready = true; BOOT.ready();
+  ready = true; BOOT.ready(); showContinue();
   game.reset(true);
   streamRest();
   $('loadTxt').textContent = ASSET.meta.quick ? 'Ready (preview assets)' : 'Ready';
-  $('startBtn').disabled = false;
+  $('startBtn').disabled = $('endlessBtn').disabled = false;
   if (INTRO.begun && performance.now() - INTRO.t0 > 3400) INTRO.out();
 }).catch(err => {
   BOOT.fail('assets', location.protocol === 'file:' ? 'Open this through a web server (GitHub Pages, npx http-server): browsers block file:// assets.' : (err.message || String(err)));
 });
-if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, laneRunZ, frontLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT, LIFT, AQUA, CITY };
+/* ============================================================
+   STORY FOOTAGE (the cutscenes of the story; rooms are given by their place in the run, see assets/story/story.json)
+   ============================================================ */
+const NEWS = { head: 'Missing in four cities', dek: 'Last seen inside a store, a hospital, a station, a car park',
+  tick: 'STORE CHAIN SAYS ALL LOCATIONS WILL STAY OPEN 24 HOURS  ·  TRANSIT POLICE: "NO COMMENT"  ·  FAMILIES ASK FOR FOOTAGE TO BE RELEASED  ·  WEATHER: CLEAR, COLD  ·' };
+const MART_CCTV = [-5.3, 2.85, -0.7, -0.55, -0.5];   // the corner over the door, looking down the aisles
+CINES.prologue_news = { title: 'Missing in four cities', music: false, shots: [
+  { kind: 'black', dur: 2.2 },
+  { kind: 'cctv', run: 1, dur: 29, cam: MART_CCTV, fps: 4, cam_no: 'CAM 03', space: 'AISLE 4', date: '2026-10-08', clock: 11620, news: NEWS,
+    voice: [[0.8, 'news1'], [8.6, 'news2'], [19.2, 'news3']],
+    actors: [{ type: 'figure', path: [[-3.6, -1.2], [-3.6, -5.2], [-1.3, -6.2], [-1.3, -12.5]], speed: 1.05, wait: 17.5, vanish: true, color: 0x6a5a4c, h: 1.66 }],
+    at: [[26.5, c => c.mark()]] },
+  { kind: 'cctv', frames: { src: 'story/news/lift_', n: 16, fps: 2 }, dur: 8.5, cam_no: 'ST. ANNE · LIFT 2', space: 'B3', date: '2026-10-05', clock: 8051, news: NEWS, voice: [[0.6, 'news4']] },
+  { kind: 'cctv', frames: { src: 'story/news/subway_', n: 14, fps: 2 }, dur: 7.5, cam_no: 'LINE 2 · PLATFORM B', space: 'B', date: '2026-10-02', clock: 84960, news: NEWS, voice: [[0.8, 'news5']] },
+  { kind: 'cctv', frames: { src: 'story/news/parkA_', n: 10, fps: 2 }, dur: 5.2, cam_no: 'P2 · CAM 11', space: 'P2', date: '2026-09-30', clock: 79200, news: NEWS },
+  { kind: 'cctv', frames: { src: 'story/news/parkB_', n: 10, fps: 2 }, dur: 5.5, cam_no: 'NORTH GATE · CAM 04', space: 'B4', date: '2026-09-30', clock: 79262, news: NEWS, voice: [[0.4, 'news6']],
+    at: [[4.6, c => c.mark()]] },
+  { kind: 'cctv', run: 1, dur: 6.5, cam: MART_CCTV, fps: 4, cam_no: 'CAM 03', space: 'AISLE 4', date: '2026-10-11', clock: 11620, news: NEWS, voice: [[0.8, 'news7']], at: [[5.6, c => c.mark()]] },
+  { kind: 'black', dur: 1.6 },
+] };
+// the black door where the way out was: it opens by itself onto somewhere that cannot be behind a store
+CINES.prologue_door = { title: '0001', shots: [
+  { kind: 'cam', run: 6, dur: 7.5, keys: [[0, 4, 1.6, -10.6, 0, 0.06], [7.5, 4, 1.55, -13.4, 0, 0.1]],
+    tick: (c, dt) => { if (c.t < 2.2) return; const d = c.zone.exitDoors?.[0]; if (!d) return; d.open = Math.min(1, d.open + dt * 0.35);
+      d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); }); if (d.col) d.col.y1 = d.open > 0.55 ? d.col.y0 - 10 : d.cy1; },
+    at: [[0.4, c => c.sfx('knock', 4, -14, 0.5)]] },
+  { kind: 'card', dur: 4.8, html: '<img src="assets/ui/logo.png" alt="EVERY SPACE" style="width:min(72vw,620px);display:block;margin:0 auto">' },
+  { kind: 'black', dur: 1.2 },
+] };
+// CHAPTER 1 — KILLI. A warehouse camera, years apart from everything else. Nothing is explained.
+const WH = { cam_no: 'NORDBO WH · CAM 12', space: '0007', date: '2019-02-14', fps: 5 };
+CINES.ch1_open = { title: 'Warehouse, camera 12', music: false, shots: [
+  { kind: 'black', dur: 2.4, at: [[0.6, c => c.mark()]] },
+  { kind: 'cctv', run: 7, dur: 21, cam: [4.5, 3.4, -1.2, 0, -0.1], clock: 10260, ...WH,
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -31], [4.5, -18]], speed: 0.95, wait: 0.5, face: Math.PI, color: 0x23272e }],
+    at: [[10.5, c => c.horn(0.3)], [18, c => c.horn(0.45)]] },
+  { kind: 'cctv', run: 7, dur: 12, cam: [4.2, 1.9, -10.5, 0.02, -0.02], clock: 10281, ...WH, cam_no: 'NORDBO WH · CAM 09',
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -18], [4.5, -18.2]], speed: 0.4, face: Math.PI, color: 0x23272e }],
+    at: [[2.5, c => c.horn(0.7)], [5, c => c.killi(4.5, -34.5, 0, 1, 1.4, 0.95, 40, 0.5)], [10.5, c => c.mark()]] },
+  { kind: 'cctv', run: 7, dur: 15, cam: [4.5, 3.4, -1.2, 0, -0.1], clock: 10293, ...WH,
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -18], [4.5, -6], [4.5, -2.5]], speed: 3.4, wait: 1.2, color: 0x23272e }],
+    at: [[0, c => c.killi(4.5, -27, 0, 1, 3.0, 0.95, 40)], [3, c => c.killi(4.4, -34.5, 0, 1, 3.8, 0.65, 40)], [5.5, c => c.horn(0.9)], [6.5, c => c.killi(4.6, -34.5, 0, 1, 3.4, 1.1, 40)]] },
+  { kind: 'cctv', run: 7, dur: 3.6, cam: [4.5, 2.4, -0.8, 0, -0.04], clock: 10308, ...WH, cam_no: 'NORDBO WH · CAM 02', fps: 8,
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -14], [4.5, -7]], speed: 3.6, color: 0x23272e }],
+    at: [[0, c => c.killi(4.5, -23, 0, 1, 4.4, 1.0, 40)], [3.0, c => { vhsMat.uniforms.uGlitch.value = 3; }]] },
+  { kind: 'black', dur: 3.2, lines: [[1.2, 'NORDBO WH · CAM 02 — NO SIGNAL', 1.8]] },
+] };
+// halfway down the car park: the screen in a ticket booth shows the floor below
+CINES.ch1_cctv = { title: 'Parking, level B4', shots: [
+  { kind: 'cctv', run: 10, dur: 24, cam: [-19, 2.4, -1.5, -0.55, -0.16], cam_no: 'P · B4 · CAM 07', space: '0010', date: '2026-10-11', clock: 11880, fps: 4,
+    start: c => { for (const [x, zz, r] of [[-12, -9, 0.9], [-6, -15, 1.1], [-3, -6.5, 0.8], [3, -16, 1.5]]) { const k = c.killi(x, zz, 0, 1, 0.0001, r, 0.0001); k.rest = true; k.restT = 1e9; } },
+    at: [[9, c => c.killi(14, -20, 0, 1, 1.0, 1.2, 14)], [14, c => c.horn(0.25)], [21, c => c.mark()]] },
+] };
+// the end of the car park: the phone slips, lies on the concrete, still recording
+CINES.ch1_end = { title: 'Where it stopped', music: false, shots: [
+  { kind: 'cam', run: 10, dur: 9, keys: [[0, 0, 1.6, -17.5, Math.PI, 0], [1.2, 0.2, 0.25, -17.8, Math.PI + 0.3, 0.2], [9, 0.2, 0.16, -17.8, Math.PI + 0.35, 0.15]],
+    at: [[1.1, c => c.sfx('crush')]] },
+  { kind: 'cctv', run: 10, dur: 11, cam: [-19, 2.4, -1.5, -0.55, -0.16], cam_no: 'P · B4 · CAM 07', space: '0010', date: '2026-10-11', clock: 12640, fps: 4,
+    start: c => { for (const [x, zz, r] of [[-12, -9, 0.9], [-6, -15, 1.1], [-3, -6.5, 0.8], [3, -16, 1.5], [-9, -18, 1.2]]) { const k = c.killi(x, zz, 0, 1, 0.0001, r, 0.0001); k.rest = true; k.restT = 1e9; } },
+    at: [[8.5, c => c.mark()]] },
+  { kind: 'black', dur: 5, lines: [[1.4, 'Further in, one light is still on.', 3.2]] },
+] };
+if (DEBUG) CINES.qa = { title: 'QA footage', shots: [
+  { kind: 'black', dur: 2, lines: [[0.3, 'Somewhere, a horn.', 1.5]] },
+  { kind: 'cctv', run: 1, dur: 5, cam: [2.5, 2.6, -1.2, 0.5, -0.35], fps: 6, cam_no: 'CAM 07', space: '0001', date: '1996-11-02', clock: 11647,
+    actors: [{ id: 'm', type: 'figure', path: [[0, -10], [0, -3]], speed: 1.3 }], at: [[1, c => c.horn(0.5)], [2.5, c => c.mark()], [3, c => c.sub('[distant horn]', 2)]] },
+  { kind: 'card', dur: 1.5, html: 'EVERY SPACE<small>TEST</small>' },
+] };
+if (DEBUG) window.__ieori = { CINE, CINES, MONO, VO, replayCine, camera, game, zones: () => zones, start, SAVE, RUN: () => RUN, SC, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, laneRunZ, frontLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT, LIFT, AQUA, CITY };
 </script>
 </body>
 </html>

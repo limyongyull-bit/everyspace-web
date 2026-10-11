@@ -1,0 +1,62 @@
+[
+ {
+  "id": "news1",
+  "voice": "news",
+  "text": "Good evening. Police in four cities are investigating a series of disappearances reported over the past eleven days.",
+  "dur": 6.88
+ },
+ {
+  "id": "news2",
+  "voice": "news",
+  "text": "In each case, the missing person was last seen inside a public building. A supermarket. A hospital. A subway station. A parking garage.",
+  "dur": 9.25
+ },
+ {
+  "id": "news3",
+  "voice": "news",
+  "text": "This footage, from a twenty-four hour store, shows a customer walking into an aisle at three fourteen a.m. Staff say she never came out.",
+  "dur": 8.06
+ },
+ {
+  "id": "news4",
+  "voice": "news",
+  "text": "At Saint Anne's Hospital, a lift was recorded opening onto a floor the building does not have.",
+  "dur": 4.57
+ },
+ {
+  "id": "news5",
+  "voice": "news",
+  "text": "Transit police have declined to comment on footage from Line Two.",
+  "dur": 3.53
+ },
+ {
+  "id": "news6",
+  "voice": "news",
+  "text": "Investigators say there is no evidence the cases are connected.",
+  "dur": 3.24
+ },
+ {
+  "id": "news7",
+  "voice": "news",
+  "text": "Police say the buildings are safe, and remain open.",
+  "dur": 2.41
+ },
+ {
+  "id": "pa1",
+  "voice": "pa",
+  "text": "Attention shoppers. The store will close in fifteen minutes. Please bring your items to the front.",
+  "dur": 6.05
+ },
+ {
+  "id": "pa2",
+  "voice": "pa",
+  "text": "Attention shoppers. The store will close in fifteen minutes. Please bring your items to the back.",
+  "dur": 6.05
+ },
+ {
+  "id": "pa3",
+  "voice": "pa",
+  "text": "Attention shoppers. The store does not close.",
+  "dur": 3.74
+ }
+]

@@ -1,0 +1,204 @@
+{
+ "tape01": {
+  "rooms": [
+   "mart",
+   "duct",
+   "concourse",
+   "aquarium",
+   "lift",
+   "ward",
+   "mart3"
+  ],
+  "chapters": [
+   {
+    "id": "tape01",
+    "title": "TAPE 01",
+    "start": 0
+   }
+  ],
+  "script": {
+   "1": {
+    "music": 0,
+    "horn": 11,
+    "rec": "s_door"
+   },
+   "2": {
+    "music": 0,
+    "rumble": true
+   },
+   "3": {
+    "music": 10,
+    "niki": true,
+    "killiFar": 9,
+    "rec": "s_vent"
+   },
+   "4": {
+    "music": 10
+   },
+   "5": {
+    "music": 20
+   },
+   "6": {
+    "music": 40,
+    "killi": 2,
+    "killiT": 7,
+    "ward": true
+   },
+   "7": {
+    "music": 0,
+    "end": true,
+    "rec": "s_back"
+   }
+  }
+ },
+ "story": {
+  "rooms": [
+   "mart",
+   "mart",
+   "mart3",
+   "mart2",
+   "ward",
+   "mart",
+   "nordbo",
+   "parking2",
+   "parking",
+   "parking3"
+  ],
+  "chapters": [
+   {
+    "id": "prologue",
+    "title": "PROLOGUE",
+    "start": 0,
+    "open": "prologue_news"
+   },
+   {
+    "id": "ch1",
+    "title": "CHAPTER 1 · KILLI",
+    "start": 6,
+    "open": "ch1_open",
+    "end": "ch1_end"
+   }
+  ],
+  "script": {
+   "0": {
+    "music": 0,
+    "say": [
+     [
+      6,
+      "No signal."
+     ]
+    ],
+    "pa": [
+     [
+      18,
+      "pa1"
+     ]
+    ]
+   },
+   "1": {
+    "music": 0,
+    "say": [
+     [
+      4,
+      "I've passed this shelf before."
+     ]
+    ]
+   },
+   "2": {
+    "music": 0,
+    "pa": [
+     [
+      3,
+      "pa2"
+     ]
+    ],
+    "sayAt": [
+     [
+      0.6,
+      "I came in this way."
+     ]
+    ],
+    "rec": "s_door"
+   },
+   "3": {
+    "music": 0,
+    "sayAt": [
+     [
+      0.55,
+      "This aisle wasn't this long."
+     ]
+    ]
+   },
+   "4": {
+    "music": 0,
+    "sayAt": [
+     [
+      0.7,
+      "That's not the stockroom."
+     ]
+    ]
+   },
+   "5": {
+    "music": 0,
+    "lockBehind": true,
+    "say": [
+     [
+      4,
+      "The entrance is gone."
+     ]
+    ],
+    "pa": [
+     [
+      14,
+      "pa3"
+     ]
+    ]
+   },
+   "6": {
+    "music": 0,
+    "say": [
+     [
+      3,
+      "I have to get out."
+     ]
+    ],
+    "door0001": true,
+    "rec": "s_back"
+   },
+   "7": {
+    "music": 0,
+    "horn": 6,
+    "killiFar": 15,
+    "sayAt": [
+     [
+      0.15,
+      "That was a horn."
+     ]
+    ]
+   },
+   "8": {
+    "music": 10,
+    "killi": 1,
+    "killiT": 9
+   },
+   "9": {
+    "music": 20,
+    "killi": 1,
+    "killiT": 12,
+    "cine": [
+     [
+      3,
+      "ch1_cctv"
+     ]
+    ]
+   },
+   "10": {
+    "music": 30,
+    "killi": 4,
+    "killiT": 6,
+    "gap": 2.4,
+    "end": true
+   }
+  }
+ }
+}
