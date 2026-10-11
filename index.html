@@ -16,6 +16,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
+  html:not(.exp) [data-exp] { display: none !important; }
+  .recs { display: flex; flex-direction: column; gap: 14px; } .recs .grp h3 { margin: 6px 0 6px; } .recs .rec { font: 400 15px/1.45 Inter, sans-serif; color: var(--ink); padding: 8px 0; border-top: 1px solid var(--line); } .recs .rec small { display: block; color: var(--muted); font: 600 12px/1.3 "Space Mono", monospace; margin-bottom: 2px; } .recs .none { color: var(--muted); font: 400 14px/1.5 Inter, sans-serif; }
+  .cred { font: 400 15px/1.6 Inter, sans-serif; color: var(--ink); } .cred b { letter-spacing: .12em; }
   @font-face { font-family: "Inter"; font-weight: 500; src: url(assets/fonts/Inter-500.ttf) format("truetype"); font-display: swap; }
   @font-face { font-family: "Inter"; font-weight: 700; src: url(assets/fonts/Inter-700.ttf) format("truetype"); font-display: swap; }
   @font-face { font-family: "Barlow Condensed"; font-weight: 700; src: url(assets/fonts/BarlowCondensed-700.ttf) format("truetype"); font-display: swap; }
@@ -98,7 +101,7 @@
     box-shadow: 0 10px 40px rgba(0,0,0,.35); margin: auto; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
   .logo { margin: 4px 0 0; line-height: 0; }
   .logo img { width: 100%; height: auto; display: block; filter: drop-shadow(0 2px 10px rgba(0,0,0,.5)); }
-  .sub { color: var(--muted); font: 700 13px/1 "Barlow Condensed", sans-serif; letter-spacing: .5em; margin: 12px 0 14px; }
+  .sub { color: #b9b3a7; font: 700 15px/1.2 "Barlow Condensed", sans-serif; letter-spacing: .3em; margin: 12px 0 14px; }
   p { margin: 8px 0; line-height: 1.55; font-size: 14px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   input[type=text] { flex: 1; min-width: 140px; font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 10px;
@@ -136,10 +139,20 @@
   #intro { position: fixed; inset: 0; z-index: 50; background: #050505; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
     transition: opacity .9s ease; cursor: pointer; }
   #intro img { width: min(78vw, 760px); opacity: 0; filter: blur(14px); transform: scale(1.04); animation: logoIn 2.4s cubic-bezier(.2,.7,.1,1) .3s forwards, flick 2.4s steps(1) .3s; }
-  #intro .isub { color: #8f8a80; font: 700 13px/1 "Barlow Condensed", sans-serif; letter-spacing: .9em; opacity: 0; animation: fadeIn 1.2s ease 1.6s forwards; padding-left: .9em; }
+  #intro .isub { color: #c2bcb0; font: 700 15px/1.2 "Barlow Condensed", sans-serif; letter-spacing: .32em; text-align: center; opacity: 0; animation: fadeIn 1.2s ease 1.6s forwards; padding-left: .9em; }
   #intro .iload { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255,255,255,.06); }
   #intro .iload i { display: block; height: 100%; width: 0; background: #e8e2d6; transition: width .3s; }
   #intro.out { opacity: 0; pointer-events: none; }
+  #introTxt { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; color: #8f8a80; font: 600 12px/1 "Space Mono", monospace; letter-spacing: .08em; }
+  #bootErr { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; background: rgba(4,4,4,.94); padding: 16px; }
+  #bootErr .be { max-width: 520px; width: 100%; color: #f2f0ea; font: 400 15px/1.5 Inter, system-ui, sans-serif; }
+  #bootErr h2 { font: 700 21px/1.3 Inter, system-ui, sans-serif; margin: 0 0 4px; }
+  #bootErr .en { color: #a9a395; margin: 0 0 14px; font-size: 14px; }
+  #bootErr ul { margin: 0 0 12px; padding-left: 18px; } #bootErr li { margin: 4px 0; }
+  #bootErr .det { color: #7a7264; font: 12px/1.4 "Space Mono", monospace; word-break: break-all; min-height: 1em; }
+  #bootErr .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  #bootErr button { font: 700 15px/1 Inter, system-ui, sans-serif; padding: 13px 18px; border-radius: 10px; border: 0; background: #f2f0ea; color: #111; cursor: pointer; }
+  #bootErr button.ghost { background: transparent; color: #f2f0ea; border: 1px solid rgba(255,255,255,.3); }
   #intro.wait img, #intro.wait .isub { animation-play-state: paused; }
   #intro .igate { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 14px; transition: opacity .5s; pointer-events: none; }
   #intro .igate b { color: #e8e2d6; font: 700 15px/1 "Barlow Condensed", sans-serif; letter-spacing: .6em; padding-left: .6em; animation: gatePulse 2.2s ease-in-out infinite; }
@@ -206,6 +219,46 @@
     .dvcard img { border-radius: 14px 14px 0 0; min-height: 0; aspect-ratio: 4 / 3; height: auto; }
   }
 </style>
+<script>
+// BOOT GUARD: runs before the game module. If WebGL is missing, the engine can't be fetched, an asset fails or loading
+// stalls, the player gets a clear panel with a way out instead of an endless "Loading…".
+window.BOOT = (() => {
+  const B = { started: false, done: false, failed: false, label: '', t: Date.now() };
+  B.webgl = (() => { try { const c = document.createElement('canvas'); return c.getContext('webgl2') ? 2 : (c.getContext('webgl') || c.getContext('experimental-webgl')) ? 1 : 0; } catch (e) { return 0; } })();
+  const TEXT = {
+    webgl: ['그래픽 렌더러를 시작할 수 없습니다.', 'The graphics renderer could not start.',
+      ['브라우저에서 하드웨어 가속이 켜져 있는지 확인하세요. (Chrome/Edge: 설정 → 시스템 → “가능한 경우 하드웨어 가속 사용”)', '최신 버전의 Chrome 또는 Edge를 권장합니다.', '그래도 안 되면 다른 기기나 브라우저에서 열어 주세요.']],
+    engine: ['게임 엔진을 불러오지 못했습니다.', 'The game engine could not be downloaded.', ['인터넷 연결을 확인한 뒤 다시 시도하세요.', '회사·학교 네트워크나 광고 차단기가 cdn.jsdelivr.net을 막고 있을 수 있습니다.']],
+    assets: ['게임 데이터를 불러오지 못했습니다.', 'Some game files failed to load.', ['인터넷 연결을 확인한 뒤 다시 시도하세요.']],
+    stall: ['로딩이 멈춘 것 같습니다.', 'Loading seems to have stopped.', ['연결이 느릴 수 있습니다. 조금 더 기다리거나 다시 시도하세요.']],
+  };
+  B.show = (kind, detail) => {
+    let el = document.getElementById('bootErr');
+    if (!el) { el = document.createElement('div'); el.id = 'bootErr'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-modal', 'true'); document.body.appendChild(el); }
+    const [ko, en, tips] = TEXT[kind];
+    el.innerHTML = '<div class="be"><h2></h2><p class="en"></p><ul></ul><p class="det"></p><div class="row"><button id="beRetry"></button></div></div>';
+    el.querySelector('h2').textContent = ko; el.querySelector('.en').textContent = en;
+    el.querySelector('ul').innerHTML = tips.map(t => '<li></li>').join(''); el.querySelectorAll('li').forEach((li, i) => li.textContent = tips[i]);
+    el.querySelector('.det').textContent = detail ? String(detail).slice(0, 220) : '';
+    const r = el.querySelector('#beRetry'); r.textContent = kind === 'webgl' ? '새로고침 · Reload' : '다시 시도 · Retry'; r.onclick = () => location.reload();
+    if (kind === 'stall') { const w = document.createElement('button'); w.className = 'ghost'; w.textContent = '계속 기다리기 · Keep waiting'; w.onclick = () => { el.remove(); B.t = Date.now(); }; el.querySelector('.row').appendChild(w); }
+    el.style.display = 'flex'; r.focus();
+  };
+  B.fail = (kind, detail) => { if (B.failed) return; B.failed = true; console.error('[boot]', kind, detail || ''); B.show(kind, detail);
+    for (const id of ['introBar', 'loadBar']) { const e = document.getElementById(id); if (e) e.style.display = 'none'; }
+    for (const id of ['loadTxt', 'introTxt']) { const e = document.getElementById(id); if (e) e.textContent = ''; } };
+  B.progress = label => { B.label = label || B.label; B.t = Date.now(); const s = document.getElementById('bootErr'); if (s && !B.failed) s.remove();
+    const it = document.getElementById('introTxt'); if (it) it.textContent = 'Loading ' + B.label; };
+  B.ready = () => { B.done = true; const it = document.getElementById('introTxt'); if (it) it.textContent = ''; };
+  // the module never started (engine download blocked) / loading went quiet for too long
+  setInterval(() => {
+    if (B.failed || B.done) return;
+    if (!B.started && Date.now() - B.t > 25000) B.fail('engine', 'three.js (cdn.jsdelivr.net) did not load');
+    else if (B.started && Date.now() - B.t > 20000 && !document.getElementById('bootErr')) B.show('stall', B.label ? 'Last loaded: ' + B.label : '');
+  }, 2000);
+  return B;
+})();
+</script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -219,64 +272,69 @@
 
 <div id="hud">
   <div class="osd" id="osdTL"><div id="play">PLAY</div><div><span id="zoneNo">0000</span> <span class="k" id="zoneName">ENTRANCE</span></div></div>
-  <div class="osd" id="osdTR"><div><span id="distTxt">0000</span>M</div><div>ZONE <span id="clearTxt">00</span> <span id="rankTxt">#–</span></div></div>
-  <div class="osd" id="osdBC"><span id="sprintTag">&gt;&gt; RUN</span></div>
-  <div class="osd" id="osdBL"><span id="itemTag"></span></div>
+  <div class="osd" id="osdTR" data-exp><div><span id="distTxt">0000</span>M</div><div>ZONE <span id="clearTxt">00</span> <span id="rankTxt">#–</span></div></div>
+  <div class="osd" id="osdBC" data-exp><span id="sprintTag">&gt;&gt; RUN</span></div>
+  <div class="osd" id="osdBL" data-exp><span id="itemTag"></span></div>
   <div class="osd" id="osdBR"><div>SP</div><div id="clock">AM 3:07:00</div><div id="date">OCT. 3 1996</div></div>
   <div id="cross"></div>
   <div id="toast"></div>
 </div>
 <div id="joy"><div class="knob"></div></div>
 <button id="jumpBtn">JUMP</button>
-<button id="useBtn">LIGHT</button>
-<button id="colaBtn">COLA</button>
+<button id="useBtn" data-exp>LIGHT</button>
+<button id="colaBtn" data-exp>COLA</button>
 
-<div id="intro" class="wait"><div class="igate"><b id="gateTxt">CLICK TO ENTER</b><span>SOUND ON · HEADPHONES RECOMMENDED</span></div><img src="assets/ui/logo.png" alt="EVERY SPACE"><div class="isub">I E O R I</div><div class="iload"><i id="introBar"></i></div></div>
+<div id="intro" class="wait"><div class="igate"><b id="gateTxt">CLICK TO ENTER</b><span>SOUND ON · HEADPHONES RECOMMENDED</span></div><img src="assets/ui/logo.png" alt="EVERY SPACE"><div class="isub">TAPE 01 · RECOVERED BY IEORI</div><div class="iload"><i id="introBar"></i></div><div id="introTxt" aria-live="polite"></div></div>
 <div class="overlay on" id="menu">
   <div class="lobby">
     <h1 class="logo"><img src="assets/ui/logo.png" alt="EVERY SPACE" width="1984" height="257"></h1>
-    <div class="sub">IEORI</div>
+    <div class="sub">TAPE 01 · RECOVERED BY IEORI</div>
     <nav class="mm">
       <button class="mmi play" id="startBtn" disabled>PLAY</button>
-      <button class="mmi" data-panel="pGuide">FIELD GUIDE</button>
-      <button class="mmi" data-panel="pBoard">LEADERBOARD</button>
+      <button class="mmi" data-panel="pGuide">RECORDS</button>
+      <button class="mmi" data-panel="pBoard" data-exp>LEADERBOARD</button>
       <button class="mmi" data-panel="pSet">SETTINGS</button>
+      <button class="mmi" data-panel="pCred">CREDITS</button>
     </nav>
-    <div class="lfoot"><span id="bestTag"></span><span id="loadTxt">Loading…</span><div id="loadBar"><i></i></div></div>
+    <div class="lfoot"><span id="bestTag" data-exp></span><span id="loadTxt">Loading…</span><div id="loadBar"><i></i></div></div>
   </div>
-  <section class="panel" id="pGuide"><header><h2>FIELD GUIDE</h2><button class="x">✕</button></header><div class="dex" id="dex"></div></section>
-  <section class="panel" id="pBoard"><header><h2>LEADERBOARD</h2><button class="x">✕</button></header>
+  <section class="panel" id="pGuide" aria-labelledby="pGuideH"><header><h2 id="pGuideH">RECOVERED RECORDS</h2><button class="x" aria-label="Close">✕</button></header><div class="recs" id="recs"></div><div class="dex" id="dex" data-exp></div></section>
+  <section class="panel" id="pBoard" data-exp aria-labelledby="pBoardH"><header><h2 id="pBoardH">LEADERBOARD</h2><button class="x" aria-label="Close">✕</button></header>
     <div class="row" style="margin-bottom:10px"><button class="ghost sel" data-tab="dist">Distance</button><button class="ghost" data-tab="zones">Zones</button></div>
     <table class="lb" id="lbMenu"></table><div class="lbsrc" id="lbSrc"></div></section>
-  <section class="panel" id="pSet"><header><h2>SETTINGS</h2><button class="x">✕</button></header>
-    <h3>NAME</h3><input type="text" id="nameIn" maxlength="12" placeholder="Name" autocomplete="off">
+  <section class="panel" id="pSet" aria-labelledby="pSetH"><header><h2 id="pSetH">SETTINGS</h2><button class="x" aria-label="Close">✕</button></header>
+    <div data-exp><h3>NAME</h3><input type="text" id="nameIn" maxlength="12" placeholder="Name" autocomplete="off"></div>
     <h3>CAMERA</h3>
-    <div class="row"><label class="tog"><input type="radio" name="cam" id="optPhone" checked> Phone</label><label class="tog"><input type="radio" name="cam" id="optVhs"> VHS</label></div>
-    <div class="row"><label class="tog"><input type="checkbox" id="optBlur" checked> Motion blur</label><label class="tog"><input type="checkbox" id="optRefl" checked> Reflections</label></div>
+    <div class="row" data-exp><label class="tog"><input type="radio" name="cam" id="optPhone" checked> Phone</label><label class="tog"><input type="radio" name="cam" id="optVhs"> VHS</label></div>
+    <div class="row"><label class="tog">Volume <input type="range" id="optVol" min="0" max="100" step="5" value="80" aria-label="Volume"></label></div>
+    <div class="row"><label class="tog"><input type="checkbox" id="optBlur"> Motion blur</label><label class="tog"><input type="checkbox" id="optRefl" checked> Reflections</label></div>
     <h3>CONTROLS</h3><p class="keys" id="keysTxt">WASD · Shift run · Space jump · Click to look · Hold Q to look behind</p>
     <div class="row" id="fsRow" style="display:none"><button class="ghost" id="fsBtn">⛶ Full screen</button><span class="keys" id="fsTip"></span></div></section>
-  <div class="dexview" id="dexView"><div class="dvcard"><button class="x">✕</button><img id="dvImg" alt=""><div class="dvtxt"><div class="dvno" id="dvNo"></div><h2 id="dvName"></h2><div class="dvcls" id="dvCls"></div><p id="dvDesc"></p><p class="dvtip" id="dvTip"></p></div></div></div>
+  <section class="panel" id="pCred" aria-labelledby="pCredH"><header><h2 id="pCredH">CREDITS</h2><button class="x" aria-label="Close">✕</button></header>
+    <p class="cred"><b>EVERY SPACE</b><br>TAPE 01<br>Recovered by IEORI</p>
+    <p class="cred">Spaces and entities modelled and lit in Blender. Rendered with three.js. Niki's voice: Piper (offline TTS).<br>All brands, places and people are fictional.</p></section>
+  <div class="dexview" id="dexView" data-exp><div class="dvcard"><button class="x">✕</button><img id="dvImg" alt=""><div class="dvtxt"><div class="dvno" id="dvNo"></div><h2 id="dvName"></h2><div class="dvcls" id="dvCls"></div><p id="dvDesc"></p><p class="dvtip" id="dvTip"></p></div></div></div>
 </div>
 
 <div class="overlay" id="dead">
   <div class="card">
     <div id="deathCause">Crushed by Killi</div>
-    <div class="stats">
+    <div class="stats" data-exp>
       <div><b id="dDist">0m</b>Distance</div>
       <div><b id="dZones">0</b>Zones</div>
       <div><b id="dRank">#–</b>Rank</div>
     </div>
     <div class="row"><button class="main" id="againBtn">TRY AGAIN</button><button class="ghost" id="menuBtn">Menu</button></div>
-    <h3>LEADERBOARD</h3>
-    <div class="row" style="margin-bottom:6px">
+    <h3 data-exp>LEADERBOARD</h3>
+    <div class="row" style="margin-bottom:6px" data-exp>
       <button class="ghost sel" data-tab="dist">Distance</button>
       <button class="ghost" data-tab="zones">Zones</button>
     </div>
-    <table class="lb" id="lbDead"></table>
+    <table class="lb" id="lbDead" data-exp></table>
   </div>
 </div>
 
-<script type="module">
+<script type="module" onerror="BOOT.fail('engine', 'game script failed to load')">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -320,13 +378,31 @@ const VOICE = {
     if (this.subT > 0 && (this.subT -= dt) <= 0 && this.sub) this.sub.style.opacity = 0;
   },
 };
+// EPISODES: a recording uses at most two entities and a fixed run of spaces. Everything else stays in the code, unassigned,
+// for later tapes. ?exp brings back the old endless mode with every entity, the shop, tokens and the leaderboard.
+const EXP = new URLSearchParams(location.search).has('exp');
+const EPISODE = { id: 1, title: 'TAPE 01', entities: ['killi', 'niki'] };
+const ENTITY_ON = id => EXP || EPISODE.entities.includes(id);
+// the spaces of TAPE 01 after the entrance, in order, and what happens in each (index = zone number)
+const TAPE = ['mart', 'duct', 'concourse', 'aquarium', 'lift', 'ward', 'mart3'];
+const SCRIPT = {
+  1: { music: 0, horn: 11 },                          // a bright empty shop: nothing, one horn far off
+  2: { music: 0, rumble: true },                      // the vent: something rolling inside the walls
+  3: { music: 10, niki: true, killiFar: 9 },          // the hall: Niki finds you; one head crosses far away
+  4: { music: 10 },                                   // the aquarium: the two of you, and quiet
+  5: { music: 20 },                                   // the lift: does she get in?
+  6: { music: 40, killi: 2, killiT: 7 },              // the ward: Killi (or, if you left her, Niki)
+  7: { music: 0, end: true },                         // the shop again, not quite the same
+};
+if (EXP) document.documentElement.classList.add('exp');
 const CFG = {
   eye: 1.62, radius: 0.32, walk: 4.0, sprint: 6.8, gravity: 22, jumpV: 6.6,
   ceil: 3.2, lookSens: 0.0052, mouseSens: 0.0024,
   fogNear: 6, fogFar: 46, fogColor: 0xe9e3d3,
-  fisheye: 0.32, exposure: 1.15, maxRenderH: 540,
+  fisheye: 0.24, exposure: 1.15, maxRenderH: 540,
   deathHold: 2.4,   // seconds the dropped phone keeps recording before the death screen
 };
+if (!EXP) { CFG.walk = 3.2; CFG.sprint = 5.8; }   // the tape is walked, not raced
 const DEBUG = new URLSearchParams(location.search).has('debug');
 // cracked lens after the phone hits the floor: fracture lines from one impact point, drawn once per death
 const CRACK = {
@@ -408,7 +484,11 @@ const store = {
    HDR scene -> lens (fisheye + motion blur) -> VHS (tone map, chroma bleed, tape feedback) -> screen
    ============================================================ */
 const canvas = $('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+BOOT.started = true; BOOT.progress('engine');
+if (!BOOT.webgl) { BOOT.fail('webgl', 'WebGL is not available in this browser'); throw new Error('no WebGL'); }
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }); }
+catch (e) { BOOT.fail('webgl', e && e.message); throw e; }
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // tone mapping + sRGB encode happen in the VHS pass
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.setPixelRatio(1);
@@ -491,12 +571,12 @@ const vhsMat = new THREE.ShaderMaterial({
     vec3 grade(vec3 hdr){ return pow(aces(hdr * uExposure), vec3(1. / 2.2)); }
     vec3 phone(vec2 uv){
       // modern phone camera: lateral CA at the edges, local-contrast sharpening, highlight haze, fine sensor noise
-      vec2 c = uv - .5; vec2 ca = c * dot(c, c) * .005;
+      vec2 c = uv - .5; vec2 ca = c * dot(c, c) * .003;
       vec3 hdr = vec3(texture2D(tLens, uv + ca).r, texture2D(tLens, uv).g, texture2D(tLens, uv - ca).b);
       vec2 px = 1. / uRes;
       vec3 bl = (texture2D(tLens, uv + vec2(px.x, 0.)).rgb + texture2D(tLens, uv - vec2(px.x, 0.)).rgb
                + texture2D(tLens, uv + vec2(0., px.y)).rgb + texture2D(tLens, uv - vec2(0., px.y)).rgb) * .25;
-      hdr = max(hdr + (hdr - bl) * .35 * (1. - uISO * .75), 0.);   // phones smear detail when denoising at high ISO
+      hdr = max(hdr + (hdr - bl) * .2 * (1. - uISO * .75), 0.);   // phones smear detail when denoising at high ISO
       vec3 haze = vec3(0.);
       for (int i = 0; i < 8; i++) {   // soft glow around blown highlights: a ring of taps on a heavily blurred mip
         float a = float(i) * .7854 + .39;
@@ -578,7 +658,7 @@ const fsScene = new THREE.Scene(); fsScene.add(fsQuad);
 function fsPass(mat, target) { fsQuad.material = mat; renderer.setRenderTarget(target); renderer.render(fsScene, fsCam); }
 
 // camera look: 'phone' (default, matches the reference photos) or 'vhs' (camcorder tape)
-const OPT = { vhs: store.get('ieori.cam', 'phone') === 'vhs', blur: store.get('ieori.blur', '1') === '1', refl: store.get('ieori.refl', '1') === '1' };
+const OPT = { vhs: EXP && store.get('ieori.cam', 'phone') === 'vhs', blur: store.get('ieori.blur2', '0') === '1', refl: store.get('ieori.refl', '1') === '1', vol: +store.get('ieori.vol', '80') };
 function setCam(vhs) {
   OPT.vhs = vhs; store.set('ieori.cam', vhs ? 'vhs' : 'phone');
   document.body.classList.toggle('cam-vhs', vhs);
@@ -588,7 +668,9 @@ function setCam(vhs) {
 $('optVhs').checked = OPT.vhs; $('optPhone').checked = !OPT.vhs; $('optBlur').checked = OPT.blur;
 $('optVhs').addEventListener('change', () => setCam(true));
 $('optPhone').addEventListener('change', () => setCam(false));
-$('optBlur').addEventListener('change', e => { OPT.blur = e.target.checked; store.set('ieori.blur', OPT.blur ? '1' : '0'); });
+$('optBlur').addEventListener('change', e => { OPT.blur = e.target.checked; store.set('ieori.blur2', OPT.blur ? '1' : '0'); });
+$('optVol').value = OPT.vol;
+$('optVol').addEventListener('input', e => { OPT.vol = +e.target.value; store.set('ieori.vol', String(OPT.vol)); if (SFX.master) SFX.master.gain.value = 0.8 * OPT.vol / 100; });
 $('optRefl').checked = OPT.refl;
 $('optRefl').addEventListener('change', e => {
   OPT.refl = e.target.checked; store.set('ieori.refl', OPT.refl ? '1' : '0'); REFL.uReflOn.value = OPT.refl ? 1 : 0;
@@ -625,8 +707,8 @@ const loadTex = (url, { repeat = true, channel = 0 } = {}) => new Promise((res, 
   t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   t.channel = channel;
   res(t);
-}, undefined, rej));
-const loadGLB = url => new Promise((res, rej) => gltfLoader.load(url, res, undefined, rej));
+}, undefined, () => rej(new Error('could not load ' + url.split('/').pop()))));
+const loadGLB = url => new Promise((res, rej) => gltfLoader.load(url, res, undefined, e => rej(new Error('could not load ' + url.split('/').pop()))));
 
 // material recipes by Blender material name. lm:false = self-lit / not lightmapped.
 const MAT_DEF = {
@@ -893,9 +975,9 @@ async function loadAssets(onProgress) {
     }
   } catch (e) { console.warn('scans unavailable', e); ASSET.scan = null; }
   // only the entrance (and one small room) is needed to start; everything else streams in while you walk
-  const first = modNames.includes('cinema') ? ['lobby', ...['cinema', 'nordbo'].filter(n => modNames.includes(n))] : ['lobby', ...modNames.filter(n => n !== 'lobby' && n !== 'duct').sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0)).slice(0, 1)];
+  const first = !EXP ? ['lobby', TAPE[0]] : modNames.includes('cinema') ? ['lobby', ...['cinema', 'nordbo'].filter(n => modNames.includes(n))] : ['lobby', ...modNames.filter(n => n !== 'lobby' && n !== 'duct').sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0)).slice(0, 1)];
   await Promise.all(first.map(n => loadModule(n).then(() => { tick(n); tick(n); })));
-  ASSET.pending = modNames.filter(n => !first.includes(n)).sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0));
+  ASSET.pending = !EXP ? TAPE.filter(n => !first.includes(n) && modNames.includes(n)) : modNames.filter(n => !first.includes(n)).sort((a, b) => (meta.modules[a].bytes || 0) - (meta.modules[b].bytes || 0));
   // room signs are drawn into canvases when a room is built: make sure their faces are loaded first
   await Promise.all(['700 20px Inter', '800 20px Rubik', '400 20px "Archivo Black"', '700 20px "Space Mono"', '700 20px "Barlow Condensed"']
     .map(f => document.fonts.load(f).catch(() => null)));
@@ -921,7 +1003,7 @@ const SFX = {
     if (!AC) return;
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { }
     const ctx = this.ctx = new AC();
-    this.master = ctx.createGain(); this.master.gain.value = 0.8; this.master.connect(ctx.destination);
+    this.master = ctx.createGain(); this.master.gain.value = 0.8 * OPT.vol / 100; this.master.connect(ctx.destination);
     // fluorescent hum
     const hum = this.hum = ctx.createGain(); hum.gain.value = 0.018; hum.connect(this.master);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.connect(hum);
@@ -1789,6 +1871,7 @@ const ROOM_WEIGHT = { mart: 1, club: 1, subway: 1.1, burger: 1, parking: 1, gas:
 const roomAllowed = (n, i) => !(n === 'site' && i < 5) && !(n === 'site2' && i < 10);
 function pickRoom(i, k = 0, from = null) {
   if (DEBUG && window.__forceRooms?.length) return window.__forceRooms.shift();   // screenshot scripts pin the order
+  if (!EXP) return TAPE[i - 1] ?? null;
   const avail = (ASSET.meta.rooms || []).filter(n => ASSET.proto[n]);
   if (i >= 4 && avail.includes('shop') && !zones.slice(Math.max(0, i - 6), i).some(z => z?.kind === 'shop') && mulberry32(game.seed * 17 + i * 3)() < 0.05) return 'shop';
   const fresh = ['aquarium', 'lift', 'subway2'].filter(n => avail.includes(n));   // the newest spaces come first
@@ -1850,7 +1933,7 @@ function buildRoom(zone, kind) {
   // exits: doors in the far wall, at any height; each one leads somewhere else (picked now, so its sign can say where)
   const ex = m.exits || [{ x: m.exit, y: 0 }];
   zone.exits = ex.map((e, k) => ({ x: zone.ox + e.x, y: zone.oy + e.y, z: zone.exitZ, w: e.w || 1.9, label: e.label || null,
-    next: e.next && ASSET.proto[e.next] ? e.next : pickRoom(zone.i + 1, k, kind) }));   // a lift floor says where it goes
+    next: EXP && e.next && ASSET.proto[e.next] ? e.next : pickRoom(zone.i + 1, k, kind) }));   // a lift floor says where it goes
   zone.exitX = zone.exits[0].x;
   zone.x0 = zone.ox + m.x0; zone.x1 = zone.ox + m.x1; zone.h = m.h;
   zone.name = m.name; zone.type = m.kind === 'duct' ? 'duct' : 'room';
@@ -1902,6 +1985,7 @@ function buildRoom(zone, kind) {
   zone.killiLeft = zone.mood === 'calm' ? 0 : zone.mood === 'uneasy' ? 2 + (zone.rng() < 0.5 + 0.5 * D ? 1 : 0) : Infinity;
   if (zone.mood === 'calm' && zone.rng() < 0.6) zone.fakeHornT = 10 + zone.rng() * 25;
   zone.killiCap = true;   // trimmed once the room's eerie is known (Hazards.killi)
+  if (!EXP) { const sc = SCRIPT[zone.i] || {}; zone.mood = sc.killi ? 'uneasy' : 'calm'; zone.killiLeft = sc.killi || 0; zone.killiT = sc.killiT ?? 1e9; zone.fakeHornT = undefined; zone.killiCap = false; }
 }
 // signs never sit on top of each other or over an exit's number / name board: one that would is slid along its wall to
 // the nearest clear spot (or dropped if there is none)
@@ -2078,13 +2162,14 @@ const LIFT = (() => {
     go(k) {
       if (!L || !L.inside || L.stops[k] === undefined || L.moving) return;
       if (L.stops[k] === L.y) { SFX.chime(); return; }
-      L.target = L.stops[k]; SFX.knock(game.p.x, game.p.z, 0.4);
+      L.target = L.stops[k]; SFX.knock(game.p.x, game.p.z, 0.4); RECORDS.add('s_lift');
     },
     update(dt) {
       if (!L) return;
       if (L.zone.disposed || !zones.includes(L.zone)) { L = null; if (ui) ui.style.display = 'none'; return; }
       const P = game.p, zy = L.zone.oy;
       L.inside = P.x > L.X0 && P.x < L.X1 && P.z > L.Z0 && P.z < L.Z1 && Math.abs(P.y - (zy + L.y)) < 1.2;
+      L.prevY ??= L.y;
       if (L.target !== L.y) {   // close the doors, then ride
         L.door = Math.max(0, L.door - dt * 1.6);
         if (L.door <= 0) {
@@ -2093,7 +2178,9 @@ const LIFT = (() => {
           L.y += dir * v * dt; if ((L.target - L.y) * dir <= 0) { L.y = L.target; L.moving = false; SFX.chime(); game.shake = Math.max(game.shake, 0.2); }
         }
       } else L.door = Math.min(1, L.door + dt * 1.4);
-      const y = zy + L.y;
+      const y = zy + L.y, N = NIKI.pos;
+      if (NIKI.mode !== 'none' && NIKI.mode !== 'gone' && N.x > L.X0 && N.x < L.X1 && N.z > L.Z0 && N.z < L.Z1 && Math.abs(N.y - (zy + L.prevY)) < 0.6) N.y = y;   // she rides with you
+      L.prevY = L.y;
       L.g.position.y = L.y; L.surf.ya = L.surf.yb = y;
       for (const w of L.walls) { w.y0 = y; w.y1 = w.door && L.door > 0.6 ? y - 10 : y + L.H; }
       for (const gt of L.gates) gt.c.y1 = Math.abs(gt.y - L.y) < 0.01 && L.door > 0.6 ? gt.c.y0 - 10 : gt.c.y0 + 2.4;
@@ -2195,6 +2282,7 @@ function streamZones() {
   const anyRoom = (ASSET.meta.rooms || []).some(n => ASSET.proto[n]);
   if (!zones[0]) zones[0] = createZone(0, 4);
   for (let i = 1; i <= cur + 1; i++) {
+    if (!EXP && i > TAPE.length) break;   // the tape ends
     const prev = zones[i - 1]; if (!prev || !anyRoom) break;
     // which exit of the previous room: a room with one exit builds its next room at once; with several, the next room
     // is built behind the door you walk up to (and rebuilt if you change your mind)
@@ -2492,6 +2580,14 @@ function killiLanes(zone) {
 }
 // Killis only roll down long, clear runs, and only ever from in front of you (the far end of the room): you always
 // see one coming and have time to step out of its line
+// how far a head rolling in from the far door at x = c gets before something stands in the way
+function laneRunZ(zone, c, from = zone.exitZ) {
+  const kr = zone.kr, r = kr * 0.75, o = { x: 0, y: 0, z: 0 };
+  let end = zone.z0 - 0.3;
+  for (const k of zone.cols) if (colBlocks(k, zone.oy, kr * 2) && k.x1 > c - r && k.x0 < c + r && k.z1 > from + 0.3 && k.z0 < end) end = k.z0;
+  for (let z = from + 0.5; z < end; z += 0.8) if (SOLID.push(zone, c, zone.oy + kr, z, r, o) || SOLID.push(zone, c, zone.oy + kr * 0.45, z, r, o)) { end = z - 0.4; break; }
+  return end - from;
+}
 function frontLanes(zone) {
   if (zone.frontLanes) return zone.frontLanes;
   const kr = zone.kr, L = [];
@@ -2499,11 +2595,7 @@ function frontLanes(zone) {
     if (l.a !== 'z' || (l.from && !l.from.includes(-1)) || l.y) continue;
     // how far it can roll in from the far door before something stands in the way: the whole room, or a long
     // enough run (12 m+) that it stops against whatever is there, like a head stopping against a wall
-    const r = kr * 0.75, o = { x: 0, y: 0, z: 0 };
-    let end = zone.z0 - 0.3;
-    for (const c of zone.cols) if (colBlocks(c, zone.oy, kr * 2) && c.x1 > l.c - r && c.x0 < l.c + r && c.z1 > zone.exitZ + 0.3 && c.z0 < end) end = c.z0;
-    for (let z = zone.exitZ + 0.5; z < end; z += 0.8) if (SOLID.push(zone, l.c, zone.oy + kr, z, r, o) || SOLID.push(zone, l.c, zone.oy + kr * 0.45, z, r, o)) { end = z - 0.4; break; }
-    const run = end - zone.exitZ;
+    const run = laneRunZ(zone, l.c);
     if (run >= zone.len - 0.8) L.push({ ...l, from: [-1] });
     else if (run >= 12) L.push({ ...l, from: [-1], run });
   }
@@ -2526,7 +2618,7 @@ function spawnKilli(zone, p) {
   // +1: travels toward +x / +z; a cross aisle open on one side only is entered from that side
   const dir = lane.from && lane.from.length === 1 ? -lane.from[0] : axis === 'z' ? (r() < 0.8 ? 1 : -1) : r() < 0.5 ? 1 : -1;
   const speed = Math.min(6.5 + tierOf(depth) * 1.1, 11) * (0.9 + r() * 0.25);
-  let n = 1 + (r() < Math.min(0.12 + depth * 0.04, depth > 10 ? 0.7 : 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);
+  let n = !EXP ? 1 : 1 + (r() < Math.min(0.12 + depth * 0.04, depth > 10 ? 0.7 : 0.5) ? 1 + ((r() * Math.min(1 + depth / 6, 3)) | 0) : 0);   // one head at a time on the tape
   const kr = zone.kr;
   let s0, span;
   if (axis === 'x') { s0 = dir > 0 ? zone.x0 - kr : zone.x1 + kr; span = zone.x1 - zone.x0 + kr * 2 + 3; }
@@ -2553,7 +2645,7 @@ function spawnKilli(zone, p) {
   }
   // the horn: loudness says roughly how far, nothing says where (the rolling itself is what you can place)
   const d0 = (axis === 'x' ? Math.abs(s0 - p.x) : Math.abs(s0 - p.z)) + lead * speed;
-  SFX.horn(clamp(1 - (d0 - 15) / 40, 0.25, 1), n > 1);
+  SFX.horn(clamp(1 - (d0 - 15) / 40, 0.25, 1), n > 1); RECORDS.add('k_horn');
 }
 const Hazards = {
   killi: {
@@ -2574,6 +2666,7 @@ const Hazards = {
       zone.killis = zone.killis.filter(k => { const alive = k.update(dt); if (!alive) k.dispose(); return alive; });
       for (const v of zone.veils || []) {   // the dark at the door: creeps in over the lead time, holds while it rolls out, then lifts
         v.t += dt; const a = clamp(v.t / (v.lead * 0.9), 0, 1), out = clamp((v.t - v.lead - 2.5) / 2, 0, 1);
+        if (a > 0.6) RECORDS.add('k_dark');
         v.spot.r += (v.spot.target - v.spot.r) * Math.min(1, dt * 1.2); v.spot.w = a * (1 - out); v.veil.material.opacity = a * (1 - out);
         if (out >= 1) { zone.g.remove(v.veil); v.veil.material.dispose(); const i = zone.dark.indexOf(v.spot); if (i >= 0) zone.dark.splice(i, 1); v.done = true; }
       }
@@ -2585,12 +2678,13 @@ const Hazards = {
         if (k.wait > 0) continue;
         const d = Math.hypot(k.obj.position.x - p.x, k.obj.position.z - p.z);
         if (k.rest) {   // resting head: solid, not deadly; push the player out of it
+          if (d < 12) RECORDS.add('k_rest');
           if (d < k.r + CFG.radius) { const s = (k.r + CFG.radius) / (d || 1); p.x = k.obj.position.x + (p.x - k.obj.position.x) * s; p.z = k.obj.position.z + (p.z - k.obj.position.z) * s; }
           continue;
         }
         if (d < k.r + CFG.radius - 0.05 && p.y - k.obj.position.y < k.r * 2 && p.y > k.obj.position.y - 0.6) return { kill: 'killi', by: k };
         if (d < k.r + 1.5 && !k.near) { k.near = true; zone.killiT = Math.max(zone.killiT, 6 + zone.rng() * 4); }   // a near miss buys a quiet stretch
-        if (k.near && !k.paid && d > k.r + 2.5 && Math.abs(p.y - k.obj.position.y) < 2) { k.paid = true; DOPA.nearMiss(); }
+        if (k.near && !k.paid && d > k.r + 2.5 && Math.abs(p.y - k.obj.position.y) < 2) { k.paid = true; DOPA.nearMiss(); RECORDS.add('k_turn'); }
         best = Math.max(best, clamp(1 - d / 30, 0, 1) ** 2);
       }
       return { shake: best };
@@ -2759,6 +2853,52 @@ const HANDSUI = (() => {
   document.body.appendChild(el);
   return { set(t) { if (t == null) { el.style.opacity = 0; return; } el.style.opacity = 1; el.innerHTML = `GET TO THE LIGHT<br><span style="font-size:64px;color:#ff4a3a">${Math.ceil(t)}</span>`; } };
 })();
+/* TAPE 01 staging: the fixed events of the episode (nothing here in the endless build) */
+Hazards.tape = {
+  update(dt, zone, active) {
+    if (EXP || !active || zone.i !== game.zoneIdx || game.dead || game.ended) return;
+    const sc = SCRIPT[zone.i] || {}, p = game.p, t = (zone.tapeT = (zone.tapeT || 0) + dt);
+    // the mart: only a horn, somewhere far off, once
+    if (sc.horn && !zone.hornDone && t > sc.horn) { zone.hornDone = true; SFX.horn(0.22, false); RECORDS.add('k_horn'); }
+    // the concourse: one goes by in a far aisle, well away from you, and keeps going
+    if (sc.killiFar && !zone.farDone && t > sc.killiFar) {
+      zone.farDone = true;
+      const lane = killiLanes(zone).find(l => l.a === 'x' && !l.y && Math.abs(l.c - p.z) > 14 && Math.abs(l.c - p.z) < 34);
+      let side = null;   // no cross aisle far enough off: a clear line down the far side of the hall, well away from you
+      if (!lane) for (let c = zone.x0 + zone.kr + 1; c < zone.x1 - zone.kr - 1; c += 1.5) {
+        const run = Math.abs(c - p.x) > 8 ? laneRunZ(zone, c, zone.exitZ + zone.kr + 0.6) : 0;
+        if (run >= 14 && (!side || run > side.run + 4 || (run > side.run - 4 && Math.abs(c - p.x) > Math.abs(side.c - p.x)))) side = { a: 'z', c, from: [-1], run };
+      }
+      if (side) {   // no cross aisle far enough off: it comes down the far side of the hall instead, nowhere near you
+        const z0 = zone.exitZ + zone.kr + 0.6, k = new Killi(zone, side.c, z0, 0, 1, 5.6, zone.kr, side.run - zone.kr - 0.2);   // starts inside the far end, in the haze: no wall to roll through
+        k.lane = side; k.wall = !!side.run; k.wait = 1.6; k.obj.visible = false; zone.killis.push(k);
+        SFX.horn(0.3, false); RECORDS.add('k_horn');
+      } else if (lane) {
+        const dir = lane.from?.length === 1 ? -lane.from[0] : 1, kr = zone.kr, closed = !!(lane.from && !lane.from.includes(dir));
+        const span = zone.x1 - zone.x0 + kr * 2 + 3 - (closed ? 3 + kr * 2 : 0);
+        const k = new Killi(zone, dir > 0 ? zone.x0 - kr : zone.x1 + kr, lane.c, dir, 0, 6.2, kr, span);
+        k.lane = lane; k.wall = closed; k.wait = 1.6; k.obj.visible = false; zone.killis.push(k);
+        SFX.horn(0.3, false); RECORDS.add('k_horn');
+      }
+    }
+    // the ward: if she was left on another floor, she is the one who comes. With her beside you, only one Killi
+    if (zone.i === 6 && !zone.wardSet) {
+      zone.wardSet = true;
+      if (game.nikiLeft) { zone.killiLeft = 0; zone.madT = 7; }
+      else if (NIKI.mode === 'close' || NIKI.mode === 'walk') zone.killiLeft = Math.min(zone.killiLeft, 1);
+    }
+    if (zone.madT !== undefined && (zone.madT -= dt) <= 0) {
+      zone.madT = undefined;
+      NIKI.spawn(zone); NIKI.pos.set(zone.ox + (zone.meta.entry || 0), zone.oy || 0, zone.z0 + 1.2);
+      NIKI.greeted = true; NIKI.mode = 'mad'; NIKI.morph = 0; NIKI.sprintT = 0; SFX.madNiki(NIKI.pos.x, NIKI.pos.z); game.shake = 1; RECORDS.add('n_mad');
+    }
+    if (sc.end && p.z < zone.exitZ + 1.5) game.endTape();
+  },
+  check(zone, p) {
+    if (EXP || zone.i !== game.zoneIdx || !SCRIPT[zone.i]?.rumble) return {};
+    return { rumble: 0.12 + 0.08 * Math.sin(game.t * 0.7) ** 2 };   // the duct hums: something heavy, somewhere in the building
+  },
+};
 Hazards.hands = {
   update(dt, zone, active) {
     if (!zone.meta || !ASSET.hands) return;
@@ -2894,7 +3034,7 @@ const NIKI = {
     this.mode = 'walk'; this.pos.set(zone.exitX, zone.oy || 0, zone.exitZ + 2.5); this.morph = 0; this.sprintT = 0; this.wp = null; this.yaw = undefined;
     collideCircle(this.pos, 0.32, 'x', zone.i); collideCircle(this.pos, 0.32, 'z', zone.i);
     this.obj.visible = true; this.mad.visible = false;
-    if (!game.metNiki) { game.metNiki = true; toast('NIKI', 'Stay close to her.', false); }
+    if (!game.metNiki) { game.metNiki = true; if (EXP) toast('NIKI', 'Stay close to her.', false); }
     this.greeted = false; this.chatT = 4 + Math.random() * 3; VOICE.load();
   },
   update(dt) {
@@ -2905,31 +3045,33 @@ const NIKI = {
       if (this.shadow) this.shadow.visible = false;
       this.cool -= dt;
       const z = zones[game.zoneIdx];
-      if (z && z.nikiRoll === undefined) z.nikiRoll = !z.meta?.noeerie && z.rng() < 0.5;
-      if (this.cool <= 0 && z && z.meta && !z.meta.crawl && !z.meta.safe && z.i >= 2 && (window.__forceNiki || z.nikiRoll)) this.spawn(z);
+      if (z && z.nikiRoll === undefined) z.nikiRoll = !EXP ? !!SCRIPT[z.i]?.niki && !game.metNiki : !z.meta?.noeerie && z.rng() < 0.5;
+      if ((this.cool <= 0 || (!EXP && z?.nikiRoll)) && z && z.meta && !z.meta.crawl && !z.meta.safe && z.i >= 2 && (window.__forceNiki || z.nikiRoll)) this.spawn(z);
       return;
     }
     const dx = p.x - this.pos.x, dz = p.z - this.pos.z, d = Math.hypot(dx, dz) || 1;
     VOICE.update(dt, this.pos.x, this.pos.z);
     let speed = 0;
     if (this.mode === 'walk') {
-      speed = 1.25; if (d < 2.6) { this.mode = 'close'; if (!this.greeted) { this.greeted = true; VOICE.say('hello', this.pos.x, this.pos.z, true); this.chatT = 6 + Math.random() * 4; } }
+      speed = 1.25; if (d < 2.6) { this.mode = 'close'; if (!this.greeted) { this.greeted = true; VOICE.say('hello', this.pos.x, this.pos.z, true); this.chatT = 6 + Math.random() * 4; RECORDS.add('n_found'); } }
     } else if (this.mode === 'close') {
       speed = d > 1.5 ? Math.min(4.3, (d - 1.5) * 3) : 0;
       // she talks to you while you walk together: little lines, giggles
-      if ((this.chatT -= dt) <= 0) { this.chatT = 7 + Math.random() * 7; VOICE.say(Math.random() < 0.35 ? 'giggle' : 'chat', this.pos.x, this.pos.z); }
-      if (d > 4.6 && !this.warned) { this.warned = true; VOICE.say('leave', this.pos.x, this.pos.z, true); }
+      if ((EXP || game.speedNow < CFG.walk * 0.8) && (this.chatT -= dt) <= 0) { this.chatT = 7 + Math.random() * 7; if (VOICE.say(Math.random() < 0.35 ? 'giggle' : 'chat', this.pos.x, this.pos.z)) RECORDS.add('n_talk'); }
+      if (d > 4.6 && !this.warned) { this.warned = true; if (VOICE.say('leave', this.pos.x, this.pos.z, true)) RECORDS.add('n_leave'); }
+      // left on another floor (the lift went without her): she stays there
+      if (!EXP && Math.abs(p.y - this.pos.y) > 3 && (this.leftT = (this.leftT || 0) + dt) > 1.5) { this.leftT = 0; VOICE.say('leave', this.pos.x, this.pos.z, true); this.mode = 'gone'; this.cool = 1e9; this.obj.visible = false; game.nikiLeft = true; RECORDS.add('n_left'); return; }
       if (d < 3.5) this.warned = false;
       if (d > 6.0) { this.mode = 'mad'; this.morph = 0; this.sprintT = 0; SFX.madNiki(this.pos.x, this.pos.z); game.shake = 1; vhsMat.uniforms.uGlitch.value = 1.2;
-        toast('MAD NIKI', "Don't stop running.", true); }
+        if (EXP) toast('MAD NIKI', "Don't stop running.", true); RECORDS.add('n_mad'); }
       this.giveT -= dt;
-      if (this.giveT <= 0 && d < 3.2) { this.giveT = 28 + Math.random() * 14; GLOW.give(); VOICE.say('give', this.pos.x, this.pos.z, true); this.chatT = Math.max(this.chatT, 5); }
+      if (this.giveT <= 0 && d < 3.2) { this.giveT = 28 + Math.random() * 14; if (EXP) { GLOW.give(); VOICE.say('give', this.pos.x, this.pos.z, true); this.chatT = Math.max(this.chatT, 5); } }
     } else if (this.mode === 'mad') {
       this.morph = Math.min(1, this.morph + dt * 1.6);
       if (this.morph >= 1 && (this.shriekT = (this.shriekT ?? 2) - dt) <= 0) { this.shriekT = 2.2 + Math.random() * 2.5; SFX.shriek(this.pos.x, this.pos.z); }
-      speed = this.morph < 1 ? 0 : Math.min(6.75, 6.45 + tierOf(game.zoneIdx) * 0.1);
-      this.sprintT = game.speedNow > 5.6 ? this.sprintT + dt : 0;
-      if (this.sprintT >= 10) { this.mode = 'tired'; this.tiredT = 0; SFX.nikiTired(this.pos.x, this.pos.z); setTimeout(() => VOICE.say('tired', this.pos.x, this.pos.z, true), 900); toast('NIKI', 'She is exhausted.', false); }
+      speed = this.morph < 1 ? 0 : !EXP ? 5.3 : Math.min(6.75, 6.45 + tierOf(game.zoneIdx) * 0.1);
+      this.sprintT = game.speedNow > CFG.sprint * 0.85 ? this.sprintT + dt : 0;
+      if (this.sprintT >= 10) { this.mode = 'tired'; this.tiredT = 0; SFX.nikiTired(this.pos.x, this.pos.z); setTimeout(() => VOICE.say('tired', this.pos.x, this.pos.z, true), 900); RECORDS.add('n_tired'); toast('NIKI', 'She is exhausted.', false); }
       if (d < 1.0 && this.morph >= 1 && !zones[game.zoneIdx]?.meta?.crawl) return 'kill';
     } else if (this.mode === 'tired') {
       this.tiredT += dt; this.morph = Math.max(0, this.morph - dt * 1.2);
@@ -3030,7 +3172,7 @@ const CUT = {
     this.on = false; this.shrieked = false; if (NIKI.mad) NIKI.mad.rotation.set(0, 0, 0);
     for (const e of this.el || []) e.style.height = '0vh';
     NIKI.mode = 'gone'; NIKI.cool = 35; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; }
-    if (ok) { game.yaw = this.yaw0; game.pitch = this.pitch0; DOPA.reward(3, 'ESCAPED'); toast('LOST HER', '', false); }
+    if (ok) { game.yaw = this.yaw0; game.pitch = this.pitch0; DOPA.reward(3, 'ESCAPED'); if (EXP) toast('LOST HER', '', false); RECORDS.add('n_vent'); }
   },
 };
 // bend a bone away from its rest pose about its own x axis (forward/back swing for legs and arms)
@@ -3117,17 +3259,18 @@ const DOPA = {
   reset() { this.init(); this.tokens = 0; this.combo = 0; this.comboT = 0; this.slowT = 0; this.recordShown = false; this.best = +store.get('ieori.best', '0') || 0; this.hud(); },
   hud() { const t = document.getElementById('tokTag'); if (t) t.textContent = `◆ ${this.tokens}` + (game.colaT > 0 ? `   ⚡ COLA ${Math.ceil(game.colaT)}s` : '') + (game.slowT > 0 ? `   🌻 SLOWED ${Math.ceil(game.slowT)}s` : ''); },
   pop(text) { const d = document.createElement('div'); d.textContent = text; this.el.appendChild(d); setTimeout(() => d.remove(), 1300); },
-  reward(n, label) { this.tokens += n; this.hud(); this.pop(`+${n} ◆  ${label}`); SFX.coin(n); },
-  show(big, small) { this.banner.innerHTML = `${big}<small>${small}</small>`; this.banner.classList.remove('on'); void this.banner.offsetWidth; this.banner.classList.add('on'); },
+  reward(n, label) { if (!EXP) return; this.tokens += n; this.hud(); this.pop(`+${n} ◆  ${label}`); SFX.coin(n); },
+  show(big, small) { if (!EXP) return; this.banner.innerHTML = `${big}<small>${small}</small>`; this.banner.classList.remove('on'); void this.banner.offsetWidth; this.banner.classList.add('on'); },
   // a Killi went past within arm's reach and you lived: slow motion, a flash, tokens, a combo
   nearMiss() {
+    if (!EXP) return;
     this.combo = this.comboT > 0 ? this.combo + 1 : 1; this.comboT = 25;
     this.slowT = 0.55; vhsMat.uniforms.uGlitch.value = Math.max(vhsMat.uniforms.uGlitch.value, 0.5);
     this.reward(1 + this.combo, this.combo > 1 ? `CLOSE CALL x${this.combo}` : 'CLOSE CALL');
     MUSIC.sting();
   },
   roomCleared(i) {
-    if (i < 1) return;
+    if (i < 1 || !EXP) return;
     if (i % 10 === 0) {
       this.show(`ROOM ${i}`, i % 100 === 0 ? 'A NEW SONG BEGINS' : 'IT GETS WORSE FROM HERE'); this.reward(5 + Math.floor(i / 10), `ROOM ${i}`);
       SFX.milestone(); MUSIC.setDepth(i);
@@ -3136,7 +3279,7 @@ const DOPA = {
   update(dt, dist) {
     this.comboT = Math.max(0, this.comboT - dt); if (this.comboT <= 0) this.combo = 0;
     this.slowT = Math.max(0, this.slowT - dt / 0.35);
-    if (!this.recordShown && this.best > 30 && dist > this.best) { this.recordShown = true; this.show('NEW RECORD', `${Math.floor(this.best)} M BEATEN`); SFX.milestone(); this.reward(5, 'RECORD'); }
+    if (EXP && !this.recordShown && this.best > 30 && dist > this.best) { this.recordShown = true; this.show('NEW RECORD', `${Math.floor(this.best)} M BEATEN`); SFX.milestone(); this.reward(5, 'RECORD'); }
   },
   saveBest(dist) { if (dist > this.best) store.set('ieori.best', String(Math.floor(dist))); },
 };
@@ -3144,6 +3287,7 @@ const DOPA = {
 const TOKEN_GEO = new THREE.CylinderGeometry(0.11, 0.11, 0.025, 20);
 const TOKEN_MAT = new THREE.MeshStandardMaterial({ color: 0xffc83a, emissive: 0x7a4a00, emissiveIntensity: 0.6, metalness: 1, roughness: 0.25, envMap: envTex, envMapIntensity: 1.6 });
 function scatterTokens(zone) {
+  if (!EXP) return;
   if (!zone.surf || zone.meta?.crawl) return;
   zone.tokens = [];
   const n = 2 + Math.floor(zone.rng() * 3), r = zone.rng;
@@ -3176,6 +3320,7 @@ function updateTokens(dt) {
 const tierOf = i => Math.floor(Math.max(0, i) / 5);
 function eerieFor(zone) {
   if (zone.eerie !== undefined) return zone.eerie;
+  if (!EXP && !(DEBUG && window.__forceEerie)) return (zone.eerie = null);   // this tape is Killi and Niki only
   let e = null;
   if (DEBUG && window.__forceEerie) e = window.__forceEerie;
   else if (zone.i >= 2 && zone.meta && !zone.meta.crawl && !zone.meta.safe && !zone.meta.noeerie) {
@@ -3911,7 +4056,7 @@ const WATCH_MAT = addDarkness(new THREE.MeshStandardMaterial({ color: 0x1a1a1c, 
 Hazards.watcher = {
   update(dt, zone, active) {
     if (zone.i !== game.zoneIdx || !active) { if (zone.wa) { scene.remove(zone.wa.obj); zone.wa = null; } return; }
-    if (!zone.meta || zone.meta.safe || zone.meta.crawl || zone.i < 2) return;
+    if (!zone.meta || zone.meta.safe || zone.meta.crawl || zone.i < 2 || !ENTITY_ON('watcher')) return;
     if (zone.waDone === undefined) zone.waDone = !!zone.meta.noeerie || !(eerieFor(zone) === null && zone.rng() < Math.min(0.18 + zone.i * 0.01, 0.4));
     const P = game.p;
     if (!zone.wa) {
@@ -4151,10 +4296,61 @@ document.querySelectorAll('.dexc').forEach(c => c.addEventListener('click', () =
   $('dvName').textContent = d.name; $('dvCls').textContent = d.cls; $('dvDesc').textContent = d.desc; $('dvTip').textContent = d.tip; $('dexView').classList.add('on');
 }));
 $('dexView').addEventListener('click', e => { if (e.target.id === 'dexView' || e.target.classList.contains('x')) $('dexView').classList.remove('on'); });
+/* ---------- RECOVERED RECORDS: what this tape's camera actually caught. Nothing is written in advance: a line appears
+   the first time you see, hear or live through the thing it describes, and stays (this device). ---------- */
+const RECORDS = {
+  key: 'ieori.rec.t01',
+  groups: [['killi', 'KILLI'], ['niki', 'NIKI'], ['space', 'THE SPACES']],
+  defs: {
+    k_horn: ['killi', 'A horn, somewhere in the walls.'],
+    k_dark: ['killi', 'The doorway went dark before it came.'],
+    k_turn: ['killi', 'It went right past me. It does not turn.'],
+    k_rest: ['killi', 'A stopped one keeps watching.'],
+    k_dead: ['killi', 'It did not stop.'],
+    n_found: ['niki', 'She found me.'],
+    n_talk: ['niki', 'She only talks when I slow down.'],
+    n_leave: ['niki', '"Why are you leaving me?"'],
+    n_mad: ['niki', 'She changed.'],
+    n_tired: ['niki', 'She gets tired.'],
+    n_vent: ['niki', "She can't follow into the vents."],
+    n_left: ['niki', 'I went up without her.'],
+    n_dead: ['niki', 'She caught me.'],
+    n_with: ['niki', 'She came all the way.'],
+    s_door: ['space', 'The door opened onto somewhere else.'],
+    s_vent: ['space', 'The vent comes out anywhere.'],
+    s_lift: ['space', 'Every floor goes somewhere different.'],
+    s_back: ['space', 'I have been here. It is not the same.'],
+  },
+  got: (() => { try { return JSON.parse(store.get('ieori.rec.t01', '{}')) || {}; } catch { return {}; } })(),
+  add(id) {
+    if (this.got[id] || !this.defs[id]) return;
+    this.got[id] = Date.now(); store.set(this.key, JSON.stringify(this.got));
+    if (game.running) toast('● RECORDED', this.defs[id][1], false);
+  },
+};
+function renderRecords() {
+  const el = $('recs'); let n = 0;
+  el.innerHTML = RECORDS.groups.map(([g, title]) => {
+    const rows = Object.entries(RECORDS.got).filter(([id]) => RECORDS.defs[id]?.[0] === g).sort((a, b) => a[1] - b[1]);
+    n += rows.length;
+    return `<div class="grp"><h3>${rows.length ? title : '? ? ?'}</h3>` + (rows.length ? rows.map(([id, t], k) => `<div class="rec"><small>LOG ${String(k + 1).padStart(2, '0')}</small>${escapeHTML(RECORDS.defs[id][1])}</div>`).join('') : '<div class="none">Nothing recorded.</div>') + '</div>';
+  }).join('');
+  if (!n) el.insertAdjacentHTML('afterbegin', '<div class="none">The tape is blank. Whatever the camera catches will be kept here.</div>');
+}
+// panels: a closed one is hidden from screen readers and the keyboard; Esc closes; focus returns to the button that opened it
+let panelOpener = null;
+function setPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => { const on = p.id === id; p.classList.toggle('on', on); p.setAttribute('aria-hidden', on ? 'false' : 'true'); p.inert = !on; });
+  if (id) { if (id === 'pGuide') renderRecords(); setTimeout(() => $(id).querySelector('.x')?.focus(), 30); }
+  else if (panelOpener) { panelOpener.focus(); panelOpener = null; }
+}
+setPanel(null);
 document.querySelectorAll('[data-panel]').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === b.dataset.panel && !p.classList.contains('on')));
+  const open = $(b.dataset.panel).classList.contains('on');
+  if (open) setPanel(null); else { panelOpener = b; setPanel(b.dataset.panel); }
 }));
-document.querySelectorAll('.panel .x').forEach(b => b.addEventListener('click', () => b.closest('.panel').classList.remove('on')));
+document.querySelectorAll('.panel .x').forEach(b => b.addEventListener('click', () => setPanel(null)));
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && document.querySelector('.panel.on')) { e.preventDefault(); setPanel(null); } });
 // the intro: logo out of the dark; it lifts once it has played and the assets are in (tap to skip)
 // browsers keep sound off until the page is touched, so the intro waits for one tap: that tap is what lets the logo arrive with its sound
 const INTRO = { t0: performance.now(), done: false, begun: false,
@@ -4197,6 +4393,7 @@ const game = {
     this.seed = (Math.random() * 1e9) | 0;
     this.p.set(0, 0, 0); this.vy = 0; this.yaw = 0; this.pitch = 0; this.t = 0;
     this.zoneIdx = 0; this.maxDist = 0; this.cleared = 0; this.shake = 0; this.deathT = 0; this.dead = false; this.iso = 0;
+    this.ended = false; this.endT = 0; this.metNiki = false; this.nikiLeft = false; $('againBtn').textContent = 'TRY AGAIN';
     CRACK.hide();
     this.eyeNow = CFG.eye; this.darkTarget = 0;
     NIKI.reset(); GLOW.reset();
@@ -4222,14 +4419,18 @@ const game = {
       if (NIKI.mode !== 'none' && NIKI.mode !== 'gone') { NIKI.mode = 'gone'; NIKI.cool = 30; if (NIKI.obj) { NIKI.obj.visible = NIKI.mad.visible = false; NIKI.shadow.visible = false; } }
     } else if (MUSIC.mode === 'shop' || !MUSIC.on) MUSIC.start('run');
     $('zoneNo').textContent = pad4(zone.i);
-    if (zone.i >= 5 && zone.i % 5 === 0 && !zone.tierShown) { zone.tierShown = true; toast(`LEVEL ${tierOf(zone.i) + 1}`, 'Faster. More of them.', true); SFX.milestone?.(); }
+    if (EXP && zone.i >= 5 && zone.i % 5 === 0 && !zone.tierShown) { zone.tierShown = true; toast(`LEVEL ${tierOf(zone.i) + 1}`, 'Faster. More of them.', true); SFX.milestone?.(); }
     $('zoneName').textContent = zone.name;
-    if (!zone.visited) { zone.visited = true; toast(zone.name, zone.hint); }
+    if (!zone.visited) { zone.visited = true; toast(zone.name, zone.hint);
+      if (!EXP) { const rec = { 1: 's_door', 3: 's_vent', 7: 's_back' }[zone.i]; if (rec) setTimeout(() => RECORDS.add(rec), 2500); }
+    }
+    if (!EXP && !m.safe && MUSIC.setDepth) MUSIC.setDepth(SCRIPT[zone.i]?.music ?? 0);
   },
   collide(axis) { return collideCircle(this.p, CFG.radius, axis, this.zoneIdx, this.eyeNow + 0.1); },
   update(dt) {
     this.t += dt; this.dtNow = dt;
     if (this.dead) { this.updateDeath(dt); return; }
+    if (this.ended) { this.updateEnd(dt); return; }
     if (TRAP.on) { TRAP.update(dt); this.updateHUD(); return; }
     if (CUT.on) {
       CUT.update(dt); this.updateHUD();
@@ -4408,6 +4609,8 @@ const game = {
   // death: the phone is knocked out of your hand, hits the floor (bounce, cracked lens) and keeps recording for a moment
   // with the thing that got you in frame. Nothing here plays before the hit, so Killi's approach stays unannounced.
   die(cause, by = null) {
+    if (this.ended) return;
+    if (cause === 'killi') RECORDS.add('k_dead'); else if (cause === 'niki') RECORDS.add('n_dead');
     this.dead = true; this.cause = cause; this.deathT = 0;
     SFX.crush(); SFX.setRumble(0); MUSIC.stop(true); FOLLOWER.end(false); HANDSUI.set(null); DOPA.saveBest(this.maxDist); STARE.style.opacity = 0; SFX.setStare?.(0); TRAP.end();
     vhsMat.uniforms.uGlitch.value = 3;
@@ -4423,6 +4626,27 @@ const game = {
       roll: side * (1.35 + Math.random() * 0.25),                       // lands on its edge
       pitch: cause === 'niki' ? 0.55 : cause === 'hands' ? -0.8 : 0.08,   // looking up at her / tipped toward the floor / along it
       spin: side * (cause === 'killi' ? 9 : 4) };
+  },
+  // TAPE 01 runs out: the picture goes, the deck stops. Nothing explains what you walked through.
+  endTape() {
+    if (this.ended || this.dead) return;
+    this.ended = true; this.endT = 0;
+    const withHer = NIKI.mode === 'close' || NIKI.mode === 'walk';
+    if (withHer) { RECORDS.add('n_with'); VOICE.say('giggle', NIKI.pos.x, NIKI.pos.z, true); }
+    MUSIC.stop(true); SFX.setRumble(0); HANDSUI.set(null);
+    if (document.pointerLockElement) document.exitPointerLock();
+  },
+  updateEnd(dt) {
+    this.endT += dt;
+    vhsMat.uniforms.uDark.value = clamp((this.endT - 1.2) / 1.6, 0, 1);
+    if (this.endT > 3.4 && this.running) {
+      this.running = false;
+      document.body.classList.remove('playing'); $('hud').classList.remove('on');
+      const n = Object.keys(RECORDS.got).length, all = Object.keys(RECORDS.defs).length;
+      $('deathCause').innerHTML = `■ STOP<small style="display:block;font-size:.5em;letter-spacing:.18em;opacity:.75;margin-top:10px">END OF TAPE 01 · ${n}/${all} RECORDED</small>`;
+      $('againBtn').textContent = 'PLAY AGAIN';
+      $('dead').classList.add('on'); $('dead').inert = false; setTimeout(() => $('againBtn').focus(), 50);
+    }
   },
   updateDeath(dt) {
     this.deathT += dt;
@@ -4464,11 +4688,11 @@ const game = {
       $('hud').classList.remove('on');
       const entry = { name: playerName(), dist: Math.floor(this.maxDist), zones: this.cleared, cause: this.cause, t: Date.now() };
       lastEntryT = entry.t;
-      $('deathCause').textContent = CAUSES[this.cause] || 'You died';
+      $('deathCause').textContent = CAUSES[this.cause] || 'You died'; $('againBtn').textContent = 'TRY AGAIN';
       $('dDist').textContent = entry.dist + 'm';
       $('dZones').textContent = entry.zones;
-      LB.submit(entry).then(() => { $('dRank').textContent = '#' + LB.rankOf(entry.dist); renderLB(); });
-      $('dead').classList.add('on');
+      if (EXP) LB.submit(entry).then(() => { $('dRank').textContent = '#' + LB.rankOf(entry.dist); renderLB(); });
+      $('dead').classList.add('on'); $('dead').inert = false; setTimeout(() => $('againBtn').focus(), 50);
     }
   },
 };
@@ -4495,12 +4719,12 @@ if (isTouch && !standalone) {
     $('fsTip').textContent = /iP(hone|ad|od)/.test(navigator.userAgent) ? 'Full screen: Share → Add to Home Screen, then open it from there.' : 'Full screen: browser menu → Add to Home screen.'; }
 }
 function start() {
-  document.querySelectorAll('.panel.on').forEach(p => p.classList.remove('on')); $('dexView').classList.remove('on');
+  panelOpener = null; setPanel(null); $('dexView').classList.remove('on');
   if (isTouch) goFullscreen();
   if (!ready) return;
   SFX.init();
   playerName();
-  $('menu').classList.remove('on'); $('dead').classList.remove('on');
+  $('menu').classList.remove('on'); $('dead').classList.remove('on'); $('menu').inert = $('dead').inert = true;
   $('hud').classList.add('on');
   document.body.classList.add('playing');
   game.reset();
@@ -4510,7 +4734,7 @@ function start() {
 }
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
-$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('menu').classList.add('on'); showBest(); MUSIC.start('lobby'); });
+$('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('dead').inert = true; $('menu').classList.add('on'); $('menu').inert = false; showBest(); MUSIC.start('lobby'); });
 $('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
 if (isTouch) $('keysTxt').textContent = 'Left thumb: move (push to run) · Right: look · Double-tap and hold: look behind';
 
@@ -4591,26 +4815,23 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 if (DEBUG) window.__step = (n = 1) => { for (let i = 0; i < n; i++) frame(0); };
-LB.init();
+if (EXP) LB.init();
 
 loadAssets((f, label) => {
   $('loadBar').firstElementChild.style.width = Math.round(f * 100) + '%';
   const ib = document.getElementById('introBar'); if (ib) ib.style.width = Math.round(f * 100) + '%';
-  $('loadTxt').textContent = `Loading… ${label}`;
+  $('loadTxt').textContent = `Loading… ${label}`; BOOT.progress(label);
 }).then(() => {
-  ready = true;
+  ready = true; BOOT.ready();
   game.reset(true);
   streamRest();
   $('loadTxt').textContent = ASSET.meta.quick ? 'Ready (preview assets)' : 'Ready';
   $('startBtn').disabled = false;
   if (INTRO.begun && performance.now() - INTRO.t0 > 3400) INTRO.out();
 }).catch(err => {
-  console.error(err);
-  $('loadTxt').innerHTML = location.protocol === 'file:'
-    ? 'Open this through a web server (e.g. <code>npx http-server</code> or GitHub Pages) — browsers block file:// assets.'
-    : 'Failed to load assets: ' + escapeHTML(err.message || String(err));
+  BOOT.fail('assets', location.protocol === 'file:' ? 'Open this through a web server (GitHub Pages, npx http-server): browsers block file:// assets.' : (err.message || String(err)));
 });
-if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT, LIFT, AQUA, CITY };
+if (DEBUG) window.__ieori = { game, zones: () => zones, start, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, laneRunZ, frontLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT, LIFT, AQUA, CITY };
 </script>
 </body>
 </html>
