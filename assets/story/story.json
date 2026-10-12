@@ -68,14 +68,12 @@
    {
     "id": "prologue",
     "title": "PROLOGUE",
-    "start": 0,
-    "open": "prologue_news"
+    "start": 0
    },
    {
     "id": "ch1",
     "title": "CHAPTER 1 · KILLI",
     "start": 6,
-    "open": "ch1_open",
     "end": "ch1_end"
    }
   ],
@@ -184,13 +182,7 @@
    "9": {
     "music": 20,
     "killi": 1,
-    "killiT": 12,
-    "cine": [
-     [
-      3,
-      "ch1_cctv"
-     ]
-    ]
+    "killiT": 12
    },
    "10": {
     "music": 30,

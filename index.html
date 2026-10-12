@@ -5226,64 +5226,18 @@ loadAssets((f, label) => {
 /* ============================================================
    STORY FOOTAGE (the cutscenes of the story; rooms are given by their place in the run, see assets/story/story.json)
    ============================================================ */
-const NEWS = { head: 'Missing in four cities', dek: 'Last seen inside a store, a hospital, a station, a car park',
-  tick: 'STORE CHAIN SAYS ALL LOCATIONS WILL STAY OPEN 24 HOURS  ·  TRANSIT POLICE: "NO COMMENT"  ·  FAMILIES ASK FOR FOOTAGE TO BE RELEASED  ·  WEATHER: CLEAR, COLD  ·' };
-const MART_CCTV = [-5.3, 2.85, -0.7, -0.55, -0.5];   // the corner over the door, looking down the aisles
-CINES.prologue_news = { title: 'Missing in four cities', music: false, shots: [
-  { kind: 'black', dur: 2.2 },
-  { kind: 'cctv', run: 1, dur: 29, cam: MART_CCTV, fps: 4, cam_no: 'CAM 03', space: 'AISLE 4', date: '2026-10-08', clock: 11620, news: NEWS,
-    voice: [[0.8, 'news1'], [8.6, 'news2'], [19.2, 'news3']],
-    actors: [{ type: 'figure', path: [[-3.6, -1.2], [-3.6, -5.2], [-1.3, -6.2], [-1.3, -12.5]], speed: 1.05, wait: 17.5, vanish: true, color: 0x6a5a4c, h: 1.66 }],
-    at: [[26.5, c => c.mark()]] },
-  { kind: 'cctv', frames: { src: 'story/news/lift_', n: 16, fps: 2 }, dur: 8.5, cam_no: 'ST. ANNE · LIFT 2', space: 'B3', date: '2026-10-05', clock: 8051, news: NEWS, voice: [[0.6, 'news4']] },
-  { kind: 'cctv', frames: { src: 'story/news/subway_', n: 14, fps: 2 }, dur: 7.5, cam_no: 'LINE 2 · PLATFORM B', space: 'B', date: '2026-10-02', clock: 84960, news: NEWS, voice: [[0.8, 'news5']] },
-  { kind: 'cctv', frames: { src: 'story/news/parkA_', n: 10, fps: 2 }, dur: 5.2, cam_no: 'P2 · CAM 11', space: 'P2', date: '2026-09-30', clock: 79200, news: NEWS },
-  { kind: 'cctv', frames: { src: 'story/news/parkB_', n: 10, fps: 2 }, dur: 5.5, cam_no: 'NORTH GATE · CAM 04', space: 'B4', date: '2026-09-30', clock: 79262, news: NEWS, voice: [[0.4, 'news6']],
-    at: [[4.6, c => c.mark()]] },
-  { kind: 'cctv', run: 1, dur: 6.5, cam: MART_CCTV, fps: 4, cam_no: 'CAM 03', space: 'AISLE 4', date: '2026-10-11', clock: 11620, news: NEWS, voice: [[0.8, 'news7']], at: [[5.6, c => c.mark()]] },
-  { kind: 'black', dur: 1.6 },
-] };
 // the black door where the way out was: it opens by itself onto somewhere that cannot be behind a store
 CINES.prologue_door = { title: '0001', shots: [
-  { kind: 'cam', run: 6, dur: 7.5, keys: [[0, 4, 1.6, -10.6, 0, 0.06], [7.5, 4, 1.55, -13.4, 0, 0.1]],
-    tick: (c, dt) => { if (c.t < 2.2) return; const d = c.zone.exitDoors?.[0]; if (!d) return; d.open = Math.min(1, d.open + dt * 0.35);
-      d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); }); if (d.col) d.col.y1 = d.open > 0.55 ? d.col.y0 - 10 : d.cy1; },
-    at: [[0.4, c => c.sfx('knock', 4, -14, 0.5)]] },
-  { kind: 'card', dur: 4.8, html: '<img src="assets/ui/logo.png" alt="EVERY SPACE" style="width:min(72vw,620px);display:block;margin:0 auto">' },
-  { kind: 'black', dur: 1.2 },
-] };
-// CHAPTER 1 — KILLI. A warehouse camera, years apart from everything else. Nothing is explained.
-const WH = { cam_no: 'NORDBO WH · CAM 12', space: '0007', date: '2019-02-14', fps: 5 };
-CINES.ch1_open = { title: 'Warehouse, camera 12', music: false, shots: [
-  { kind: 'black', dur: 2.4, at: [[0.6, c => c.mark()]] },
-  { kind: 'cctv', run: 7, dur: 21, cam: [4.5, 3.4, -1.2, 0, -0.1], clock: 10260, ...WH,
-    actors: [{ id: 'm', type: 'figure', path: [[4.5, -31], [4.5, -18]], speed: 0.95, wait: 0.5, face: Math.PI, color: 0x23272e }],
-    at: [[10.5, c => c.horn(0.3)], [18, c => c.horn(0.45)]] },
-  { kind: 'cctv', run: 7, dur: 12, cam: [4.2, 1.9, -10.5, 0.02, -0.02], clock: 10281, ...WH, cam_no: 'NORDBO WH · CAM 09',
-    actors: [{ id: 'm', type: 'figure', path: [[4.5, -18], [4.5, -18.2]], speed: 0.4, face: Math.PI, color: 0x23272e }],
-    at: [[2.5, c => c.horn(0.7)], [5, c => c.killi(4.5, -34.5, 0, 1, 1.4, 0.95, 40, 0.5)], [10.5, c => c.mark()]] },
-  { kind: 'cctv', run: 7, dur: 15, cam: [4.5, 3.4, -1.2, 0, -0.1], clock: 10293, ...WH,
-    actors: [{ id: 'm', type: 'figure', path: [[4.5, -18], [4.5, -6], [4.5, -2.5]], speed: 3.4, wait: 1.2, color: 0x23272e }],
-    at: [[0, c => c.killi(4.5, -27, 0, 1, 3.0, 0.95, 40)], [3, c => c.killi(4.4, -34.5, 0, 1, 3.8, 0.65, 40)], [5.5, c => c.horn(0.9)], [6.5, c => c.killi(4.6, -34.5, 0, 1, 3.4, 1.1, 40)]] },
-  { kind: 'cctv', run: 7, dur: 3.6, cam: [4.5, 2.4, -0.8, 0, -0.04], clock: 10308, ...WH, cam_no: 'NORDBO WH · CAM 02', fps: 8,
-    actors: [{ id: 'm', type: 'figure', path: [[4.5, -14], [4.5, -7]], speed: 3.6, color: 0x23272e }],
-    at: [[0, c => c.killi(4.5, -23, 0, 1, 4.4, 1.0, 40)], [3.0, c => { vhsMat.uniforms.uGlitch.value = 3; }]] },
-  { kind: 'black', dur: 3.2, lines: [[1.2, 'NORDBO WH · CAM 02 — NO SIGNAL', 1.8]] },
-] };
-// halfway down the car park: the screen in a ticket booth shows the floor below
-CINES.ch1_cctv = { title: 'Parking, level B4', shots: [
-  { kind: 'cctv', run: 10, dur: 24, cam: [-19, 2.4, -1.5, -0.55, -0.16], cam_no: 'P · B4 · CAM 07', space: '0010', date: '2026-10-11', clock: 11880, fps: 4,
-    start: c => { for (const [x, zz, r] of [[-12, -9, 0.9], [-6, -15, 1.1], [-3, -6.5, 0.8], [3, -16, 1.5]]) { const k = c.killi(x, zz, 0, 1, 0.0001, r, 0.0001); k.rest = true; k.restT = 1e9; } },
-    at: [[9, c => c.killi(14, -20, 0, 1, 1.0, 1.2, 14)], [14, c => c.horn(0.25)], [21, c => c.mark()]] },
+  { kind: 'cam', run: 6, dur: 4.2, keys: [[0, 4, 1.6, -11.6, 0, 0.06], [4.2, 4, 1.55, -13.4, 0, 0.1]],
+    tick: (c, dt) => { if (c.t < 0.8) return; const d = c.zone.exitDoors?.[0]; if (!d) return; d.open = Math.min(1, d.open + dt * 0.6);
+      d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); }); if (d.col) d.col.y1 = d.open > 0.55 ? d.col.y0 - 10 : d.cy1; } },
+  { kind: 'card', dur: 2.6, html: '<img src="assets/ui/logo.png" alt="EVERY SPACE" style="width:min(72vw,620px);display:block;margin:0 auto">' },
 ] };
 // the end of the car park: the phone slips, lies on the concrete, still recording
 CINES.ch1_end = { title: 'Where it stopped', music: false, shots: [
-  { kind: 'cam', run: 10, dur: 9, keys: [[0, 0, 1.6, -17.5, Math.PI, 0], [1.2, 0.2, 0.25, -17.8, Math.PI + 0.3, 0.2], [9, 0.2, 0.16, -17.8, Math.PI + 0.35, 0.15]],
-    at: [[1.1, c => c.sfx('crush')]] },
-  { kind: 'cctv', run: 10, dur: 11, cam: [-19, 2.4, -1.5, -0.55, -0.16], cam_no: 'P · B4 · CAM 07', space: '0010', date: '2026-10-11', clock: 12640, fps: 4,
-    start: c => { for (const [x, zz, r] of [[-12, -9, 0.9], [-6, -15, 1.1], [-3, -6.5, 0.8], [3, -16, 1.5], [-9, -18, 1.2]]) { const k = c.killi(x, zz, 0, 1, 0.0001, r, 0.0001); k.rest = true; k.restT = 1e9; } },
-    at: [[8.5, c => c.mark()]] },
-  { kind: 'black', dur: 5, lines: [[1.4, 'Further in, one light is still on.', 3.2]] },
+  { kind: 'cam', run: 10, dur: 4, keys: [[0, 0, 1.6, -17.5, Math.PI, 0], [1.0, 0.2, 0.25, -17.8, Math.PI + 0.3, 0.2], [4, 0.2, 0.16, -17.8, Math.PI + 0.35, 0.15]],
+    at: [[0.9, c => c.sfx('crush')]] },
+  { kind: 'black', dur: 3, lines: [[0.6, 'Further in, one light is still on.', 2.4]] },
 ] };
 if (DEBUG) CINES.qa = { title: 'QA footage', shots: [
   { kind: 'black', dur: 2, lines: [[0.3, 'Somewhere, a horn.', 1.5]] },
