@@ -260,6 +260,14 @@
   #cine .ccont { display: none; position: absolute; left: 50%; bottom: 18vh; transform: translateX(-50%); font: 700 16px "Barlow Condensed", sans-serif; letter-spacing: .3em; opacity: .85; }
   #cine.wait .ccont { display: block; }
   body.cine #hud, body.cine #touch, body.cine #joy, body.cine #jumpBtn, body.cine #toast, body.cine #subs, body.cine #liftUI { visibility: hidden !important; }
+  #phoneMsg { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -140%); z-index: 5; width: min(340px, 86vw);
+    background: rgba(28,28,32,.92); color: #f2f2f2; border-radius: 16px; padding: 10px 14px 12px; box-shadow: 0 8px 28px rgba(0,0,0,.5); transition: transform .45s cubic-bezier(.2,.9,.3,1); pointer-events: none; }
+  #phoneMsg.on { transform: translate(-50%, 0); }
+  #phoneMsg .pm-h { display: flex; justify-content: space-between; font: 700 12px/1.2 Inter, sans-serif; letter-spacing: .06em; opacity: .75; }
+  #phoneMsg .pm-h span { color: #ff6b5e; }
+  #phoneMsg .pm-t { font: 600 11px/1.4 "Space Mono", monospace; opacity: .55; margin-top: 4px; }
+  #phoneMsg .pm-b { font: 500 15px/1.35 Inter, sans-serif; margin-top: 2px; }
+  body.cine #phoneMsg { visibility: hidden; }
   /* the walker's own thoughts: a plain white line, lower than hers */
   #mono { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 4; pointer-events: none; max-width: 86vw; text-align: center;
     font: italic 500 clamp(15px, 2.3vw, 19px)/1.4 Inter, sans-serif; color: #f2f1ec; text-shadow: 0 1px 6px #000; opacity: 0; transition: opacity .6s; }
@@ -1462,6 +1470,7 @@ const SFX = {
   hiss() { if (!this.ctx) return; this._noise(this.ctx.currentTime, 0.5, 'highpass', 3000, 0.7, 0.25); },
   fizz() { if (!this.ctx) return; const t = this.ctx.currentTime; this._noise(t, 0.15, 'bandpass', 1200, 1, 0.3); for (let k = 0; k < 12; k++) this._noise(t + 0.1 + k * 0.05 + Math.random() * 0.04, 0.03, 'highpass', 6000, 1, 0.12); },
   chime() { if (!this.ctx) return; this.tone(659, 0, 0.9, 0.1); this.tone(523, 0.32, 1.2, 0.1); },
+  buzz() { if (!this.ctx) return; this.tone(180, 0, 0.18, 0.05); this.tone(180, 0.26, 0.18, 0.05); },   // a phone vibrating
   warn() { if (!this.ctx) return; for (let i = 0; i < 3; i++) this.tone(70, i * 0.5, 0.45, 0.25, 'sawtooth'); },
   crush() {
     if (!this.ctx) return;
@@ -2682,6 +2691,7 @@ const KILLI_LEAD = [2.4, 3.2];   // horn and rumble, the doorway going black, th
 function applyScript(zone) {
   const sc = SC(zone.i); zone.mood = sc.killi ? 'uneasy' : 'calm'; zone.killiLeft = sc.killi || 0; zone.killiT = sc.killiT ?? 1e9; zone.fakeHornT = undefined; zone.killiCap = false;
   zone.tapeT = 0; zone.hornDone = zone.farDone = zone.wardSet = false; zone.madT = undefined;
+  zone.chased = false; zone.chaseLeft = 0;
 }
 // a pair of doors across exit k of a room: shut until you walk up to it and the room behind is there
 function addExitDoor(zone, k, ly = (zone.exits[k].y - (zone.oy || 0)), mat = DYN.exitDoor) {
@@ -2967,6 +2977,25 @@ Hazards.tape = {
     (sc.say || []).forEach(([tt, text], k) => { if (t >= tt && !said.has('s' + k)) { said.add('s' + k); MONO.say(text); } });
     (sc.sayAt || []).forEach(([f, text], k) => { if (prog >= f && !said.has('z' + k)) { said.add('z' + k); MONO.say(text); } });
     (sc.cine || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('c' + k) && !CINE.on) { said.add('c' + k); CINE.play(id); } });
+    if (sc.phone && !zone.phonePlaced && !game.phone) { zone.phonePlaced = true; PHONE.place(zone); }
+    PHONE.update(p);
+    if (game.phone) {
+      (sc.msg || []).forEach(([tt, time, text], k) => { if (t >= tt && !said.has('m' + k)) { said.add('m' + k); PHONE.show(time, text); } });
+      (sc.msgAt || []).forEach(([f, time, text], k) => { if (prog >= f && !said.has('n' + k)) { said.add('n' + k); PHONE.show(time, text); } });
+    }
+    // the chase: heads come in through the door behind you, one after another, a little slower than you can run
+    if (sc.chase && !zone.chased && prog >= sc.chase.at) {
+      zone.chased = true; zone.chaseLeft = sc.chase.n; zone.chaseT = 0.8; SFX.horn(1, true); game.shake = Math.max(game.shake, 0.6);
+      if (sc.chase.say) MONO.say(sc.chase.say, 2);
+    }
+    if (zone.chaseLeft > 0 && (zone.chaseT -= dt) <= 0) {
+      zone.chaseLeft--; zone.chaseT = sc.chase.gap;
+      // down your line (a parked car in the way stops it: cars are cover), the next ones a little to either side
+      const off = [0, 1.6, -1.6, 0.6][(sc.chase.n - zone.chaseLeft - 1) % 4], kr = zone.kr * (0.8 + zone.rng() * 0.5);
+      const x = clamp(p.x + off, zone.x0 + kr + 0.3, zone.x1 - kr - 0.3);
+      const k = new Killi(zone, x, zone.z0 - kr - 0.4, 0, -1, sc.chase.speed * (0.95 + zone.rng() * 0.1), kr, zone.len - kr);
+      k.wall = true; k.wait = 0; zone.killis.push(k); if (zone.chaseLeft % 2) SFX.horn(0.8, false);
+    }
     (sc.pa || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('p' + k)) { said.add('p' + k); VO.play(id, 0.85); } });
     if (sc.lockBehind && !zone.lockedBehind && p.z < zone.z0 - 2.5) {   // the way you came in no longer opens
       const pz = zones[zone.i - 1];
@@ -4667,6 +4696,42 @@ function replayCine(id) {
     setTimeout(() => $('startBtn').focus(), 30);
   } });
 }
+// MINA'S PHONE: found on the floor of the first store, still recording. Her messages never went out; they come up
+// on the screen as you reach the places she reached, a few minutes before you. Nothing is explained beyond them.
+const PHONE = {
+  el: null, timer: 0, mesh: null,
+  ui() {
+    if (this.el) return;
+    this.el = Object.assign(document.createElement('div'), { id: 'phoneMsg' }); this.el.setAttribute('aria-live', 'polite');
+    this.el.innerHTML = '<div class="pm-h"><b>MINA</b><span>NOT SENT</span></div><div class="pm-t"></div><div class="pm-b"></div>';
+    document.body.appendChild(this.el);
+  },
+  show(time, text, dur = 6.5) {
+    this.ui(); this.el.querySelector('.pm-t').textContent = time; this.el.querySelector('.pm-b').textContent = text;
+    this.el.classList.add('on'); SFX.buzz?.(); clearTimeout(this.timer); this.timer = setTimeout(() => this.el.classList.remove('on'), dur * 1000);
+  },
+  // the phone on the floor: a dark slab with its screen still lit
+  place(zone) {
+    const g = new THREE.Group(), body = new THREE.Mesh(GEO.box, new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.4 }));
+    body.scale.set(0.075, 0.009, 0.155); body.position.y = 0.006;
+    const scr = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ color: 0xbfd8ff, toneMapped: false })); scr.scale.set(0.066, 0.142, 1); scr.rotation.x = -Math.PI / 2; scr.position.y = 0.0115;
+    const glow = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ color: 0x9cc4ff, transparent: true, opacity: 0.18, depthWrite: false })); glow.scale.set(0.6, 0.6, 1); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.004;
+    g.add(body, scr, glow); g.rotation.y = 0.6;
+    const m = zone.meta, x = zone.ox + ((m.entry ?? 0) + (m.exit ?? 0)) / 2, z = zone.z0 - zone.len * 0.42;
+    g.position.set(x, zone.oy || 0, z); scene.add(g); this.mesh = g; this.zone = zone;
+  },
+  update(p) {
+    if (!this.mesh || game.phone) return;
+    if (this.zone?.disposed) { this.mesh.parent?.remove(this.mesh); this.mesh = null; return; }
+    this.mesh.children[1].material.color.setScalar(0.75 + 0.25 * Math.sin(game.t * 2));
+    if (Math.hypot(p.x - this.mesh.position.x, p.z - this.mesh.position.z) < 1.4) {
+      game.phone = true; this.mesh.parent?.remove(this.mesh); this.mesh = null; SFX.knock?.(p.x, p.z, 0.3);
+      MONO.say("Someone's phone. It's still recording.", 3.6);
+      setTimeout(() => this.show('LOCK SCREEN', '2 missed calls · Mom'), 4200);
+    }
+  },
+  reset() { if (this.mesh) this.mesh.parent?.remove(this.mesh); this.mesh = null; this.el?.classList.remove('on'); },
+};
 // the walker's thoughts: a few plain words, rarely
 const MONO = {
   el: null, timer: 0,
@@ -4741,7 +4806,7 @@ const game = {
     this.p.set(0, 0, 0); this.vy = 0; this.yaw = 0; this.pitch = 0; this.t = 0;
     this.zoneIdx = 0; this.maxDist = 0; this.cleared = 0; this.shake = 0; this.deathT = 0; this.dead = false; this.iso = 0;
     CFG.walk = ENDLESS() ? 4.0 : 3.2; CFG.sprint = ENDLESS() ? 6.8 : 5.8;   // the story is walked, not raced
-    this.ended = false; this.endT = 0; this.metNiki = false; this.nikiLeft = false; $('againBtn').textContent = 'TRY AGAIN';
+    this.ended = false; this.endT = 0; this.metNiki = false; this.phone = this.runOff > 0; PHONE.reset?.(); this.nikiLeft = false; $('againBtn').textContent = 'TRY AGAIN';
     CRACK.hide();
     this.eyeNow = CFG.eye; this.darkTarget = 0;
     NIKI.reset(); GLOW.reset();
@@ -5245,7 +5310,7 @@ if (DEBUG) CINES.qa = { title: 'QA footage', shots: [
     actors: [{ id: 'm', type: 'figure', path: [[0, -10], [0, -3]], speed: 1.3 }], at: [[1, c => c.horn(0.5)], [2.5, c => c.mark()], [3, c => c.sub('[distant horn]', 2)]] },
   { kind: 'card', dur: 1.5, html: 'EVERY SPACE<small>TEST</small>' },
 ] };
-if (DEBUG) window.__ieori = { CINE, CINES, MONO, VO, replayCine, camera, game, zones: () => zones, start, SAVE, RUN: () => RUN, SC, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, laneRunZ, frontLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT, LIFT, AQUA, CITY };
+if (DEBUG) window.__ieori = { CINE, CINES, MONO, PHONE, VO, replayCine, camera, game, zones: () => zones, start, SAVE, RUN: () => RUN, SC, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, laneRunZ, frontLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT, LIFT, AQUA, CITY };
 </script>
 </body>
 </html>
