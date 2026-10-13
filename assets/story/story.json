@@ -60,103 +60,78 @@
    "ward",
    "mart",
    "nordbo",
-   "parking2",
+   "parking3",
    "parking",
-   "parking3"
+   "parking2"
   ],
   "chapters": [
    {
     "id": "prologue",
-    "title": "PROLOGUE",
-    "start": 0
+    "title": "프롤로그 — 폐점 방송",
+    "start": 0,
+    "open": "prologue_open"
    },
    {
     "id": "ch1",
-    "title": "CHAPTER 1 · KILLI",
+    "title": "CHAPTER 1 — 직선의 끝",
     "start": 6,
+    "open": "ch1_open",
     "end": "ch1_end"
    }
   ],
   "script": {
    "0": {
-    "music": 0,
-    "say": [
-     [
-      6,
-      "No signal."
-     ]
-    ],
-    "pa": [
-     [
-      18,
-      "pa1"
-     ]
-    ]
+    "music": 0
    },
    "1": {
     "music": 0,
-    "say": [
-     [
-      4,
-      "I've passed this shelf before."
-     ]
-    ],
-    "phone": true
+    "props": true
    },
    "2": {
     "music": 0,
-    "pa": [
-     [
-      3,
-      "pa2"
-     ]
-    ],
+    "props": true,
     "sayAt": [
      [
-      0.6,
-      "I came in this way."
+      0.45,
+      "분명 이쪽으로 들어왔어."
      ]
     ],
-    "rec": "s_door",
-    "msg": [
+    "pa": [
      [
-      6,
-      "3:14 AM",
-      "I think I came in the wrong door. The store is bigger at night."
+      5,
+      "pa_cut"
+     ],
+     [
+      9,
+      "pa_close"
      ]
-    ]
+    ],
+    "rec": "s_door"
    },
    "3": {
     "music": 0,
+    "props": true,
     "sayAt": [
      [
-      0.55,
-      "This aisle wasn't this long."
+      0.4,
+      "아까도 여기였는데."
      ]
     ],
-    "msgAt": [
+    "pa": [
      [
-      0.3,
-      "3:19 AM",
-      "the announcement said front. then it said back."
+      4,
+      "pa_dream"
+     ],
+     [
+      9,
+      "pa_exit"
      ]
     ]
    },
    "4": {
     "music": 0,
-    "sayAt": [
-     [
-      0.7,
-      "That's not the stockroom."
-     ]
-    ],
-    "msgAt": [
-     [
-      0.25,
-      "3:26 AM",
-      "this aisle doesn't end. the exit number keeps going up"
-     ]
-    ]
+    "staffDoor": true,
+    "nosignal": 3
    },
    "5": {
     "music": 0,
@@ -164,20 +139,7 @@
     "say": [
      [
       4,
-      "The entrance is gone."
-     ]
-    ],
-    "pa": [
-     [
-      14,
-      "pa3"
-     ]
-    ],
-    "msg": [
-     [
-      8,
-      "3:41 AM",
-      "a hospital?? I'm still holding my basket"
+      "입구가 없어졌다."
      ]
     ]
    },
@@ -186,76 +148,36 @@
     "say": [
      [
       3,
-      "I have to get out."
+      "나가야 해."
      ]
     ],
     "door0001": true,
-    "rec": "s_back",
-    "msgAt": [
-     [
-      0.2,
-      "3:58 AM",
-      "the way out is a black door now. it has a number on it"
-     ]
-    ]
+    "rec": "s_back"
    },
    "7": {
     "music": 0,
     "horn": 6,
-    "killiFar": 15,
-    "msg": [
-     [
-      3,
-      "4:20 AM",
-      "something huge is rolling inside the walls. you hear a horn first"
-     ]
-    ],
-    "sayAt": [
-     [
-      0.15,
-      "That was a horn."
-     ]
-    ]
+    "killiFar": 16
    },
    "8": {
-    "music": 10,
-    "killi": 1,
-    "killiT": 9,
-    "msgAt": [
-     [
-      0.15,
-      "4:31 AM",
-      "they can't turn. get out of their line and they roll past"
-     ]
-    ]
+    "music": 0,
+    "killiFar": 5,
+    "killi": 2,
+    "killiT": 16,
+    "gap": 11
    },
    "9": {
-    "music": 20,
-    "msg": [
-     [
-      1.5,
-      "4:47 AM",
-      "don't stop in the long rows. they come from behind"
-     ]
-    ],
-    "chase": {
-     "at": 0.2,
-     "n": 4,
-     "gap": 1.3,
-     "speed": 5.5,
-     "say": "Run."
-    }
+    "music": 10,
+    "killi": 1,
+    "killiT": 6,
+    "card": true
    },
    "10": {
-    "music": 0,
-    "end": true,
-    "msgAt": [
-     [
-      0.45,
-      "5:03 AM",
-      "there's a light on further in. someone is standing next to it. she's waving"
-     ]
-    ]
+    "music": 20,
+    "killi": 5,
+    "killiT": 7,
+    "gap": 1.9,
+    "end": true
    }
   }
  }

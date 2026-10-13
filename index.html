@@ -14,11 +14,11 @@
 <title>EVERY SPACE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   html:not(.exp) [data-exp] { display: none !important; }
-  .recs { display: flex; flex-direction: column; gap: 14px; } .recs .grp h3 { margin: 6px 0 6px; } .recs .rec { font: 400 15px/1.45 Inter, sans-serif; color: var(--ink); padding: 8px 0; border-top: 1px solid var(--line); } .recs .rec small { display: block; color: var(--muted); font: 600 12px/1.3 "Space Mono", monospace; margin-bottom: 2px; } .recs .none { color: var(--muted); font: 400 14px/1.5 Inter, sans-serif; } .recs button.tape { display: block; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer; } .recs button.tape:hover, .recs button.tape:focus-visible { color: #fff; outline: none; }
-  .cred { font: 400 15px/1.6 Inter, sans-serif; color: var(--ink); } .cred b { letter-spacing: .12em; }
+  .recs { display: flex; flex-direction: column; gap: 14px; } .recs .grp h3 { margin: 6px 0 6px; } .recs .rec { font: 400 15px/1.45 Inter, "Noto Sans KR", sans-serif; color: var(--ink); padding: 8px 0; border-top: 1px solid var(--line); } .recs .rec small { display: block; color: var(--muted); font: 600 12px/1.3 "Space Mono", monospace; margin-bottom: 2px; } .recs .none { color: var(--muted); font: 400 14px/1.5 Inter, "Noto Sans KR", sans-serif; } .recs button.tape { display: block; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer; } .recs button.tape:hover, .recs button.tape:focus-visible { color: #fff; outline: none; }
+  .cred { font: 400 15px/1.6 Inter, "Noto Sans KR", sans-serif; color: var(--ink); } .cred b { letter-spacing: .12em; }
   @font-face { font-family: "Inter"; font-weight: 500; src: url(assets/fonts/Inter-500.ttf) format("truetype"); font-display: swap; }
   @font-face { font-family: "Inter"; font-weight: 700; src: url(assets/fonts/Inter-700.ttf) format("truetype"); font-display: swap; }
   @font-face { font-family: "Barlow Condensed"; font-weight: 700; src: url(assets/fonts/BarlowCondensed-700.ttf) format("truetype"); font-display: swap; }
@@ -231,8 +231,8 @@
   #cine .nbug b { color: #ffcf3a; } #cine .nbug i { font: 700 11px 'Barlow Condensed', sans-serif; letter-spacing: .2em; color: #ff4a3a; margin-left: 6px; font-style: normal; }
   #cine .nlow { position: absolute; left: calc(18px + env(safe-area-inset-left)); right: calc(18px + env(safe-area-inset-right)); bottom: calc(46px + env(safe-area-inset-bottom)); max-width: 720px; }
   #cine .nlow b { display: block; background: #b3121b; color: #fff; font: 800 clamp(15px, 2.6vw, 24px)/1.2 Rubik, sans-serif; padding: 6px 12px; text-transform: uppercase; }
-  #cine .nlow span { display: block; background: rgba(245,245,240,.94); color: #111; font: 600 clamp(12px, 1.9vw, 16px)/1.3 Inter, sans-serif; padding: 5px 12px; }
-  #cine .ntick { position: absolute; left: 0; right: 0; bottom: env(safe-area-inset-bottom); height: 30px; background: rgba(8,12,30,.9); overflow: hidden; font: 600 14px/30px Inter, sans-serif; white-space: nowrap; }
+  #cine .nlow span { display: block; background: rgba(245,245,240,.94); color: #111; font: 600 clamp(12px, 1.9vw, 16px)/1.3 Inter, "Noto Sans KR", sans-serif; padding: 5px 12px; }
+  #cine .ntick { position: absolute; left: 0; right: 0; bottom: env(safe-area-inset-bottom); height: 30px; background: rgba(8,12,30,.9); overflow: hidden; font: 600 14px/30px Inter, "Noto Sans KR", sans-serif; white-space: nowrap; }
   #cine .ntick span { display: inline-block; padding-left: 100%; animation: tick 28s linear infinite; }
   @keyframes tick { to { transform: translateX(-100%); } }
   #cine.newsing .cv.bl { bottom: calc(38px + env(safe-area-inset-bottom)); }
@@ -247,11 +247,11 @@
   #cine .cbar { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .5s ease; }
   #cine .cbar.t { top: 0; } #cine .cbar.b { bottom: 0; }
   #cine.cam .cbar { height: 11vh; }
-  #cine .ctext { position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%); text-align: center; font: 500 clamp(17px, 3vw, 26px)/1.55 Inter, sans-serif; color: #ecebe6; }
+  #cine .ctext { position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%); text-align: center; font: 500 clamp(17px, 3vw, 26px)/1.55 Inter, "Noto Sans KR", sans-serif; color: #ecebe6; }
   #cine.card .ctext { font: 700 clamp(22px, 5vw, 48px)/1.3 "Barlow Condensed", sans-serif; letter-spacing: .22em; }
   #cine .ctext small { display: block; margin-top: 14px; font: 600 clamp(11px, 1.8vw, 14px)/1.4 "Barlow Condensed", sans-serif; letter-spacing: .3em; opacity: .7; }
   #cine .csub { position: absolute; left: 50%; bottom: calc(13vh + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: 86vw; text-align: center;
-    font: 500 clamp(15px, 2.4vw, 20px)/1.4 Inter, sans-serif; background: rgba(0,0,0,.5); padding: 5px 12px; border-radius: 6px; }
+    font: 500 clamp(15px, 2.4vw, 20px)/1.4 Inter, "Noto Sans KR", sans-serif; background: rgba(0,0,0,.5); padding: 5px 12px; border-radius: 6px; }
   #cine .csub:empty { display: none; }
   #cine .cskip { position: absolute; right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px;
     opacity: 0; transition: opacity .3s; font: 700 13px "Barlow Condensed", sans-serif; letter-spacing: .18em; }
@@ -259,18 +259,18 @@
   #cine .cskip i { width: 26px; height: 26px; border-radius: 50%; background: conic-gradient(#fff calc(var(--f, 0) * 360deg), rgba(255,255,255,.22) 0); }
   #cine .ccont { display: none; position: absolute; left: 50%; bottom: 18vh; transform: translateX(-50%); font: 700 16px "Barlow Condensed", sans-serif; letter-spacing: .3em; opacity: .85; }
   #cine.wait .ccont { display: block; }
+  #cine.phonecam::after { content: ''; position: absolute; inset: 5vh 5vw; border: 2px solid rgba(255,255,255,.55); border-radius: 18px; }
   body.cine #hud, body.cine #touch, body.cine #joy, body.cine #jumpBtn, body.cine #toast, body.cine #subs, body.cine #liftUI { visibility: hidden !important; }
   #phoneMsg { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -140%); z-index: 5; width: min(340px, 86vw);
     background: rgba(28,28,32,.92); color: #f2f2f2; border-radius: 16px; padding: 10px 14px 12px; box-shadow: 0 8px 28px rgba(0,0,0,.5); transition: transform .45s cubic-bezier(.2,.9,.3,1); pointer-events: none; }
   #phoneMsg.on { transform: translate(-50%, 0); }
-  #phoneMsg .pm-h { display: flex; justify-content: space-between; font: 700 12px/1.2 Inter, sans-serif; letter-spacing: .06em; opacity: .75; }
+  #phoneMsg .pm-h { display: flex; justify-content: space-between; font: 700 12px/1.2 Inter, "Noto Sans KR", sans-serif; letter-spacing: .06em; opacity: .75; }
   #phoneMsg .pm-h span { color: #ff6b5e; }
   #phoneMsg .pm-t { font: 600 11px/1.4 "Space Mono", monospace; opacity: .55; margin-top: 4px; }
-  #phoneMsg .pm-b { font: 500 15px/1.35 Inter, sans-serif; margin-top: 2px; }
-  body.cine #phoneMsg { visibility: hidden; }
+  #phoneMsg .pm-b { font: 500 15px/1.35 Inter, "Noto Sans KR", sans-serif; margin-top: 2px; }
   /* the walker's own thoughts: a plain white line, lower than hers */
   #mono { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 4; pointer-events: none; max-width: 86vw; text-align: center;
-    font: italic 500 clamp(15px, 2.3vw, 19px)/1.4 Inter, sans-serif; color: #f2f1ec; text-shadow: 0 1px 6px #000; opacity: 0; transition: opacity .6s; }
+    font: italic 500 clamp(15px, 2.3vw, 19px)/1.4 Inter, "Noto Sans KR", sans-serif; color: #f2f1ec; text-shadow: 0 1px 6px #000; opacity: 0; transition: opacity .6s; }
   #mono.on { opacity: .95; }
 </style>
 <script>
@@ -425,7 +425,7 @@ const VOICE = {
   show(t, dur) {
     if (!this.sub) { this.sub = Object.assign(document.createElement('div'), { id: 'subs' });
       Object.assign(this.sub.style, { position: 'fixed', left: '50%', bottom: 'calc(150px + env(safe-area-inset-bottom))', transform: 'translateX(-50%)', zIndex: 4, pointerEvents: 'none',
-        font: '600 17px/1.3 Inter, sans-serif', color: '#ffe9f2', textShadow: '0 1px 6px #000', background: 'rgba(0,0,0,.35)', padding: '6px 14px', borderRadius: '8px', transition: 'opacity .3s', opacity: 0, maxWidth: '80vw', textAlign: 'center' });
+        font: '600 17px/1.3 Inter, "Noto Sans KR", sans-serif', color: '#ffe9f2', textShadow: '0 1px 6px #000', background: 'rgba(0,0,0,.35)', padding: '6px 14px', borderRadius: '8px', transition: 'opacity .3s', opacity: 0, maxWidth: '80vw', textAlign: 'center' });
       document.body.appendChild(this.sub); }
     this.sub.innerHTML = `<b style="color:#ff9cc6">NIKI</b>&nbsp; ${escapeHTML(t)}`; this.sub.style.opacity = 1; this.subT = dur;
   },
@@ -444,7 +444,7 @@ const EPISODE = { id: 1, title: 'TAPE 01', entities: ['killi', 'niki'] };
 const ENTITY_ON = id => ENDLESS() || EPISODE.entities.includes(id);
 // STORY runs (assets/story/story.json): the spaces after the entrance, in order, split into chapters, and what happens in
 // each (script key = place in the run, 1 = first room). ?story plays the chapter story in development; otherwise TAPE 01.
-const RUN_ID = new URLSearchParams(location.search).has('story') ? 'story' : 'tape01';
+const RUN_ID = new URLSearchParams(location.search).has('tape01') ? 'tape01' : 'story';   // ?tape01: the earlier one-tape episode
 let RUN = { rooms: [], chapters: [], script: {} };
 const runRoom = i => RUN.rooms[game.runOff + i - 1];
 const SC = i => (i === 0 && game.runOff) ? {} : RUN.script[game.runOff + i] || {};   // a continued run starts in the entrance, not in the run
@@ -1914,7 +1914,7 @@ function brokenTubes(zone, xs, zTop, zBot, y, seg, w) {
 const WALLDECAL = {
   evac: canvasTex(256, 192, (g, w, h) => {
     g.fillStyle = '#f2f0ea'; g.fillRect(0, 0, w, h); g.strokeStyle = '#333'; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, h - 6);
-    g.fillStyle = '#1f8f4a'; g.fillRect(10, 10, w - 20, 30); g.fillStyle = '#fff'; g.font = '700 18px Inter, sans-serif'; g.fillText('EVACUATION ROUTE', 18, 31);
+    g.fillStyle = '#1f8f4a'; g.fillRect(10, 10, w - 20, 30); g.fillStyle = '#fff'; g.font = '700 18px Inter, "Noto Sans KR", sans-serif'; g.fillText('EVACUATION ROUTE', 18, 31);
     g.strokeStyle = '#555'; g.lineWidth = 2;
     for (let i = 0; i < 6; i++) g.strokeRect(20 + i * 36, 60, 30, 80);
     g.strokeStyle = '#1f8f4a'; g.lineWidth = 5; g.beginPath(); g.moveTo(40, 160); g.lineTo(220, 160); g.lineTo(220, 120); g.stroke();
@@ -1978,7 +1978,7 @@ function varyRoom(n, avail, r) {
 }
 const signCache = new Map();
 const FACE_CSS = {
-  'BarlowCondensed-700': '700 {s}px "Barlow Condensed", sans-serif', 'Inter-700': '700 {s}px Inter, sans-serif',
+  'BarlowCondensed-700': '700 {s}px "Barlow Condensed", sans-serif', 'Inter-700': '700 {s}px Inter, "Noto Sans KR", sans-serif',
   'Rubik-800': '800 {s}px Rubik, sans-serif', ArchivoBlack: '400 {s}px "Archivo Black", sans-serif', 'SpaceMono-700': '700 {s}px "Space Mono", monospace',
 };
 function signMat(s) {
@@ -2708,7 +2708,8 @@ function spawnKilli(zone, p) {
   const r = zone.rng, depth = zone.i;
   // a lane with two heads already resting in it is full (a third pile would start to block the doors)
   const inLane = l => zone.killis.filter(k => k.wall && k.lane === l).length;
-  const lanes = frontLanes(zone).filter(l => inLane(l) < 2 && !(l.start !== undefined && Math.abs(p.x - l.c) < zone.kr + 2.5 && Math.abs(p.z - l.start) < 6));   // never starts on top of you at the exit
+  const cap = !ENDLESS() && SC(zone.i).gap ? 6 : 2;   // a story wave may fill its corridor
+  const lanes = frontLanes(zone).filter(l => inLane(l) < cap && !(l.start !== undefined && Math.abs(p.x - l.c) < zone.kr + 2.5 && Math.abs(p.z - l.start) < 6));   // never starts on top of you at the exit
   if (!lanes.length) return false;
   // mostly the passage you are in or next to; sometimes one further off, so you see it go by
   // and mostly from in front of you (where you can see it), seldom through the door behind you
@@ -2726,8 +2727,8 @@ function spawnKilli(zone, p) {
   else { s0 = dir > 0 ? (lane.start ?? zone.exitZ - kr) : zone.z0 + kr; span = zone.len + kr * 2 + 3; }
   // a door it comes through bangs open ahead of it (the room behind may not be built yet: it rolls out of the haze)
   const farClosed = !!(lane.from && !lane.from.includes(dir)) || !!lane.run;      // no opening in the far wall (or something in the way): it stops against it
-  if (lane.run) { span = lane.run - kr; n = Math.min(n, 2 - inLane(lane)); }
-  else if (farClosed) { span -= 3 + kr * 2; n = Math.min(n, 2 - inLane(lane)); }
+  if (lane.run) { span = lane.run - kr; n = Math.min(n, cap - inLane(lane)); }
+  else if (farClosed) { span -= 3 + kr * 2; n = Math.min(n, cap - inLane(lane)); }
   const lead = KILLI_LEAD[0] + r() * (KILLI_LEAD[1] - KILLI_LEAD[0]);
   let back = 0;
   for (let k = 0; k < n; k++) {
@@ -2954,6 +2955,56 @@ const HANDSUI = (() => {
   document.body.appendChild(el);
   return { set(t) { if (t == null) { el.style.opacity = 0; return; } el.style.opacity = 1; el.innerHTML = `GET TO THE LIGHT<br><span style="font-size:64px;color:#ff4a3a">${Math.ceil(t)}</span>`; } };
 })();
+/* the same few things, again and again: a tasting stand, a dented can, a puddle of milk (always in the same place) */
+const IDCARD = {
+  obj: null, zone: null, head: null,
+  tex() { return this._t ||= canvasTex(512, 320, (c, w, h) => {
+    c.fillStyle = '#f4f3ee'; c.fillRect(0, 0, w, h); c.fillStyle = '#2b5c8a'; c.fillRect(0, 0, w, 64);
+    c.fillStyle = '#fff'; c.font = '700 30px "Barlow Condensed", sans-serif'; c.fillText('NORDBO LOGISTICS', 24, 44);
+    c.fillStyle = '#9aa0a6'; c.fillRect(28, 88, 150, 190);   // the photo: a man's head and shoulders, grey
+    c.fillStyle = '#5d636b'; c.beginPath(); c.ellipse(103, 160, 40, 50, 0, 0, 7); c.fill(); c.fillRect(48, 210, 110, 70);
+    c.fillStyle = '#111'; c.font = '700 34px "Noto Sans KR", sans-serif'; c.fillText('한 도 윤', 210, 140);
+    c.font = '500 22px "Noto Sans KR", sans-serif'; c.fillStyle = '#444'; c.fillText('물류센터 야간 · 출고', 210, 180); c.fillText('NO. 0414-27', 210, 214);
+    c.fillStyle = '#c33'; c.font = '700 20px "Space Mono", monospace'; c.fillText('VALID 2019.02', 210, 262); }); },
+  place(zone, head) {
+    const m = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ map: this.tex(), toneMapped: false }));
+    m.scale.set(0.086, 0.054, 1); m.rotation.x = -Math.PI / 2; m.rotation.z = 0.5;
+    const hp = head.obj.position, dx = game.p.x - hp.x, dz = game.p.z - hp.z, l = Math.hypot(dx, dz) || 1;
+    m.position.set(hp.x + dx / l * (head.r + 0.9), (zone.oy || 0) + 0.008, hp.z + dz / l * (head.r + 0.9));
+    const glow = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, depthWrite: false })); glow.scale.set(0.4, 0.4, 1); glow.position.z = -0.002;
+    m.add(glow); scene.add(m); this.obj = m; this.zone = zone; this.head = head;
+  },
+  take() { this.obj?.parent?.remove(this.obj); },
+  reset() { this.take(); this.obj = null; this.zone = null; },
+};
+const DREAMPROPS = {
+  place(zone) {
+    const g = new THREE.Group(), m = zone.meta, x0 = zone.ox + (m.entry ?? 0), z = zone.z0;   // world x/z, y from the room's floor
+    const mat = (c, r = 0.7) => new THREE.MeshStandardMaterial({ color: c, roughness: r });
+    const box = (sx, sy, sz, x, y, zz, mt) => { const b = new THREE.Mesh(GEO.box, mt); b.scale.set(sx, sy, sz); b.position.set(x, y, zz); g.add(b); return b; };
+    // the tasting stand: a small table with a white cloth, paper cups, a sign
+    const tx = x0 + 1.35, tz = z - 4.2;
+    box(0.9, 0.04, 0.5, tx, 0.86, tz, mat(0xf2f0ea)); box(0.9, 0.82, 0.02, tx, 0.43, tz + 0.24, mat(0xf2f0ea));
+    for (let k = 0; k < 5; k++) box(0.05, 0.07, 0.05, tx - 0.3 + k * 0.13, 0.915, tz - 0.05, mat(0xffffff, 0.5));
+    const sign = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ map: canvasTex(256, 128, (c, w, h) => { c.fillStyle = '#d6352a'; c.fillRect(0, 0, w, h);
+      c.fillStyle = '#fff'; c.font = `700 ${h * 0.4}px "Noto Sans KR", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('시식 코너', w / 2, h / 2); }) }));
+    sign.scale.set(0.5, 0.25, 1); sign.position.set(tx, 1.12, tz + 0.05); g.add(sign);
+    // a dented can on its side
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.037, 0.037, 0.11, 14), mat(0xb3261e, 0.35)); can.scale.set(1, 1, 0.78);
+    can.rotation.z = Math.PI / 2; can.position.set(x0 - 0.35, 0.03, z - 6.1); g.add(can);
+    // spilled milk
+    const stain = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ map: canvasTex(128, 128, (c, w, h) => { c.fillStyle = 'rgba(250,250,245,.85)';
+      for (const [a, b, r] of [[64, 64, 40], [92, 74, 22], [40, 82, 18], [70, 30, 14]]) { c.beginPath(); c.arc(a, b, r, 0, 7); c.fill(); } }), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    stain.rotation.x = -Math.PI / 2; stain.scale.set(0.9, 0.9, 1); stain.position.set(x0 + 0.25, 0.006, z - 7.2); g.add(stain);
+    g.position.y = 0; zone.g.add(g);   // zone.g already sits at the room's height
+  },
+  // a door marked for staff, the hospital behind it
+  staffSign(zone) {
+    const e = zone.exits[0], sign = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ map: canvasTex(512, 128, (c, w, h) => { c.fillStyle = '#1d3b6e'; c.fillRect(0, 0, w, h);
+      c.fillStyle = '#fff'; c.font = `700 ${h * 0.42}px "Noto Sans KR", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('직원 전용  STAFF ONLY', w / 2, h / 2); }) }));
+    sign.scale.set(1.5, 0.37, 1); sign.position.set(e.x, (e.y - (zone.oy || 0)) + 2.42, zone.exitZ + 0.36); sign.renderOrder = 2; zone.g.add(sign);
+  },
+};
 /* the black door that stands where the way out was: matte black leaves, a lit number above */
 const DOOR0001 = {
   mat: null,
@@ -2977,11 +3028,13 @@ Hazards.tape = {
     (sc.say || []).forEach(([tt, text], k) => { if (t >= tt && !said.has('s' + k)) { said.add('s' + k); MONO.say(text); } });
     (sc.sayAt || []).forEach(([f, text], k) => { if (prog >= f && !said.has('z' + k)) { said.add('z' + k); MONO.say(text); } });
     (sc.cine || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('c' + k) && !CINE.on) { said.add('c' + k); CINE.play(id); } });
-    if (sc.phone && !zone.phonePlaced && !game.phone) { zone.phonePlaced = true; PHONE.place(zone); }
-    PHONE.update(p);
-    if (game.phone) {
-      (sc.msg || []).forEach(([tt, time, text], k) => { if (t >= tt && !said.has('m' + k)) { said.add('m' + k); PHONE.show(time, text); } });
-      (sc.msgAt || []).forEach(([f, time, text], k) => { if (prog >= f && !said.has('n' + k)) { said.add('n' + k); PHONE.show(time, text); } });
+    if (sc.nosignal && !said.has('ns') && t >= sc.nosignal) { said.add('ns'); PHONE.nosignal(); }
+    if (sc.props && !zone.propsPlaced) { zone.propsPlaced = true; DREAMPROPS.place(zone); }
+    if (sc.staffDoor && !zone.staffPlaced) { zone.staffPlaced = true; DREAMPROPS.staffSign(zone); }
+    // a head that stopped against the wall, still watching; on the floor by it, an ID card
+    if (sc.card && !zone.cardPlaced) { const k = zone.killis.find(k => k.rest); if (k) { zone.cardPlaced = true; IDCARD.place(zone, k); } }
+    if (IDCARD.obj && IDCARD.zone === zone && !zone.cardTaken && Math.hypot(p.x - IDCARD.obj.position.x, p.z - IDCARD.obj.position.z) < 1.5) {
+      zone.cardTaken = true; IDCARD.take(); CINE.play('ch1_card');
     }
     // the chase: heads come in through the door behind you, one after another, a little slower than you can run
     if (sc.chase && !zone.chased && prog >= sc.chase.at) {
@@ -2996,7 +3049,7 @@ Hazards.tape = {
       const k = new Killi(zone, x, zone.z0 - kr - 0.4, 0, -1, sc.chase.speed * (0.95 + zone.rng() * 0.1), kr, zone.len - kr);
       k.wall = true; k.wait = 0; zone.killis.push(k); if (zone.chaseLeft % 2) SFX.horn(0.8, false);
     }
-    (sc.pa || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('p' + k)) { said.add('p' + k); VO.play(id, 0.85); } });
+    (sc.pa || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('p' + k)) { said.add('p' + k); const d = VO.play(id, 0.9); if (d) VOICE.show('매장 방송 — ' + VO.text(id), d + 0.6); } });
     if (sc.lockBehind && !zone.lockedBehind && p.z < zone.z0 - 2.5) {   // the way you came in no longer opens
       const pz = zones[zone.i - 1];
       if (pz && !pz.disposed) { if (!pz.exitDoors?.length) addExitDoor(pz, 0); for (const d of pz.exitDoors) d.locked = true; }
@@ -4523,6 +4576,7 @@ const CINE = {
       if (sh.kind === 'cctv') this.vhs = 1;
       for (const a of sh.actors || []) this.addActor(a);
     }
+    if (sh.keysFn) sh._keys = sh.keysFn(this.ctx());
     sh.start?.(this.ctx());
   },
   // what a shot's events can do
@@ -4590,8 +4644,8 @@ const CINE = {
       this.updateActors(dt);
       this.killis = this.killis.filter(k => { const alive = k.update(dt); if (!alive) k.dispose(); return alive; });
       let c = sh.cam;
-      if (sh.kind === 'cam' && sh.keys) {   // [t, x, y, z, yaw, pitch] keyframes, eased
-        const K = sh.keys; let i = 0; while (i < K.length - 2 && this.t > K[i + 1][0]) i++;
+      if (sh.kind === 'cam' && (sh._keys || sh.keys)) {   // [t, x, y, z, yaw, pitch] keyframes, eased
+        const K = sh._keys || sh.keys; let i = 0; while (i < K.length - 2 && this.t > K[i + 1][0]) i++;
         const a = K[i], b = K[Math.min(i + 1, K.length - 1)], f = b[0] > a[0] ? clamp((this.t - a[0]) / (b[0] - a[0]), 0, 1) : 1, e = f * f * (3 - 2 * f);
         c = a.slice(1).map((v, j) => v + (b[j + 1] - v) * e);
       }
@@ -4608,6 +4662,7 @@ const CINE = {
   },
   skip() { this.holding = false; this.ring(0); this.si = this.def.shots.length; this.next(); },
   end() {
+    TVSET.remove(); BOTTLE.remove?.(); this.el.classList.remove('phonecam');
     this.clear(); this.shot = null; this.vhs = null; this.hold = false; vhsMat.uniforms.uDark.value = 0;
     (SAVE.d.seen ||= {})[this.id] = Date.now(); SAVE.put();
     if (game.zoneIdx !== this.zoneBack && zones[this.zoneBack]) { game.zoneIdx = this.zoneBack; game.roomLook(zones[this.zoneBack], true); }
@@ -4630,7 +4685,7 @@ const VO = {
       return Promise.all(m.map(l => fetch(ASSETS + `voice/${l.id}.mp3`).then(r => r.arrayBuffer()).then(a => SFX.ctx.decodeAudioData(a)).then(b => { this.bufs[l.id] = b; }).catch(() => { })));
     }).catch(e => console.warn('vo', e)));
   },
-  text(id) { return this.meta?.find(l => l.id === id)?.text; },
+  text(id) { const l = this.meta?.find(l => l.id === id); return l?.ko || l?.text; },   // the story is subtitled in Korean
   play(id, vol = 1) {
     const b = this.bufs[id]; if (!b || !SFX.ctx) { this.load(); return 0; }
     const src = SFX.ctx.createBufferSource(), g = SFX.ctx.createGain(); src.buffer = b; g.gain.value = vol;
@@ -4696,42 +4751,26 @@ function replayCine(id) {
     setTimeout(() => $('startBtn').focus(), 30);
   } });
 }
-// MINA'S PHONE: found on the floor of the first store, still recording. Her messages never went out; they come up
-// on the screen as you reach the places she reached, a few minutes before you. Nothing is explained beyond them.
+// THE WALKER'S PHONE: no signal in here, only the time going on; three missed calls, a message never sent.
+// Nothing about why: it only shows on the lock screen.
 const PHONE = {
-  el: null, timer: 0, mesh: null,
+  el: null, timer: 0,
   ui() {
     if (this.el) return;
     this.el = Object.assign(document.createElement('div'), { id: 'phoneMsg' }); this.el.setAttribute('aria-live', 'polite');
-    this.el.innerHTML = '<div class="pm-h"><b>MINA</b><span>NOT SENT</span></div><div class="pm-t"></div><div class="pm-b"></div>';
+    this.el.innerHTML = '<div class="pm-h"><b></b><span></span></div><div class="pm-t"></div><div class="pm-b"></div>';
     document.body.appendChild(this.el);
   },
-  show(time, text, dur = 6.5) {
-    this.ui(); this.el.querySelector('.pm-t').textContent = time; this.el.querySelector('.pm-b').textContent = text;
+  show(head, tag, time, text, dur = 6) {
+    this.ui(); const q = k => this.el.querySelector(k);
+    q('.pm-h b').textContent = head; q('.pm-h span').textContent = tag; q('.pm-t').textContent = time; q('.pm-b').textContent = text;
     this.el.classList.add('on'); SFX.buzz?.(); clearTimeout(this.timer); this.timer = setTimeout(() => this.el.classList.remove('on'), dur * 1000);
   },
-  // the phone on the floor: a dark slab with its screen still lit
-  place(zone) {
-    const g = new THREE.Group(), body = new THREE.Mesh(GEO.box, new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.4 }));
-    body.scale.set(0.075, 0.009, 0.155); body.position.y = 0.006;
-    const scr = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ color: 0xbfd8ff, toneMapped: false })); scr.scale.set(0.066, 0.142, 1); scr.rotation.x = -Math.PI / 2; scr.position.y = 0.0115;
-    const glow = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ color: 0x9cc4ff, transparent: true, opacity: 0.18, depthWrite: false })); glow.scale.set(0.6, 0.6, 1); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.004;
-    g.add(body, scr, glow); g.rotation.y = 0.6;
-    const m = zone.meta, x = zone.ox + ((m.entry ?? 0) + (m.exit ?? 0)) / 2, z = zone.z0 - zone.len * 0.42;
-    g.position.set(x, zone.oy || 0, z); scene.add(g); this.mesh = g; this.zone = zone;
-  },
-  update(p) {
-    if (!this.mesh || game.phone) return;
-    if (this.zone?.disposed) { this.mesh.parent?.remove(this.mesh); this.mesh = null; return; }
-    this.mesh.children[1].material.color.setScalar(0.75 + 0.25 * Math.sin(game.t * 2));
-    if (Math.hypot(p.x - this.mesh.position.x, p.z - this.mesh.position.z) < 1.4) {
-      game.phone = true; this.mesh.parent?.remove(this.mesh); this.mesh = null; SFX.knock?.(p.x, p.z, 0.3);
-      MONO.say("Someone's phone. It's still recording.", 3.6);
-      setTimeout(() => this.show('LOCK SCREEN', '2 missed calls · Mom'), 4200);
-    }
-  },
-  reset() { if (this.mesh) this.mesh.parent?.remove(this.mesh); this.mesh = null; this.el?.classList.remove('on'); },
+  draft(dur) { this.show('메시지', '보내지 않음', '부재중 전화 3통', '미안. 나중에 말하자.', dur); },
+  nosignal(dur) { this.show('신호 없음', '', clock12(), '전화를 걸 수 없습니다.', dur); },
+  reset() { this.el?.classList.remove('on'); },
 };
+const clock12 = () => { const n = new Date(), h = n.getHours(); return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(n.getMinutes()).padStart(2, '0')}`; };
 // the walker's thoughts: a few plain words, rarely
 const MONO = {
   el: null, timer: 0,
@@ -4806,7 +4845,7 @@ const game = {
     this.p.set(0, 0, 0); this.vy = 0; this.yaw = 0; this.pitch = 0; this.t = 0;
     this.zoneIdx = 0; this.maxDist = 0; this.cleared = 0; this.shake = 0; this.deathT = 0; this.dead = false; this.iso = 0;
     CFG.walk = ENDLESS() ? 4.0 : 3.2; CFG.sprint = ENDLESS() ? 6.8 : 5.8;   // the story is walked, not raced
-    this.ended = false; this.endT = 0; this.metNiki = false; this.phone = this.runOff > 0; PHONE.reset?.(); this.nikiLeft = false; $('againBtn').textContent = 'TRY AGAIN';
+    this.ended = false; this.endT = 0; this.metNiki = false; PHONE.reset?.(); IDCARD.reset?.(); this.nikiLeft = false; $('againBtn').textContent = 'TRY AGAIN';
     CRACK.hide();
     this.eyeNow = CFG.eye; this.darkTarget = 0;
     NIKI.reset(); GLOW.reset();
@@ -5291,18 +5330,110 @@ loadAssets((f, label) => {
 /* ============================================================
    STORY FOOTAGE (the cutscenes of the story; rooms are given by their place in the run, see assets/story/story.json)
    ============================================================ */
-// the black door where the way out was: it opens by itself onto somewhere that cannot be behind a store
-CINES.prologue_door = { title: '0001', shots: [
-  { kind: 'cam', run: 6, dur: 4.2, keys: [[0, 4, 1.6, -11.6, 0, 0.06], [4.2, 4, 1.55, -13.4, 0, 0.1]],
-    tick: (c, dt) => { if (c.t < 0.8) return; const d = c.zone.exitDoors?.[0]; if (!d) return; d.open = Math.min(1, d.open + dt * 0.6);
-      d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); }); if (d.col) d.col.y1 = d.open > 0.55 ? d.col.y0 - 10 : d.cy1; } },
-  { kind: 'card', dur: 2.6, html: '<img src="assets/ui/logo.png" alt="EVERY SPACE" style="width:min(72vw,620px);display:block;margin:0 auto">' },
+// A ceiling TV in the store, the late news on it. Drawn into a canvas: the studio (an anchor in silhouette at the desk),
+// recovered CCTV clips, the red caption bar. Only lives during the opening.
+const TVSET = {
+  obj: null, cv: null, g: null, tex: null, imgs: {},
+  img(src) { let i = this.imgs[src]; if (!i) { i = this.imgs[src] = new Image(); i.src = ASSETS + src; } return i; },
+  place(zone, x, y, z, yaw = 0) {
+    this.cv = Object.assign(document.createElement('canvas'), { width: 512, height: 288 }); this.g = this.cv.getContext('2d');
+    this.tex = new THREE.CanvasTexture(this.cv); this.tex.colorSpace = THREE.SRGBColorSpace;
+    const o = new THREE.Group(), frame = new THREE.Mesh(GEO.box, new THREE.MeshStandardMaterial({ color: 0x111113, roughness: 0.5 }));
+    frame.scale.set(1.32, 0.78, 0.07); o.add(frame);
+    const scr = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false })); scr.scale.set(1.24, 0.70, 1); scr.position.z = 0.04; o.add(scr);
+    const arm = new THREE.Mesh(GEO.box, frame.material); arm.scale.set(0.05, 0.6, 0.05); arm.position.y = 0.66; o.add(arm);
+    o.position.set(zone.ox + x, (zone.oy || 0) + y, zone.z0 + z); o.rotation.y = yaw; scene.add(o); this.obj = o;
+    for (const [, w] of TV_PROGRAM) if (w.src) for (let f = 0; f < w.n; f++) this.img(`${w.src}${String(f).padStart(2, '0')}.jpg`);   // fetch every clip now, while the screen is black
+  },
+  // what's on: 'studio' or a clip { src, n, fps } at time t, with the caption bar
+  draw(what, t, head, dek) {
+    const g = this.g, W = 512, H = 288; if (!g) return;
+    const tick = Math.floor(t * 10); if (tick === this.lastTick && what === this.lastWhat) return; this.lastTick = tick; this.lastWhat = what;   // 10 pictures a second is plenty for a TV
+    if (what === 'studio') {
+      const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#173a73'); gr.addColorStop(1, '#0a1630'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(255,255,255,.06)'; for (let k = 0; k < 8; k++) g.fillRect(40 + k * 60, 30, 30, 140);
+      g.fillStyle = '#0b0f19'; g.beginPath(); g.ellipse(256, 108, 30, 38, 0, 0, 7); g.fill();                    // the anchor: head
+      g.beginPath(); g.moveTo(176, 210); g.quadraticCurveTo(256, 130, 336, 210); g.fill(); g.fillRect(176, 196, 160, 40);   // shoulders
+      g.fillStyle = '#c8ccd6'; g.fillRect(120, 214, 272, 40); g.fillStyle = '#9097a6'; g.fillRect(120, 214, 272, 6);          // the desk
+      const mouth = Math.sin(t * 13) > 0.2; g.fillStyle = mouth ? '#2a2f3d' : '#0b0f19'; g.fillRect(250, 124, 12, 3);
+    } else {
+      const f = Math.min(what.n - 1, Math.floor(t * (what.fps || 2))), im = this.img(`${what.src}${String(f).padStart(2, '0')}.jpg`);
+      const ok = im.complete && im.naturalWidth; if (ok) this.good = im;   // until a frame has arrived, the one before stays up
+      if (this.good && !(DEBUG && window.__noTvImg)) g.drawImage(ok ? im : this.good, 0, 0, W, H); else { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
+      g.fillStyle = '#e8e8e0'; g.font = '700 13px "Space Mono", monospace'; g.fillText(what.cam || 'CCTV', 12, 22);
+    }
+    g.fillStyle = '#0d2148'; g.fillRect(0, 4, 74, 22); g.fillStyle = '#ffcf3a'; g.font = '800 15px Rubik, sans-serif'; g.fillText('KN24', 8, 21);
+    g.fillStyle = '#b3121b'; g.fillRect(0, H - 62, W, 34); g.fillStyle = '#fff'; g.font = '700 17px "Noto Sans KR", sans-serif'; g.fillText(head, 12, H - 39);
+    g.fillStyle = 'rgba(245,245,240,.95)'; g.fillRect(0, H - 28, W, 28); g.fillStyle = '#111'; g.font = '500 13px "Noto Sans KR", sans-serif'; g.fillText(dek, 12, H - 9);
+    this.tex.needsUpdate = true;
+  },
+  remove() { this.obj?.parent?.remove(this.obj); this.obj = null; },
+};
+const NEWS_HEAD = '대형 상업시설 연쇄 실종… 경찰 "사건 간 연관성 없어"', NEWS_DEK = '마트·병원·지하철역 등 여러 지역에서 실종 신고 잇따라';
+// what the TV shows over the opening's news stretch (seconds into that shot)
+const TV_PROGRAM = [[0, 'studio'], [9, { src: 'story/news/shelf_', n: 16, fps: 1.6, cam: 'CAM 03 · 03:14' }], [20, { src: 'story/news/lift_', n: 16, fps: 1.8, cam: 'LIFT 2' }],
+  [29, { src: 'story/news/parkA_', n: 10, fps: 1.6, cam: 'P2 · CAM 11' }], [35.5, { src: 'story/news/parkB_', n: 10, fps: 1.4, cam: 'P4 · CAM 04' }], [42, { src: 'story/news/corr_', n: 14, fps: 1.5, cam: 'CAM 21' }], [52, 'studio']];
+const TV_AT = [-0.6, 2.62, -3.2, 0];   // where it hangs in the entrance (room-local), facing the door
+// PROLOGUE — the closing announcement. Black and the store's hum; the late news on the ceiling TV; buying water; the phone.
+CINES.prologue_open = { title: '폐점 방송', music: false, shots: [
+  { kind: 'black', dur: 12, lines: [[3.5, '977340', 3.5]], start: c => { TVSET.remove(); TVSET.place(c.zone ?? zones[0], ...TV_AT); }, at: [[1, c => c.sfx('knock', 0, -2, 0.15)], [6.5, c => c.sfx('knock', 0, -2, 0.12)]] },
+  { kind: 'cam', run: 0, dur: 56, keysFn: () => { const [x, y, z] = TV_AT; return [[0, x, y, z + 0.95, 0, 0], [8, x, y - 0.12, z + 1.2, 0, 0.03], [56, x + 0.05, y - 0.16, z + 1.3, 0.02, 0.05]]; },
+    voice: [[0.8, 'tv1'], [10.5, 'tv2'], [21, 'tv3'], [43, 'tv4']],
+    tick: c => { let cur = TV_PROGRAM[0]; for (const p of TV_PROGRAM) if (c.t >= p[0]) cur = p; TVSET.draw(cur[1], c.t - cur[0], NEWS_HEAD, NEWS_DEK); } },
+  { kind: 'cam', run: 0, dur: 26, keys: [[0, 3.2, 2.6, -1.0, -0.55, -0.3], [26, 3.0, 2.55, -1.6, -0.5, -0.32]],
+    actors: [{ id: 'clerk', type: 'figure', path: [[7.7, -4.6], [7.7, -4.61]], face: -Math.PI / 2, color: 0x2f5d4a },
+      { id: 'you', type: 'figure', path: [[1.2, -9], [3.4, -6.2], [4.7, -4.9]], speed: 0.8, wait: 2, face: Math.PI / 2, color: 0x3a3d44 }],
+    voice: [[4, 'pa_cut'], [8.2, 'pa_close']], tick: c => TVSET.draw('studio', c.t + 60, NEWS_HEAD, NEWS_DEK) },
+  { kind: 'cam', run: 0, dur: 16, keys: [[0, -0.4, 1.6, -9.6, Math.PI, 0.05], [16, -0.4, 1.6, -4.2, Math.PI, 0]],
+    at: [[2.5, () => PHONE.draft(9)]], tick: c => TVSET.draw('studio', c.t + 90, NEWS_HEAD, NEWS_DEK) },
 ] };
-// the end of the car park: the phone slips, lies on the concrete, still recording
-CINES.ch1_end = { title: 'Where it stopped', music: false, shots: [
-  { kind: 'cam', run: 10, dur: 4, keys: [[0, 0, 1.6, -17.5, Math.PI, 0], [1.0, 0.2, 0.25, -17.8, Math.PI + 0.3, 0.2], [4, 0.2, 0.16, -17.8, Math.PI + 0.35, 0.15]],
-    at: [[0.9, c => c.sfx('crush')]] },
-  { kind: 'black', dur: 3, lines: [[0.6, 'Further in, one light is still on.', 2.4]] },
+// the black door where the way out was: it opens by itself onto a corridor that cannot be behind a store. Then the title.
+CINES.prologue_door = { title: '0001', shots: [
+  { kind: 'cam', run: 6, dur: 5, keys: [[0, 4, 1.6, -11.6, 0, 0.06], [5, 4, 1.55, -13.6, 0, 0.08]],
+    tick: (c, dt) => { if (c.t < 1) return; const d = c.zone.exitDoors?.[0]; if (!d) return; d.open = Math.min(1, d.open + dt * 0.5);
+      d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); }); if (d.col) d.col.y1 = d.open > 0.55 ? d.col.y0 - 10 : d.cy1; } },
+  { kind: 'cam', run: 7, dur: 22, keys: [[0, 4.5, 1.65, -0.6, 0, 0.02], [22, 4.5, 1.6, -26, 0, 0.0]], at: [[9, c => c.horn(0.18)], [15, c => c.sfx('setRumble', 0.25)], [21.5, c => c.sfx('setRumble', 0)]] },
+  { kind: 'black', dur: 2 },
+  { kind: 'card', dur: 7, html: '<img src="assets/ui/logo.png" alt="EVERY SPACE" style="width:min(72vw,620px);display:block;margin:0 auto"><small>A GAME BY 977340</small>' },
+] };
+// CHAPTER 1 — the end of the straight line. CAM 04, a distribution hall, no date. A man who keeps coming back to the same place.
+const C04 = { cam_no: 'CAM 04 / DISTRIBUTION HALL', space: '0007', date: 'DATE ERROR', fps: 5 };
+const BOTTLE = { add(c) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.24, 12), new THREE.MeshStandardMaterial({ color: 0x9fc6e8, roughness: 0.15, transparent: true, opacity: 0.8 }));
+  b.position.copy(c.at(4.1, 0.12, -9.5)); scene.add(b); return (this.o = b); }, shake(on) { if (this.o) { this.o.rotation.z = on ? (Math.random() - 0.5) * 0.08 : 0; this.o.position.x += on ? (Math.random() - 0.5) * 0.004 : 0; } },
+  remove() { this.o?.parent?.remove(this.o); this.o = null; } };
+CINES.ch1_open = { title: 'CAM 04', music: false, shots: [
+  { kind: 'black', dur: 2, at: [[0.5, c => c.mark()]] },
+  { kind: 'cctv', run: 7, dur: 20, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13140, ...C04,
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -30], [4.5, -13]], speed: 1.0, color: 0x23272e }], voice: [[17.4, 'man_same']] },
+  { kind: 'cctv', run: 7, dur: 16, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13160, ...C04, start: c => BOTTLE.add(c),
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -13], [4.5, -13.05]], speed: 0.3, face: Math.PI, color: 0x23272e }],
+    at: [[2, c => c.horn(0.45)], [3.2, c => c.horn(0.45)]], tick: c => BOTTLE.shake(c.t > 4) },
+  { kind: 'cctv', run: 7, dur: 15, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13176, ...C04,
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -13], [5.7, -12.6]], speed: 2.6, wait: 5.5, face: -Math.PI / 2, color: 0x23272e }],
+    at: [[0.5, c => c.killi(4.0, -34.5, 0, 1, 3.4, 0.95, 40)]], tick: c => BOTTLE.shake(true) },
+  { kind: 'cctv', run: 7, dur: 12, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13191, ...C04,
+    actors: [{ id: 'm', type: 'figure', path: [[5.7, -12.6], [4.6, -12.2]], speed: 0.6, wait: 1.5, face: Math.PI, color: 0x23272e }],
+    at: [[3, c => c.horn(0.8)], [4.2, c => c.horn(0.8)], [5, c => c.sfx('setRumble', 0.7)], [6, c => c.killi(4.2, -34.5, 0, 1, 4.2, 1.1, 40, 2.5)], [7, c => c.killi(4.8, -34.5, 0, 1, 3.8, 0.7, 40, 3.2)],
+      [10.6, () => { vhsMat.uniforms.uGlitch.value = 3; }]], tick: c => BOTTLE.shake(true) },
+  { kind: 'black', dur: 2.6, start: c => { BOTTLE.remove(); SFX.setRumble(0); } },
+] };
+// the ID card by the head that stopped. The photo is the man from CAM 04. The phone comes up; its eyes find the lens.
+CINES.ch1_card = { title: '사원증', shots: [
+  { kind: 'cam', run: 9, dur: 7, keysFn: c => { const o = IDCARD.obj.position, z = c.zone; const x = o.x - z.ox, y = o.y - (z.oy || 0), zz = o.z - z.z0;
+      return [[0, x, 1.2, zz + 0.5, 0, -1.2], [7, x, 0.62, zz + 0.12, 0, -1.45]]; }, lines: [[1.5, '한도윤 · 물류센터 야간 출고', 4]] },
+  { kind: 'cam', run: 9, dur: 9, keysFn: c => { const h = IDCARD.head.obj.position, o = IDCARD.obj.position, z = c.zone;
+      const yaw = Math.atan2(-(h.x - o.x), -(h.z - o.z)); return [[0, o.x - z.ox, 1.5, o.z - z.z0, yaw, -0.1], [9, o.x - z.ox, 1.5, o.z - z.z0, yaw, 0.05]]; },
+    start: () => document.getElementById('cine').classList.add('phonecam'),
+    tick: (c, dt) => { if (c.t > 2.5) KILLI_EYES.look(IDCARD.head, dt * 3); }, lines: [[6, '…같은 얼굴이다.', 2.6]] },
+] };
+// the end of chapter 1: a small security room, the door locked. On the monitor the corridor you just left — and you, still in it.
+CINES.ch1_end = { title: 'ROOM 0001', music: false, shots: [
+  { kind: 'black', dur: 2.2, at: [[0.3, c => c.sfx('knock', game.p.x, game.p.z, 0.8)], [1.2, c => c.sfx('knock', game.p.x, game.p.z, 0.5)]] },
+  { kind: 'cctv', run: 10, dur: 13, cam: [-9, 2.2, -2, -0.75, -0.12], cam_no: 'CAM 09 / B1 CORRIDOR', space: '0010', date: 'TODAY', clock: 18000, fps: 4,
+    actors: [{ id: 'you', type: 'figure', path: [[2, -14], [2, -14.01]], face: Math.PI, color: 0x30343c }],
+    at: [[7.5, c => { const a = c.actor('you'); a.face = Math.atan2(-9 - 2, -2 + 14); }], [11.8, () => { vhsMat.uniforms.uDark.value = 1; }]] },
+  { kind: 'black', dur: 2.4 },
+  { kind: 'card', dur: 5.5, html: '<span style="font:700 clamp(18px,4vw,34px) \'Space Mono\',monospace;letter-spacing:.12em;color:#9ef0a8;text-shadow:0 0 12px #2f8a3a">ROOM 0001 REMEMBERS YOU</span>' },
 ] };
 if (DEBUG) CINES.qa = { title: 'QA footage', shots: [
   { kind: 'black', dur: 2, lines: [[0.3, 'Somewhere, a horn.', 1.5]] },
@@ -5310,7 +5441,7 @@ if (DEBUG) CINES.qa = { title: 'QA footage', shots: [
     actors: [{ id: 'm', type: 'figure', path: [[0, -10], [0, -3]], speed: 1.3 }], at: [[1, c => c.horn(0.5)], [2.5, c => c.mark()], [3, c => c.sub('[distant horn]', 2)]] },
   { kind: 'card', dur: 1.5, html: 'EVERY SPACE<small>TEST</small>' },
 ] };
-if (DEBUG) window.__ieori = { CINE, CINES, MONO, PHONE, VO, replayCine, camera, game, zones: () => zones, start, SAVE, RUN: () => RUN, SC, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, laneRunZ, frontLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT, LIFT, AQUA, CITY };
+if (DEBUG) window.__ieori = { CINE, CINES, MONO, PHONE, VOICE, IDCARD, VO, replayCine, camera, game, zones: () => zones, start, SAVE, RUN: () => RUN, SC, input, ASSET, OPT, CFG, vhsMat, lensMat, Killi, THREE, renderer, rtRefl, REFL, scene, NIKI, GLOW, DARK, HandsMound, killiLanes, laneRunZ, frontLanes, spawnKilli, SFX, Hazards, TRAP, DOPA, MUSIC, SHOP, FOLLOWER, SOLID, CUT, humanoid, WATCH_MAT, LIFT, AQUA, CITY };
 </script>
 </body>
 </html>

@@ -1,62 +1,65 @@
 [
  {
-  "id": "news1",
-  "voice": "news",
-  "text": "Good evening. Police in four cities are investigating a series of disappearances reported over the past eleven days.",
-  "dur": 6.88
+  "id": "tv1",
+  "voice": "tv",
+  "text": "Police say there is no connection between the disappearances at stores, hospitals and stations in several cities this month.",
+  "ko": "\uacbd\ucc30\uc740 \uc774\ubc88 \ub2ec \uc5ec\ub7ec \uc9c0\uc5ed\uc758 \ub9c8\ud2b8, \ubcd1\uc6d0, \uc9c0\ud558\ucca0\uc5ed\uc5d0\uc11c \ubc1c\uc0dd\ud55c \uc2e4\uc885 \uc0ac\uac74\ub4e4 \uc0ac\uc774\uc5d0 \uc5f0\uad00\uc131\uc774 \uc5c6\ub2e4\uace0 \ubc1d\ud614\uc2b5\ub2c8\ub2e4.",
+  "dur": 6.48
  },
  {
-  "id": "news2",
-  "voice": "news",
-  "text": "In each case, the missing person was last seen inside a public building. A supermarket. A hospital. A subway station. A parking garage.",
-  "dur": 9.25
+  "id": "tv2",
+  "voice": "tv",
+  "text": "This footage was recorded at a twenty-four hour store. The man was not seen again.",
+  "ko": "24\uc2dc\uac04 \ub9e4\uc7a5\uc758 CCTV\uc785\ub2c8\ub2e4. \ub0a8\uc131\uc740 \uc774\ud6c4 \ub2e4\uc2dc \ub098\ud0c0\ub098\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4.",
+  "dur": 4.5
  },
  {
-  "id": "news3",
-  "voice": "news",
-  "text": "This footage, from a twenty-four hour store, shows a customer walking into an aisle at three fourteen a.m. Staff say she never came out.",
-  "dur": 8.06
+  "id": "tv3",
+  "voice": "tv",
+  "text": "At a hospital, a lift opened onto a floor the building does not have.",
+  "ko": "\ud55c \ubcd1\uc6d0\uc5d0\uc11c\ub294 \uc874\uc7ac\ud558\uc9c0 \uc54a\ub294 \uce35\uc5d0\uc11c \uc5d8\ub9ac\ubca0\uc774\ud130 \ubb38\uc774 \uc5f4\ub838\uc2b5\ub2c8\ub2e4.",
+  "dur": 3.49
  },
  {
-  "id": "news4",
-  "voice": "news",
-  "text": "At Saint Anne's Hospital, a lift was recorded opening onto a floor the building does not have.",
-  "dur": 4.57
+  "id": "tv4",
+  "voice": "tv",
+  "text": "Investigators have asked anyone who recognises these people to come forward.",
+  "ko": "\uc218\uc0ac \ub2f9\uad6d\uc740 \uc601\uc0c1 \uc18d \uc778\ubb3c\uc744 \uc54c\uc544\ubcf4\ub294 \uc2dc\ubbfc\uc758 \uc81c\ubcf4\ub97c \uc694\uccad\ud588\uc2b5\ub2c8\ub2e4.",
+  "dur": 3.89
  },
  {
-  "id": "news5",
-  "voice": "news",
-  "text": "Transit police have declined to comment on footage from Line Two.",
-  "dur": 3.53
- },
- {
-  "id": "news6",
-  "voice": "news",
-  "text": "Investigators say there is no evidence the cases are connected.",
-  "dur": 3.24
- },
- {
-  "id": "news7",
-  "voice": "news",
-  "text": "Police say the buildings are safe, and remain open.",
-  "dur": 2.41
- },
- {
-  "id": "pa1",
-  "voice": "pa",
-  "text": "Attention shoppers. The store will close in fifteen minutes. Please bring your items to the front.",
+  "id": "pa_close",
+  "voice": "pam",
+  "text": "Attention shoppers. The store will be closing shortly. Please bring your items to the checkout.",
+  "ko": "\uc7a0\uc2dc \ud6c4 \uc601\uc5c5\uc744 \uc885\ub8cc\ud569\ub2c8\ub2e4. \uace0\uac1d \uc5ec\ub7ec\ubd84\uaed8\uc11c\ub294\u2026",
   "dur": 6.05
  },
  {
-  "id": "pa2",
-  "voice": "pa",
-  "text": "Attention shoppers. The store will close in fifteen minutes. Please bring your items to the back.",
-  "dur": 6.05
+  "id": "pa_cut",
+  "voice": "pam",
+  "text": "Attention shoppers. The store will be",
+  "ko": "\uc7a0\uc2dc \ud6c4 \uc601\uc5c5\uc744\u2014",
+  "dur": 3.02
  },
  {
-  "id": "pa3",
-  "voice": "pa",
-  "text": "Attention shoppers. The store does not close.",
-  "dur": 3.74
+  "id": "pa_dream",
+  "voice": "pam",
+  "text": "Customers, please make your way to the nearest dream.",
+  "ko": "\uace0\uac1d \uc5ec\ub7ec\ubd84\uaed8\uc11c\ub294 \uac00\uc7a5 \uac00\uae4c\uc6b4 \uafc8\uc744 \uc774\uc6a9\ud574 \uc8fc\uc2ed\uc2dc\uc624.",
+  "dur": 2.84
+ },
+ {
+  "id": "pa_exit",
+  "voice": "pam",
+  "text": "Customers, please make your way to the nearest exit.",
+  "ko": "\uace0\uac1d \uc5ec\ub7ec\ubd84\uaed8\uc11c\ub294 \uac00\uc7a5 \uac00\uae4c\uc6b4 \ucd9c\uad6c\ub97c \uc774\uc6a9\ud574 \uc8fc\uc2ed\uc2dc\uc624.",
+  "dur": 3.02
+ },
+ {
+  "id": "man_same",
+  "voice": "man",
+  "text": "It's the same place again.",
+  "ko": "\uc5ec\uae30 \ub610 \uac19\uc740 \ub370\uc57c.",
+  "dur": 1.44
  }
 ]
