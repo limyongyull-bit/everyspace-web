@@ -2,111 +2,133 @@
  {
   "id": "hello1",
   "kind": "hello",
-  "text": "Hi! Hehe... you're new here, right?"
+  "text": "Hi! Hehe... you're new here, right?",
+  "ko": "안녕! 히히… 여기 처음이지?"
  },
  {
   "id": "hello2",
   "kind": "hello",
-  "text": "Oh! Hi hi! I was waiting for you."
+  "text": "Oh! Hi hi! I was waiting for you.",
+  "ko": "어! 안녕안녕! 기다리고 있었어."
  },
  {
   "id": "hello3",
   "kind": "hello",
-  "text": "Hehe. Found you."
+  "text": "Hehe. Found you.",
+  "ko": "히히. 찾았다."
  },
  {
   "id": "chat1",
   "kind": "chat",
-  "text": "Stay close to me, okay? It's safer."
+  "text": "Stay close to me, okay? It's safer.",
+  "ko": "나한테 붙어 있어, 알았지? 그게 안전해."
  },
  {
   "id": "chat2",
   "kind": "chat",
-  "text": "Do you like it here? I do. Mostly."
+  "text": "Do you like it here? I do. Mostly.",
+  "ko": "여기 좋아? 난 좋아. 대체로."
  },
  {
   "id": "chat3",
   "kind": "chat",
-  "text": "Hehe, your footsteps are so loud."
+  "text": "Hehe, your footsteps are so loud.",
+  "ko": "히히, 너 발소리 진짜 크다."
  },
  {
   "id": "chat4",
   "kind": "chat",
-  "text": "I used to work in the mart. I think."
+  "text": "I used to work in the mart. I think.",
+  "ko": "나 마트에서 일했던 것 같아. 아마."
  },
  {
   "id": "chat5",
   "kind": "chat",
-  "text": "Don't look at the big heads. They hate that. Hehe."
+  "text": "Don't look at the big heads. They hate that. Hehe.",
+  "ko": "큰 머리들 쳐다보지 마. 그거 싫어해. 히히."
  },
  {
   "id": "chat6",
   "kind": "chat",
-  "text": "Have you seen the exit? Me neither. Hehe."
+  "text": "Have you seen the exit? Me neither. Hehe.",
+  "ko": "출구 봤어? 나도 못 봤어. 히히."
  },
  {
   "id": "chat7",
   "kind": "chat",
-  "text": "Wanna hear a secret? ...Never mind."
+  "text": "Wanna hear a secret? ...Never mind.",
+  "ko": "비밀 하나 알려줄까? …아니다."
  },
  {
   "id": "chat8",
   "kind": "chat",
-  "text": "You're my favorite. Don't tell the others."
+  "text": "You're my favorite. Don't tell the others.",
+  "ko": "너가 제일 좋아. 다른 애들한텐 비밀."
  },
  {
   "id": "chat9",
   "kind": "chat",
-  "text": "Hey... hey. Are you listening to me?"
+  "text": "Hey... hey. Are you listening to me?",
+  "ko": "야… 야. 내 말 듣고 있어?"
  },
  {
   "id": "chat10",
   "kind": "chat",
-  "text": "This store never closes. Isn't that nice?"
+  "text": "This store never closes. Isn't that nice?",
+  "ko": "이 가게는 문을 안 닫아. 좋지 않아?"
  },
  {
   "id": "chat11",
   "kind": "chat",
-  "text": "Shh. Did you hear the horn?"
+  "text": "Shh. Did you hear the horn?",
+  "ko": "쉿. 경적 소리 들었어?"
  },
  {
   "id": "giggle1",
   "kind": "giggle",
-  "text": "Hehehe!"
+  "text": "Hehehe!",
+  "ko": "히히히!"
  },
  {
   "id": "giggle2",
   "kind": "giggle",
-  "text": "Hihi."
+  "text": "Hihi.",
+  "ko": "히히."
  },
  {
   "id": "giggle3",
   "kind": "giggle",
-  "text": "Hehe... hehe."
+  "text": "Hehe... hehe.",
+  "ko": "히히… 히히."
  },
  {
   "id": "give1",
   "kind": "give",
-  "text": "Here! Take this. It's really bright."
+  "text": "Here! Take this. It's really bright.",
+  "ko": "자! 이거 가져. 엄청 밝아."
  },
  {
   "id": "give2",
   "kind": "give",
-  "text": "For you! Don't lose it, okay?"
+  "text": "For you! Don't lose it, okay?",
+  "ko": "너 줄게! 잃어버리지 마, 알았지?"
  },
  {
   "id": "leave1",
   "kind": "leave",
-  "text": "Why are you leaving me?"
+  "text": "Why are you leaving me?",
+  "ko": "왜 나를 두고 가?"
  },
  {
   "id": "leave2",
   "kind": "leave",
-  "text": "Hey. Where are you going?"
+  "text": "Hey. Where are you going?",
+  "ko": "야. 어디 가?"
  },
  {
   "id": "tired1",
   "kind": "tired",
-  "text": "I'm... so tired..."
+  "text": "I'm... so tired...",
+  "ko": "나… 너무 지쳤어…"
  }
 ]

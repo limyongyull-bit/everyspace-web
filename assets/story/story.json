@@ -62,6 +62,10 @@
    "nordbo",
    "parking3",
    "parking",
+   "parking2",
+   "ward",
+   "nordbo",
+   "ward",
    "parking2"
   ],
   "chapters": [
@@ -77,6 +81,13 @@
     "start": 6,
     "open": "ch1_open",
     "end": "ch1_end"
+   },
+   {
+    "id": "ch2",
+    "title": "CHAPTER 2 — 마지막 불빛",
+    "start": 10,
+    "open": "ch2_open",
+    "end": "ch2_end"
    }
   ],
   "script": {
@@ -178,6 +189,42 @@
     "killiT": 7,
     "gap": 1.9,
     "end": true
+   },
+   "11": {
+    "music": 0,
+    "hands": 1,
+    "handsT": 9
+   },
+   "12": {
+    "music": 0,
+    "hands": 2,
+    "handsT": 6,
+    "handsGap": 11,
+    "vending": [
+     -8,
+     -31,
+     0
+    ],
+    "meetNiki": true
+   },
+   "13": {
+    "music": 0,
+    "hands": 1,
+    "handsT": 16,
+    "cineAt": [
+     [
+      0.45,
+      "ch2_talk"
+     ]
+    ]
+   },
+   "14": {
+    "music": 0,
+    "hands": 2,
+    "handsT": 7,
+    "handsGap": 10,
+    "end": true,
+    "endAt": 4
    }
   }
  }
