@@ -340,14 +340,14 @@ window.BOOT = (() => {
 <button id="useBtn" data-exp>LIGHT</button>
 <button id="colaBtn" data-exp>COLA</button>
 
-<div id="intro" class="wait"><div class="igate"><b id="gateTxt">CLICK TO ENTER</b><span>SOUND ON · HEADPHONES RECOMMENDED</span></div><img src="assets/ui/logo.png" alt="EVERY SPACE"><div class="isub">TAPE 01 · RECOVERED BY IEORI</div><div class="iload"><i id="introBar"></i></div><div id="introTxt" aria-live="polite"></div></div>
+<div id="intro" class="wait"><div class="igate"><b id="gateTxt">CLICK TO ENTER</b><span>SOUND ON · HEADPHONES RECOMMENDED</span></div><img src="assets/ui/logo.png" alt="EVERY SPACE"><div class="isub">I E O R I</div><div class="iload"><i id="introBar"></i></div><div id="introTxt" aria-live="polite"></div></div>
 <div class="overlay on" id="menu">
   <div class="lobby">
     <h1 class="logo"><img src="assets/ui/logo.png" alt="EVERY SPACE" width="1984" height="257"></h1>
-    <div class="sub">TAPE 01 · RECOVERED BY IEORI</div>
+    <div class="sub">IEORI</div>
     <nav class="mm">
       <button class="mmi play" id="contBtn" hidden></button>
-      <button class="mmi play" id="startBtn" disabled>STORY</button>
+      <button class="mmi play" id="startBtn" disabled>PLAY</button>
       <button class="mmi" id="endlessBtn" disabled>ENDLESS</button>
       <button class="mmi" data-panel="pGuide">RECORDS</button>
       <button class="mmi" data-panel="pBoard" data-exp>LEADERBOARD</button>
@@ -440,7 +440,8 @@ const VOICE = {
 // for later tapes. Two modes, picked on the menu: STORY (a fixed run of spaces, scripted) and ENDLESS (rooms picked at
 // random, every entity, harder as you go). ?exp is for development: it forces ENDLESS and brings back the shop, tokens,
 // the leaderboard and the VHS look, which stay hidden otherwise.
-const EXP = new URLSearchParams(location.search).has('exp');
+// the original game (every room, every creature, shop, tokens, leaderboard) is the default; ?story opens the story chapters
+const EXP = !new URLSearchParams(location.search).has('story');
 const ENDLESS = () => EXP || game.mode === 'endless';
 const EPISODE = { id: 1, title: 'TAPE 01', entities: ['killi', 'niki'] };
 const ENTITY_ON = id => ENDLESS() || EPISODE.entities.includes(id);
@@ -4922,7 +4923,7 @@ function updateClock(t) {
 const game = {
   running: false, dead: false, seed: 1, t: 0,
   p: new THREE.Vector3(), vy: 0, yaw: 0, pitch: 0, onGround: true,
-  mode: 'story', runOff: 0, zoneIdx: 0, maxDist: 0, cleared: 0, shake: 0, bob: 0, deathT: 0, cause: '', speedNow: 0, iso: 0, expNow: 1, expTarget: 1,
+  mode: EXP ? 'endless' : 'story', runOff: 0, zoneIdx: 0, maxDist: 0, cleared: 0, shake: 0, bob: 0, deathT: 0, cause: '', speedNow: 0, iso: 0, expNow: 1, expTarget: 1,
   eyeNow: CFG.eye, darkTarget: 0, fogTarget: new THREE.Color(CFG.fogColor),
   look(dx, dy, s) {
     this.yaw -= dx * s;
@@ -5309,14 +5310,15 @@ function start(mode = game.mode, off = 0) {
   }
   if (!isTouch) canvas.requestPointerLock?.();
 }
-$('startBtn').addEventListener('click', () => start('story'));
+$('startBtn').addEventListener('click', () => start(EXP ? 'endless' : 'story'));
+if (EXP) $('endlessBtn').hidden = true;
 $('endlessBtn').addEventListener('click', () => start('endless'));
 // TRY AGAIN in the story: back to the door of the room you died in (the rooms behind you stay as they were)
 $('againBtn').addEventListener('click', () => game.mode === 'story' && !game.ended && game.cause && !EXP ? game.respawn() : start());
 // CONTINUE: the story from the start of the last chapter reached on this device
 function showContinue() {
   const c = SAVE.run().chapter, ch = RUN.chapters[c], b = $('contBtn');
-  b.hidden = !(c > 0 && ch); if (ch) b.textContent = 'CONTINUE · ' + ch.title;
+  b.hidden = EXP || !(c > 0 && ch); if (ch) b.textContent = 'CONTINUE · ' + ch.title;
 }
 $('contBtn').addEventListener('click', () => { const ch = RUN.chapters[SAVE.run().chapter]; start('story', ch ? ch.start : 0); });
 $('menuBtn').addEventListener('click', () => { CRACK.hide(); $('dead').classList.remove('on'); $('dead').inert = true; $('menu').classList.add('on'); $('menu').inert = false; showBest(); showContinue(); MUSIC.start('lobby'); });
