@@ -3098,7 +3098,7 @@ Hazards.tape = {
       k.wall = true; k.wait = 0; zone.killis.push(k); if (zone.chaseLeft % 2) SFX.horn(0.8, false);
     }
     // what Niki tells you while you walk with her (the rules, plainly); she has to be near
-    (sc.niki_say || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('ns' + k) && (NIKI.mode === 'close' || NIKI.mode === 'walk') && Math.hypot(p.x - NIKI.pos.x, p.z - NIKI.pos.z) < 8 && !VOICE.busy?.() && !CINE.on) {
+    (sc.niki_say || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('ns' + k) && (NIKI.mode === 'close' || NIKI.mode === 'walk') && Math.hypot(p.x - NIKI.pos.x, p.z - NIKI.pos.z) < 12 && !VOICE.busy?.() && !CINE.on) {
       said.add('ns' + k); const d = VO.play(id); if (d) { VOICE.show(VO.text(id), d + 0.8); VOICE.cur = { end: SFX.ctx.currentTime + d }; } } });
     // the building's own small sounds, so it is never quite silent
     if ((zone.ambT = (zone.ambT ?? 4 + zone.rng() * 6) - dt) <= 0) { zone.ambT = 9 + zone.rng() * 14; STORYAMB.play(zone, p); }
