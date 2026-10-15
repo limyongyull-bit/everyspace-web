@@ -4,42 +4,42 @@
   "voice": "tv",
   "text": "Police say there is no connection between the disappearances at stores, hospitals and stations in several cities this month.",
   "ko": "\uacbd\ucc30\uc740 \uc774\ubc88 \ub2ec \uc5ec\ub7ec \uc9c0\uc5ed\uc758 \ub9c8\ud2b8, \ubcd1\uc6d0, \uc9c0\ud558\ucca0\uc5ed\uc5d0\uc11c \ubc1c\uc0dd\ud55c \uc2e4\uc885 \uc0ac\uac74\ub4e4 \uc0ac\uc774\uc5d0 \uc5f0\uad00\uc131\uc774 \uc5c6\ub2e4\uace0 \ubc1d\ud614\uc2b5\ub2c8\ub2e4.",
-  "dur": 6.26
+  "dur": 6.55
  },
  {
   "id": "tv2",
   "voice": "tv",
   "text": "This footage was recorded at a twenty-four hour store. The man was not seen again.",
   "ko": "24\uc2dc\uac04 \ub9e4\uc7a5\uc758 CCTV\uc785\ub2c8\ub2e4. \ub0a8\uc131\uc740 \uc774\ud6c4 \ub2e4\uc2dc \ub098\ud0c0\ub098\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4.",
-  "dur": 4.28
+  "dur": 4.32
  },
  {
   "id": "tv3",
   "voice": "tv",
   "text": "At a hospital, a lift opened onto a floor the building does not have.",
   "ko": "\ud55c \ubcd1\uc6d0\uc5d0\uc11c\ub294 \uc874\uc7ac\ud558\uc9c0 \uc54a\ub294 \uce35\uc5d0\uc11c \uc5d8\ub9ac\ubca0\uc774\ud130 \ubb38\uc774 \uc5f4\ub838\uc2b5\ub2c8\ub2e4.",
-  "dur": 3.35
+  "dur": 3.24
  },
  {
   "id": "tv4",
   "voice": "tv",
   "text": "Investigators have asked anyone who recognises these people to come forward.",
   "ko": "\uc218\uc0ac \ub2f9\uad6d\uc740 \uc601\uc0c1 \uc18d \uc778\ubb3c\uc744 \uc54c\uc544\ubcf4\ub294 \uc2dc\ubbfc\uc758 \uc81c\ubcf4\ub97c \uc694\uccad\ud588\uc2b5\ub2c8\ub2e4.",
-  "dur": 3.92
+  "dur": 3.82
  },
  {
   "id": "pa_close",
   "voice": "pam",
   "text": "Attention shoppers. The store will be closing shortly. Please bring your items to the checkout.",
   "ko": "\uc7a0\uc2dc \ud6c4 \uc601\uc5c5\uc744 \uc885\ub8cc\ud569\ub2c8\ub2e4. \uace0\uac1d \uc5ec\ub7ec\ubd84\uaed8\uc11c\ub294\u2026",
-  "dur": 6.23
+  "dur": 6.12
  },
  {
   "id": "pa_cut",
   "voice": "pam",
   "text": "Attention shoppers. The store will be",
   "ko": "\uc7a0\uc2dc \ud6c4 \uc601\uc5c5\uc744\u2014",
-  "dur": 2.99
+  "dur": 3.13
  },
  {
   "id": "pa_dream",
@@ -53,7 +53,7 @@
   "voice": "pam",
   "text": "Customers, please make your way to the nearest exit.",
   "ko": "\uace0\uac1d \uc5ec\ub7ec\ubd84\uaed8\uc11c\ub294 \uac00\uc7a5 \uac00\uae4c\uc6b4 \ucd9c\uad6c\ub97c \uc774\uc6a9\ud574 \uc8fc\uc2ed\uc2dc\uc624.",
-  "dur": 3.13
+  "dur": 3.06
  },
  {
   "id": "man_same",
@@ -67,14 +67,14 @@
   "voice": "old",
   "text": "Who... who is holding on?",
   "ko": "\ub204\uac00 \uc7a1\uace0 \uc788\ub294 \uac70\uc57c?",
-  "dur": 1.01
+  "dur": 1.15
  },
  {
   "id": "dark1",
   "voice": "crowd1",
   "text": "Don't let go.",
   "ko": "\ub193\uc9c0 \ub9c8.",
-  "dur": 1.37
+  "dur": 1.66
  },
  {
   "id": "dark2",
@@ -88,28 +88,28 @@
   "voice": "crowd3",
   "text": "Don't let go. Don't let go.",
   "ko": "\ub193\uc9c0 \ub9c8. \ub193\uc9c0 \ub9c8.",
-  "dur": 2.48
+  "dur": 2.52
  },
  {
   "id": "n_water",
   "voice": "niki",
   "text": "No water for you either?",
   "ko": "\ub108\ub3c4 \ubb3c \uc548 \ub098\uc624\uc9c0?",
-  "dur": 1.3
+  "dur": 1.37
  },
  {
   "id": "n_ask",
   "voice": "niki",
   "text": "I was about to ask you that.",
   "ko": "\uadf8\uac74 \ub098\ub3c4 \ubb3c\uc5b4\ubcf4\ub824\uace0 \ud588\ub294\ub370.",
-  "dur": 1.58
+  "dur": 1.66
  },
  {
   "id": "n_dont",
   "voice": "niki",
   "text": "Don't go where the lights go out. They're not going out. That thing eats the light.",
   "ko": "\ubd88 \uaebc\uc9c0\ub294 \ucabd\uc73c\ub85c \uac00\uc9c0 \ub9c8. \ubd88\uc774 \uaebc\uc9c0\ub294 \uac8c \uc544\ub2c8\ub77c, \uc800\uac8c \ube5b\uc744 \uba39\ub294 \uac70\uc57c.",
-  "dur": 5.08
+  "dur": 5.22
  },
  {
   "id": "n_when",
@@ -123,13 +123,55 @@
   "voice": "niki",
   "text": "Today? Is there still a today?",
   "ko": "\uc624\ub298\uc774\ub77c\ub294 \uac8c \uc544\uc9c1 \uc788\uc5b4?",
-  "dur": 2.92
+  "dur": 2.7
  },
  {
   "id": "n_days",
   "voice": "niki",
   "text": "A few days.",
   "ko": "\uba70\uce60.",
-  "dur": 1.62
+  "dur": 1.37
+ },
+ {
+  "id": "n_heads",
+  "voice": "niki",
+  "text": "The big heads can't turn. Step out of their line and they roll right past you.",
+  "ko": "\ud070 \uba38\ub9ac\ub4e4\uc740 \ubc29\ud5a5\uc744 \ubabb \uaebe\uc5b4. \uc606\uc73c\ub85c \ube44\ud0a4\uba74 \uadf8\ub0e5 \uc9c0\ub098\uac00.",
+  "dur": 4.82
+ },
+ {
+  "id": "n_dream",
+  "voice": "niki",
+  "text": "These places dream about each other. That's why a store opens into a hospital.",
+  "ko": "\uc5ec\uae30 \uc788\ub294 \uacf3\ub4e4\uc740 \uc11c\ub85c\ub97c \uafc8\uafd4. \uadf8\ub798\uc11c \ub9c8\ud2b8 \ubb38\uc744 \uc5f4\uba74 \ubcd1\uc6d0\uc774 \ub098\uc624\ub294 \uac70\uc57c.",
+  "dur": 4.9
+ },
+ {
+  "id": "n_numbers",
+  "voice": "niki",
+  "text": "The numbers over the doors keep going up. Nobody knows where they stop.",
+  "ko": "\ubb38 \uc704\uc758 \uc22b\uc790\ub294 \uacc4\uc18d \uc62c\ub77c\uac00. \uc5b4\ub514\uc11c \ub05d\ub098\ub294\uc9c0\ub294 \uc544\ubb34\ub3c4 \ubab0\ub77c.",
+  "dur": 4.07
+ },
+ {
+  "id": "n_names",
+  "voice": "niki",
+  "text": "Stay too long and you forget names first. Then faces. Then that you were ever a person.",
+  "ko": "\uc5ec\uae30 \uc624\ub798 \uc788\uc73c\uba74 \uc774\ub984\ubd80\ud130 \uc78a\uc5b4\ubc84\ub824. \uadf8\ub2e4\uc74c\uc740 \uc5bc\uad74. \uadf8\ub2e4\uc74c\uc740\u2026 \uc0ac\ub78c\uc774\uc5c8\ub2e4\ub294 \uac70.",
+  "dur": 6.59
+ },
+ {
+  "id": "n_others",
+  "voice": "niki",
+  "text": "The things in here were people once. They just stayed too long.",
+  "ko": "\uc5ec\uae30 \uc788\ub294 \uac83\ub4e4, \uc6d0\ub798\ub294 \ub2e4 \uc0ac\ub78c\uc774\uc5c8\uc5b4. \ub108\ubb34 \uc624\ub798 \uc788\uc5c8\uc744 \ubfd0\uc774\uc57c.",
+  "dur": 4.72
+ },
+ {
+  "id": "n_exit",
+  "voice": "niki",
+  "text": "There is a way out. I just haven't found it yet.",
+  "ko": "\ub098\uac00\ub294 \uae38\uc740 \uc788\uc5b4. \ub098\ub3c4 \uc544\uc9c1 \ubabb \ucc3e\uc558\uc744 \ubfd0\uc774\uc57c.",
+  "dur": 3.35
  }
 ]

@@ -79,8 +79,7 @@
     "id": "ch1",
     "title": "CHAPTER 1 — 직선의 끝",
     "start": 6,
-    "open": "ch1_open",
-    "end": "ch1_end"
+    "open": "ch1_open"
    },
    {
     "id": "ch2",
@@ -168,14 +167,26 @@
    "7": {
     "music": 0,
     "horn": 6,
-    "killiFar": 16
+    "killiFar": 16,
+    "say": [
+     [
+      8,
+      "뭐야, 저 소리…"
+     ]
+    ]
    },
    "8": {
     "music": 0,
     "killiFar": 5,
     "killi": 2,
     "killiT": 16,
-    "gap": 11
+    "gap": 11,
+    "say": [
+     [
+      3,
+      "정면으로 굴러온다. 옆으로 비켜야 해."
+     ]
+    ]
    },
    "9": {
     "music": 10,
@@ -188,7 +199,13 @@
     "killi": 5,
     "killiT": 7,
     "gap": 1.9,
-    "end": true
+    "end": true,
+    "say": [
+     [
+      2,
+      "또 온다. 줄 사이로."
+     ]
+    ]
    },
    "11": {
     "music": 0,
@@ -216,6 +233,20 @@
       0.45,
       "ch2_talk"
      ]
+    ],
+    "niki_say": [
+     [
+      4,
+      "n_heads"
+     ],
+     [
+      18,
+      "n_dream"
+     ],
+     [
+      32,
+      "n_names"
+     ]
     ]
    },
    "14": {
@@ -224,7 +255,21 @@
     "handsT": 7,
     "handsGap": 10,
     "end": true,
-    "endAt": 4
+    "endAt": 4,
+    "niki_say": [
+     [
+      3,
+      "n_others"
+     ],
+     [
+      16,
+      "n_numbers"
+     ],
+     [
+      30,
+      "n_exit"
+     ]
+    ]
    }
   }
  }

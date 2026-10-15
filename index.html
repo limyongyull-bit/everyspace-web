@@ -261,6 +261,8 @@
   #cine.wait .ccont { display: block; }
   #cine.phonecam::after { content: ''; position: absolute; inset: 5vh 5vw; border: 2px solid rgba(255,255,255,.55); border-radius: 18px; }
   body.cine #hud, body.cine #touch, body.cine #joy, body.cine #jumpBtn, body.cine #toast, body.cine #subs, body.cine #liftUI { visibility: hidden !important; }
+  #chTitle { position: fixed; left: 0; right: 0; top: 30vh; text-align: center; z-index: 5; pointer-events: none; opacity: 0; font: 700 clamp(20px, 4vw, 40px)/1.2 "Barlow Condensed", "Noto Sans KR", sans-serif; letter-spacing: .2em; color: #f2f0ea; text-shadow: 0 2px 12px #000; }
+  #chTitle.on { animation: chT 4.2s ease forwards; } @keyframes chT { 0% { opacity: 0; } 15% { opacity: .95; } 75% { opacity: .95; } 100% { opacity: 0; } }
   #phoneMsg { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -140%); z-index: 5; width: min(340px, 86vw);
     background: rgba(28,28,32,.92); color: #f2f2f2; border-radius: 16px; padding: 10px 14px 12px; box-shadow: 0 8px 28px rgba(0,0,0,.5); transition: transform .45s cubic-bezier(.2,.9,.3,1); pointer-events: none; }
   #phoneMsg.on { transform: translate(-50%, 0); }
@@ -3007,6 +3009,22 @@ const IDCARD = {
   take() { this.obj?.parent?.remove(this.obj); },
   reset() { this.take(); this.obj = null; this.zone = null; },
 };
+const STORYAMB = {
+  play(zone, p) {
+    const r = zone.rng(), a = zone.rng() * 6.28, d = 8 + zone.rng() * 14, x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d;
+    if (r < 0.3) SFX.knock(x, z, 0.35 + zone.rng() * 0.3);            // a door somewhere
+    else if (r < 0.5) SFX.flickTick(zone.rng() < 0.5);                  // a tube ticking
+    else if (r < 0.65) SFX.chime?.();                                    // the store's chime, from nowhere
+    else if (r < 0.8) { SFX.stepAt?.(x, z, false); setTimeout(() => SFX.stepAt?.(x + 0.4, z + 0.3, false), 420); }   // footsteps, not yours
+    else SFX.douse?.(0.25, x, z);                                        // a light going out far away
+  },
+};
+const CHTITLE = {
+  show(title) {
+    let el = this.el; if (!el) { el = this.el = Object.assign(document.createElement('div'), { id: 'chTitle' }); document.body.appendChild(el); }
+    el.textContent = title; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  },
+};
 const DREAMPROPS = {
   place(zone) {
     const g = new THREE.Group(), m = zone.meta, x0 = zone.ox + (m.entry ?? 0), z = zone.z0;   // world x/z, y from the room's floor
@@ -3079,6 +3097,11 @@ Hazards.tape = {
       const k = new Killi(zone, x, zone.z0 - kr - 0.4, 0, -1, sc.chase.speed * (0.95 + zone.rng() * 0.1), kr, zone.len - kr);
       k.wall = true; k.wait = 0; zone.killis.push(k); if (zone.chaseLeft % 2) SFX.horn(0.8, false);
     }
+    // what Niki tells you while you walk with her (the rules, plainly); she has to be near
+    (sc.niki_say || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('ns' + k) && (NIKI.mode === 'close' || NIKI.mode === 'walk') && Math.hypot(p.x - NIKI.pos.x, p.z - NIKI.pos.z) < 8 && !VOICE.busy?.() && !CINE.on) {
+      said.add('ns' + k); const d = VO.play(id); if (d) { VOICE.show(VO.text(id), d + 0.8); VOICE.cur = { end: SFX.ctx.currentTime + d }; } } });
+    // the building's own small sounds, so it is never quite silent
+    if ((zone.ambT = (zone.ambT ?? 4 + zone.rng() * 6) - dt) <= 0) { zone.ambT = 9 + zone.rng() * 14; STORYAMB.play(zone, p); }
     (sc.pa || []).forEach(([tt, id], k) => { if (t >= tt && !said.has('p' + k)) { said.add('p' + k); const d = VO.play(id, 0.9); if (d) VOICE.show('매장 방송 — ' + VO.text(id), d + 0.6); } });
     if (sc.lockBehind && !zone.lockedBehind && p.z < zone.z0 - 2.5) {   // the way you came in no longer opens
       const pz = zones[zone.i - 1];
@@ -4739,6 +4762,7 @@ const CINE = {
     if (!this.el) return;
     this.on = false; this.waitClick = false; this.el.className = ''; document.body.classList.remove('cine');
     if (!isTouch && game.running && !this.replay && !this.free) canvas.requestPointerLock?.();
+    if (game.running && !game.dead && !MUSIC.on) MUSIC.start('run');   // the room's sound comes back
     const f = this.onEnd; this.onEnd = null; f?.();
   },
 };
@@ -4948,7 +4972,7 @@ const game = {
         const rec = SC(zone.i).rec; if (rec) setTimeout(() => RECORDS.add(rec), 2500); SAVE.reach(chapterAt(zone.i));
         if (RUN_ID === 'story') NIKI.follow(zone);
         const ch = zone.i > 0 && RUN.chapters.find(c => c.start === game.runOff + zone.i - 1);   // walking into a new chapter
-        if (ch && !(game.cined ||= {})[ch.id]) { game.cined[ch.id] = 1; if (ch.open && CINES[ch.open]) CINE.play(ch.open); }
+        if (ch && !(game.cined ||= {})[ch.id]) { game.cined[ch.id] = 1; if (ch.open && CINES[ch.open]) CINE.play(ch.open, { onEnd: () => CHTITLE.show(ch.title) }); else CHTITLE.show(ch.title); }
       }
     }
     if (!ENDLESS() && !m.safe && MUSIC.setDepth) MUSIC.setDepth(SC(zone.i).music ?? 0);
@@ -5281,7 +5305,7 @@ function start(mode = game.mode, off = 0) {
   if (game.mode === 'story' && !EXP) {   // a chapter opens with its footage
     VO.load(); game.cined = {};
     const ch = RUN.chapters.find(c => c.start === game.runOff);
-    if (ch) { game.cined[ch.id] = 1; if (ch.open && CINES[ch.open]) { CINE.play(ch.open); return; } }
+    if (ch) { game.cined[ch.id] = 1; if (ch.open && CINES[ch.open]) { CINE.play(ch.open, { onEnd: () => CHTITLE.show(ch.title) }); return; } CHTITLE.show(ch.title); }
   }
   if (!isTouch) canvas.requestPointerLock?.();
 }
@@ -5438,30 +5462,30 @@ const TVSET = {
 };
 const NEWS_HEAD = '대형 상업시설 연쇄 실종… 경찰 "사건 간 연관성 없어"', NEWS_DEK = '마트·병원·지하철역 등 여러 지역에서 실종 신고 잇따라';
 // what the TV shows over the opening's news stretch (seconds into that shot)
-const TV_PROGRAM = [[0, 'studio'], [9, { src: 'story/news/shelf_', n: 16, fps: 1.6, cam: 'CAM 03 · 03:14' }], [20, { src: 'story/news/lift_', n: 16, fps: 1.8, cam: 'LIFT 2' }],
-  [29, { src: 'story/news/parkA_', n: 10, fps: 1.6, cam: 'P2 · CAM 11' }], [35.5, { src: 'story/news/parkB_', n: 10, fps: 1.4, cam: 'P4 · CAM 04' }], [42, { src: 'story/news/corr_', n: 14, fps: 1.5, cam: 'CAM 21' }], [52, 'studio']];
+const TV_PROGRAM = [[0, 'studio'], [6.8, { src: 'story/news/shelf_', n: 16, fps: 2.4, cam: 'CAM 03 · 03:14' }], [13.5, { src: 'story/news/lift_', n: 16, fps: 3, cam: 'LIFT 2' }],
+  [19, { src: 'story/news/parkA_', n: 10, fps: 3, cam: 'P2 · CAM 11' }], [22.4, { src: 'story/news/parkB_', n: 10, fps: 3, cam: 'P4 · CAM 04' }], [25.8, { src: 'story/news/corr_', n: 14, fps: 3, cam: 'CAM 21' }], [30.5, 'studio']];
 const TV_AT = [-0.6, 2.62, -3.2, 0];   // where it hangs in the entrance (room-local), facing the door
 // PROLOGUE — the closing announcement. Black and the store's hum; the late news on the ceiling TV; buying water; the phone.
 CINES.prologue_open = { title: '폐점 방송', music: false, shots: [
-  { kind: 'black', dur: 12, lines: [[3.5, '977340', 3.5]], start: c => { TVSET.remove(); TVSET.place(c.zone ?? zones[0], ...TV_AT); }, at: [[1, c => c.sfx('knock', 0, -2, 0.15)], [6.5, c => c.sfx('knock', 0, -2, 0.12)]] },
-  { kind: 'cam', run: 0, dur: 56, keysFn: () => { const [x, y, z] = TV_AT; return [[0, x, y, z + 0.95, 0, 0], [8, x, y - 0.12, z + 1.2, 0, 0.03], [56, x + 0.05, y - 0.16, z + 1.3, 0.02, 0.05]]; },
-    voice: [[0.8, 'tv1'], [10.5, 'tv2'], [21, 'tv3'], [43, 'tv4']],
+  { kind: 'black', dur: 3.2, lines: [[0.4, '977340', 2.4]], start: c => { TVSET.remove(); TVSET.place(c.zone ?? zones[0], ...TV_AT); }, at: [[0.5, c => c.sfx('knock', 0, -2, 0.15)]] },
+  { kind: 'cam', run: 0, dur: 34, keysFn: () => { const [x, y, z] = TV_AT; return [[0, x, y, z + 0.95, 0, 0], [6, x, y - 0.12, z + 1.2, 0, 0.03], [34, x + 0.05, y - 0.16, z + 1.3, 0.02, 0.05]]; },
+    voice: [[0.5, 'tv1'], [7.2, 'tv2'], [13.8, 'tv3'], [26.2, 'tv4']],
     tick: c => { let cur = TV_PROGRAM[0]; for (const p of TV_PROGRAM) if (c.t >= p[0]) cur = p; TVSET.draw(cur[1], c.t - cur[0], NEWS_HEAD, NEWS_DEK); } },
-  { kind: 'cam', run: 0, dur: 26, keys: [[0, 3.2, 2.6, -1.0, -0.55, -0.3], [26, 3.0, 2.55, -1.6, -0.5, -0.32]],
+  { kind: 'cam', run: 0, dur: 13, keys: [[0, 3.2, 2.6, -1.0, -0.55, -0.3], [13, 3.0, 2.55, -1.6, -0.5, -0.32]],
     actors: [{ id: 'clerk', type: 'figure', path: [[7.7, -4.6], [7.7, -4.61]], face: -Math.PI / 2, color: 0x2f5d4a },
-      { id: 'you', type: 'figure', path: [[1.2, -9], [3.4, -6.2], [4.7, -4.9]], speed: 0.8, wait: 2, face: Math.PI / 2, color: 0x3a3d44 }],
-    voice: [[4, 'pa_cut'], [8.2, 'pa_close']], tick: c => TVSET.draw('studio', c.t + 60, NEWS_HEAD, NEWS_DEK) },
-  { kind: 'cam', run: 0, dur: 16, keys: [[0, -0.4, 1.6, -9.6, Math.PI, 0.05], [16, -0.4, 1.6, -4.2, Math.PI, 0]],
-    at: [[2.5, () => PHONE.draft(9)]], tick: c => TVSET.draw('studio', c.t + 90, NEWS_HEAD, NEWS_DEK) },
+      { id: 'you', type: 'figure', path: [[1.2, -9], [3.4, -6.2], [4.7, -4.9]], speed: 1.0, wait: 0, face: Math.PI / 2, color: 0x3a3d44 }],
+    voice: [[1.2, 'pa_cut'], [4.6, 'pa_close']], tick: c => TVSET.draw('studio', c.t + 60, NEWS_HEAD, NEWS_DEK) },
+  { kind: 'cam', run: 0, dur: 8, keys: [[0, -0.4, 1.6, -9.6, Math.PI, 0.05], [8, -0.4, 1.6, -6.0, Math.PI, 0]],
+    at: [[1, () => PHONE.draft(8)]], tick: c => TVSET.draw('studio', c.t + 90, NEWS_HEAD, NEWS_DEK) },
 ] };
 // the black door where the way out was: it opens by itself onto a corridor that cannot be behind a store. Then the title.
 CINES.prologue_door = { title: '0001', shots: [
   { kind: 'cam', run: 6, dur: 5, keys: [[0, 4, 1.6, -11.6, 0, 0.06], [5, 4, 1.55, -13.6, 0, 0.08]],
     tick: (c, dt) => { if (c.t < 1) return; const d = c.zone.exitDoors?.[0]; if (!d) return; d.open = Math.min(1, d.open + dt * 0.5);
       d.leaves.forEach((l, i) => { l.position.x = d.e.x + (i ? 1 : -1) * (d.e.w / 4 + d.open * d.e.w * 0.48); }); if (d.col) d.col.y1 = d.open > 0.55 ? d.col.y0 - 10 : d.cy1; } },
-  { kind: 'cam', run: 7, dur: 22, keys: [[0, 4.5, 1.65, -0.6, 0, 0.02], [22, 4.5, 1.6, -26, 0, 0.0]], at: [[9, c => c.horn(0.18)], [15, c => c.sfx('setRumble', 0.25)], [21.5, c => c.sfx('setRumble', 0)]] },
-  { kind: 'black', dur: 2 },
-  { kind: 'card', dur: 7, html: '<img src="assets/ui/logo.png" alt="EVERY SPACE" style="width:min(72vw,620px);display:block;margin:0 auto"><small>A GAME BY 977340</small>' },
+  { kind: 'cam', run: 7, dur: 10, keys: [[0, 4.5, 1.65, -0.6, 0, 0.02], [10, 4.5, 1.6, -20, 0, 0.0]], at: [[3, c => c.horn(0.2)], [5, c => c.sfx('setRumble', 0.3)], [9.6, c => c.sfx('setRumble', 0)]] },
+  { kind: 'black', dur: 0.8 },
+  { kind: 'card', dur: 4.5, html: '<img src="assets/ui/logo.png" alt="EVERY SPACE" style="width:min(72vw,620px);display:block;margin:0 auto"><small>A GAME BY 977340</small>' },
 ] };
 // CHAPTER 1 — the end of the straight line. CAM 04, a distribution hall, no date. A man who keeps coming back to the same place.
 const C04 = { cam_no: 'CAM 04 / DISTRIBUTION HALL', space: '0007', date: 'DATE ERROR', fps: 5 };
@@ -5470,19 +5494,19 @@ const BOTTLE = { add(c) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.
   remove() { this.o?.parent?.remove(this.o); this.o = null; } };
 CINES.ch1_open = { title: 'CAM 04', music: false, shots: [
   { kind: 'black', dur: 2, at: [[0.5, c => c.mark()]] },
-  { kind: 'cctv', run: 7, dur: 20, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13140, ...C04,
-    actors: [{ id: 'm', type: 'figure', path: [[4.5, -30], [4.5, -13]], speed: 1.0, color: 0x23272e }], voice: [[17.4, 'man_same']] },
-  { kind: 'cctv', run: 7, dur: 16, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13160, ...C04, start: c => BOTTLE.add(c),
+  { kind: 'cctv', run: 7, dur: 9, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13150, ...C04,
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -21], [4.5, -13]], speed: 1.1, color: 0x23272e }], voice: [[6.6, 'man_same']] },
+  { kind: 'cctv', run: 7, dur: 8, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13160, ...C04, start: c => BOTTLE.add(c),
     actors: [{ id: 'm', type: 'figure', path: [[4.5, -13], [4.5, -13.05]], speed: 0.3, face: Math.PI, color: 0x23272e }],
-    at: [[2, c => c.horn(0.45)], [3.2, c => c.horn(0.45)]], tick: c => BOTTLE.shake(c.t > 4) },
-  { kind: 'cctv', run: 7, dur: 15, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13176, ...C04,
-    actors: [{ id: 'm', type: 'figure', path: [[4.5, -13], [5.7, -12.6]], speed: 2.6, wait: 5.5, face: -Math.PI / 2, color: 0x23272e }],
-    at: [[0.5, c => c.killi(4.0, -34.5, 0, 1, 3.4, 0.95, 40)]], tick: c => BOTTLE.shake(true) },
-  { kind: 'cctv', run: 7, dur: 12, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13191, ...C04,
-    actors: [{ id: 'm', type: 'figure', path: [[5.7, -12.6], [4.6, -12.2]], speed: 0.6, wait: 1.5, face: Math.PI, color: 0x23272e }],
-    at: [[3, c => c.horn(0.8)], [4.2, c => c.horn(0.8)], [5, c => c.sfx('setRumble', 0.7)], [6, c => c.killi(4.2, -34.5, 0, 1, 4.2, 1.1, 40, 2.5)], [7, c => c.killi(4.8, -34.5, 0, 1, 3.8, 0.7, 40, 3.2)],
-      [10.6, () => { vhsMat.uniforms.uGlitch.value = 3; }]], tick: c => BOTTLE.shake(true) },
-  { kind: 'black', dur: 2.6, start: c => { BOTTLE.remove(); SFX.setRumble(0); } },
+    at: [[0.8, c => c.horn(0.5)], [2, c => c.horn(0.5)]], tick: c => BOTTLE.shake(c.t > 2.6) },
+  { kind: 'cctv', run: 7, dur: 10, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13168, ...C04,
+    actors: [{ id: 'm', type: 'figure', path: [[4.5, -13], [5.7, -12.6]], speed: 2.6, wait: 3.2, face: -Math.PI / 2, color: 0x23272e }],
+    at: [[0, c => c.killi(4.0, -28, 0, 1, 4.2, 0.95, 40)]], tick: c => BOTTLE.shake(true) },
+  { kind: 'cctv', run: 7, dur: 9, cam: [4.5, 3.3, -1.0, 0, -0.12], clock: 13178, ...C04,
+    actors: [{ id: 'm', type: 'figure', path: [[5.7, -12.6], [4.6, -12.2]], speed: 0.8, wait: 0.6, face: Math.PI, color: 0x23272e }],
+    at: [[1.4, c => c.horn(0.8)], [2.4, c => c.horn(0.8)], [3, c => c.sfx('setRumble', 0.7)], [3.2, c => c.killi(4.2, -30, 0, 1, 5, 1.1, 40, 1.2)], [3.8, c => c.killi(4.8, -30, 0, 1, 4.6, 0.7, 40, 1.6)],
+      [8.2, () => { vhsMat.uniforms.uGlitch.value = 3; }]], tick: c => BOTTLE.shake(true) },
+  { kind: 'black', dur: 1.6, start: c => { BOTTLE.remove(); SFX.setRumble(0); } },
 ] };
 // the ID card by the head that stopped. The photo is the man from CAM 04. The phone comes up; its eyes find the lens.
 CINES.ch1_card = { title: '사원증', shots: [
@@ -5493,30 +5517,20 @@ CINES.ch1_card = { title: '사원증', shots: [
     start: () => document.getElementById('cine').classList.add('phonecam'),
     tick: (c, dt) => { if (c.t > 2.5) KILLI_EYES.look(IDCARD.head, dt * 3); }, lines: [[6, '…같은 얼굴이다.', 2.6]] },
 ] };
-// the end of chapter 1: a small security room, the door locked. On the monitor the corridor you just left — and you, still in it.
-CINES.ch1_end = { title: 'ROOM 0001', music: false, shots: [
-  { kind: 'black', dur: 2.2, at: [[0.3, c => c.sfx('knock', game.p.x, game.p.z, 0.8)], [1.2, c => c.sfx('knock', game.p.x, game.p.z, 0.5)]] },
-  { kind: 'cctv', run: 10, dur: 13, cam: [-9, 2.2, -2, -0.75, -0.12], cam_no: 'CAM 09 / B1 CORRIDOR', space: '0010', date: 'TODAY', clock: 18000, fps: 4,
-    actors: [{ id: 'you', type: 'figure', path: [[2, -14], [2, -14.01]], face: Math.PI, color: 0x30343c }],
-    at: [[7.5, c => { const a = c.actor('you'); a.face = Math.atan2(-9 - 2, -2 + 14); }], [11.8, () => { vhsMat.uniforms.uDark.value = 1; }]] },
-  { kind: 'black', dur: 2.4 },
-  { kind: 'card', dur: 5.5, html: '<span style="font:700 clamp(18px,4vw,34px) \'Space Mono\',monospace;letter-spacing:.12em;color:#9ef0a8;text-shadow:0 0 12px #2f8a3a">ROOM 0001 REMEMBERS YOU</span>' },
-] };
 // CHAPTER 2 — the last light. A hospital camera: a nurse, a child and an old man, holding hands, looking for the way out.
 // The tubes die from the far end toward them. In the dark, only voices. When the light comes back: hand prints.
 const darkAt = (k, x, z, r, w) => DARK.uDark.value[k].set(x, z, r, w);
 const darkClear = () => { for (const v of DARK.uDark.value) v.set(0, 0, 0, 0); };
 CINES.ch2_open = { title: '마지막 불빛', music: false, shots: [
   { kind: 'black', dur: 1.6, start: darkClear },
-  { kind: 'cctv', run: 11, dur: 26, cam: [0.9, 2.6, -1.0, 0.03, -0.12], cam_no: 'WARD 7 · CAM 2', space: '0011', date: '2011-03-02', clock: 9480, fps: 5,
-    actors: [{ type: 'figure', path: [[-0.2, -27], [-0.2, -8.5]], speed: 0.85, color: 0xd8dde3, h: 1.68 }, { type: 'figure', path: [[0.5, -27.4], [0.5, -8.9]], speed: 0.85, color: 0x7a8fb0, h: 1.12 },
-      { type: 'figure', path: [[-0.9, -27.6], [-0.9, -9.1]], speed: 0.85, color: 0x6b6157, h: 1.6 }],
-    tick: c => { const z = c.zone; for (let k = 0; k < 8; k++) { const on = c.t > 6 + k * 1.9; if (on) darkAt(k, z.ox, z.z0 - 29 + k * 2.6, 4.2, 0.97); } },
-    voice: [[19.5, 'old_who']], at: [[6, c => c.sfx('douse', 0.6, c.zone.ox, c.zone.z0 - 28)], [12, c => c.sfx('douse', 0.7, c.zone.ox, c.zone.z0 - 20)], [18, c => c.sfx('douse', 0.8, c.zone.ox, c.zone.z0 - 12)], [23.5, c => c.mark()]] },
-  { kind: 'black', dur: 6, voice: [[0.6, 'dark1'], [1.5, 'dark2'], [2.6, 'dark3'], [3.9, 'dark1']] },
-  { kind: 'cctv', run: 11, dur: 7, cam: [0.9, 2.6, -1.0, 0.03, -0.12], cam_no: 'WARD 7 · CAM 2', space: '0011', date: '2011-03-02', clock: 9620, fps: 5,
-    start: c => { darkClear(); if (!c.zone.prints) { c.zone.prints = true; handPrints(c.zone, [0, -8.5], [0, -29.5], 12); } }, at: [[5.5, c => c.mark()]] },
-  { kind: 'black', dur: 1.2 },
+  { kind: 'cctv', run: 11, dur: 18, cam: [0.9, 2.6, -1.0, 0.03, -0.12], cam_no: 'WARD 7 · CAM 2', space: '0011', date: '2011-03-02', clock: 9480, fps: 5,
+    actors: [{ type: 'figure', path: [[-0.2, -22], [-0.2, -8.5]], speed: 1.0, color: 0xd8dde3, h: 1.68 }, { type: 'figure', path: [[0.5, -22.4], [0.5, -8.9]], speed: 1.0, color: 0x7a8fb0, h: 1.12 },
+      { type: 'figure', path: [[-0.9, -22.6], [-0.9, -9.1]], speed: 1.0, color: 0x6b6157, h: 1.6 }],
+    tick: c => { const z = c.zone; for (let k = 0; k < 8; k++) { const on = c.t > 2 + k * 1.5; if (on) darkAt(k, z.ox, z.z0 - 29 + k * 2.6, 4.2, 0.97); } },
+    voice: [[13.6, 'old_who']], at: [[2, c => c.sfx('douse', 0.6, c.zone.ox, c.zone.z0 - 28)], [6.5, c => c.sfx('douse', 0.7, c.zone.ox, c.zone.z0 - 20)], [11, c => c.sfx('douse', 0.8, c.zone.ox, c.zone.z0 - 12)], [16.5, c => c.mark()]] },
+  { kind: 'black', dur: 4.2, voice: [[0.3, 'dark1'], [1.0, 'dark2'], [1.8, 'dark3'], [2.9, 'dark1']] },
+  { kind: 'cctv', run: 11, dur: 4.5, cam: [0.9, 2.6, -1.0, 0.03, -0.12], cam_no: 'WARD 7 · CAM 2', space: '0011', date: '2011-03-02', clock: 9620, fps: 5,
+    start: c => { darkClear(); if (!c.zone.prints) { c.zone.prints = true; handPrints(c.zone, [0, -8.5], [0, -29.5], 12); } }, at: [[3.6, c => c.mark()]] },
 ] };
 // the vending machine in the dark storage hall. Someone is pressing its buttons over and over.
 const nikiArm = (a) => { const P = NIKI.parts; if (P.armR) swing(P.armR, a); };
